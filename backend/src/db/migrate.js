@@ -1,0 +1,27 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { pool } from '../db.js';
+
+const dir = path.dirname(fileURLToPath(import.meta.url));
+
+const TABLES = [
+  'notifications', 'reports', 'reviews', 'messages', 'conversations', 'favorites',
+  'product_images', 'products', 'stores', 'categories', 'password_resets', 'users',
+];
+
+async function main() {
+  if (process.argv.includes('--reset')) {
+    await pool.query(`DROP TABLE IF EXISTS ${TABLES.join(', ')} CASCADE`);
+    console.log('Dropped all tables');
+  }
+  const sql = await fs.readFile(path.join(dir, 'schema.sql'), 'utf8');
+  await pool.query(sql);
+  console.log('Schema applied');
+  await pool.end();
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

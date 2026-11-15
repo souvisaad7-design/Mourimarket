@@ -1,0 +1,73 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { LANGS, messages } from './messages.js';
+
+const I18nContext = createContext(null);
+
+function readStoredLang() {
+  try {
+    const v = localStorage.getItem('mm_lang');
+    if (v && messages[v]) return v;
+  } catch { /* storage unavailable */ }
+  return 'ar';
+}
+
+function lookup(dict, key) {
+  return key.split('.').reduce((o, k) => (o == null ? undefined : o[k]), dict);
+}
+
+export function I18nProvider({ children }) {
+  const [lang, setLangState] = useState(readStoredLang);
+  const meta = LANGS.find((l) => l.code === lang);
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    document.documentElement.dir = meta.dir;
+  }, [lang, meta.dir]);
+
+  const setLang = useCallback((code) => {
+    setLangState(code);
+    try { localStorage.setItem('mm_lang', code); } catch { /* ignore */ }
+  }, []);
+
+  const t = useCallback(
+    (key, vars) => {
+      let s = lookup(messages[lang], key) ?? lookup(messages.ar, key) ?? key;
+      if (vars && typeof s === 'string') {
+        s = s.replace(/\{(\w+)\}/g, (_, k) => (vars[k] ?? ''));
+      }
+      return s;
+    },
+    [lang],
+  );
+
+  const value = useMemo(() => {
+    const nf = new Intl.NumberFormat(meta.locale === 'ar-MR' ? 'ar-MR-u-nu-latn' : meta.locale);
+    const df = new Intl.DateTimeFormat(meta.locale === 'ar-MR' ? 'ar-MR-u-nu-latn' : meta.locale, { dateStyle: 'medium' });
+    const dtf = new Intl.DateTimeFormat(meta.locale === 'ar-MR' ? 'ar-MR-u-nu-latn' : meta.locale, { dateStyle: 'short', timeStyle: 'short' });
+    const rtf = new Intl.RelativeTimeFormat(meta.locale === 'ar-MR' ? 'ar-u-nu-latn' : meta.locale, { numeric: 'auto' });
+    return {
+      lang,
+      dir: meta.dir,
+      setLang,
+      t,
+      /** Localised field of an API row: name_ar / name_fr / name_en */
+      tl: (row, field = 'name') => row?.[`${field}_${lang}`] ?? row?.[`${field}_ar`] ?? '',
+      price: (n) => `${nf.format(n)} ${lang === 'ar' ? 'أوقية' : 'MRU'}`,
+      number: (n) => nf.format(n),
+      date: (d) => df.format(new Date(d)),
+      dateTime: (d) => dtf.format(new Date(d)),
+      ago: (d) => {
+        const diff = (new Date(d).getTime() - Date.now()) / 1000;
+        const units = [['year', 31536000], ['month', 2592000], ['week', 604800], ['day', 86400], ['hour', 3600], ['minute', 60]];
+        for (const [unit, sec] of units) {
+          if (Math.abs(diff) >= sec) return rtf.format(Math.round(diff / sec), unit);
+        }
+        return rtf.format(0, 'minute');
+      },
+    };
+  }, [lang, meta, setLang, t]);
+
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+}
+
+export const useI18n = () => useContext(I18nContext);
