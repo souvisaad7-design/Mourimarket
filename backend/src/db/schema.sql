@@ -160,3 +160,20 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read, created_at DESC);
+
+-- Supabase exposes the public schema through its REST API (PostgREST) to anyone
+-- holding the public anon key. Enabling RLS with no policies blocks that API
+-- entirely; the app connects as the table owner, which bypasses RLS.
+ALTER TABLE files            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE password_resets  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE categories       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE stores           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE products         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE product_images   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE favorites        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE conversations    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reviews          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reports          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications    ENABLE ROW LEVEL SECURITY;
