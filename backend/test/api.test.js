@@ -74,6 +74,18 @@ describe('MauriMarket API', () => {
     assert.equal(r.status, 201);
     assert.equal(r.data.product.status, 'pending');
     productId = r.data.product.id;
+    const detail = await call(`/api/products/${productId}`, { token });
+    const img = await fetch(base + detail.data.product.images[0].url);
+    assert.equal(img.status, 200);
+    assert.equal(img.headers.get('content-type'), 'image/png');
+    assert.deepEqual(Buffer.from(await img.arrayBuffer()), PNG, 'image stored and served from the database');
+
+    const fake = new FormData();
+    for (const [k, v] of Object.entries({ title: 'Fake image', description: 'Not really an image', price: '1', categoryId, city: 'nouakchott' })) fake.append(k, v);
+    fake.append('images', new Blob(['<script>alert(1)</script>'], { type: 'image/png' }), 'x.png');
+    const rf = await call('/api/products', { method: 'POST', token, form: fake });
+    assert.equal(rf.status, 400);
+    assert.equal(rf.data.error, 'invalid_image_type');
     assert.equal((await call(`/api/products/${productId}`)).status, 404, 'pending listing hidden from public');
     assert.equal((await call(`/api/products/${productId}`, { token })).status, 200, 'owner sees it');
   });

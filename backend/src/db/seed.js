@@ -1,10 +1,13 @@
-// Seeds categories, an admin, demo users/stores and demo listings.
-// Demo images are generated SVG placeholders written to uploads/seed/.
-import fs from 'node:fs';
-import path from 'node:path';
+// Seeds categories and the admin account, plus (outside production) demo users,
+// stores and listings. Safe to run on every start: it does nothing if data exists.
+// SEED_DEMO=true|false overrides whether demo data is created.
+// Demo images are generated SVG placeholders stored in the `files` table.
 import bcrypt from 'bcryptjs';
 import { config } from '../config.js';
 import { pool } from '../db.js';
+import { saveRaw } from '../middleware/upload.js';
+
+const withDemo = process.env.SEED_DEMO ? process.env.SEED_DEMO === 'true' : !config.isProd;
 
 const CATEGORIES = [
   ['vehicles', 'السيارات والمركبات', 'Véhicules', 'Vehicles', '🚗'],
@@ -60,14 +63,15 @@ function placeholderSvg(icon, title, color, variant) {
 }
 
 async function main() {
+  if (config.isProd && !process.env.ADMIN_PASSWORD) {
+    throw new Error('Set ADMIN_PASSWORD (and ADMIN_EMAIL) before seeding a production database.');
+  }
   const client = await pool.connect();
-  const seedDir = path.join(config.uploadDir, 'seed');
-  fs.mkdirSync(seedDir, { recursive: true });
   try {
     await client.query('BEGIN');
     const { rowCount } = await client.query('SELECT 1 FROM categories LIMIT 1');
     if (rowCount) {
-      console.log('Database already seeded – run "npm run db:reset" to start over.');
+      console.log('Database already seeded – nothing to do.');
       await client.query('ROLLBACK');
       return;
     }
@@ -81,10 +85,20 @@ async function main() {
       catIds[slug] = { id: rows[0].id, icon, color: COLORS[i] };
     }
 
-    const hash = await bcrypt.hash('Password123', 12);
     const adminHash = await bcrypt.hash(process.env.ADMIN_PASSWORD || 'Admin12345', 12);
+    const adminEmail = (process.env.ADMIN_EMAIL || 'admin@maurimarket.mr').toLowerCase();
+    if (!withDemo) {
+      await client.query(
+        `INSERT INTO users (name, email, password_hash, role, city) VALUES ('مدير المنصة', $1, $2, 'admin', 'nouakchott')`,
+        [adminEmail, adminHash],
+      );
+      await client.query('COMMIT');
+      console.log(`Seed complete (categories + admin ${adminEmail}).`);
+      return;
+    }
+    const hash = await bcrypt.hash('Password123', 12);
     const users = [
-      ['مدير المنصة', process.env.ADMIN_EMAIL || 'admin@maurimarket.mr', '+222 22000000', adminHash, 'admin', 'individual', 'nouakchott'],
+      ['مدير المنصة', adminEmail, '+222 22000000', adminHash, 'admin', 'individual', 'nouakchott'],
       ['محمد ولد أحمد', 'mohamed@example.mr', '+222 36000001', hash, 'user', 'individual', 'nouakchott'],
       ['Fatimetou Sidi', 'fatimetou@example.mr', '+222 46000002', hash, 'user', 'merchant', 'nouadhibou'],
       ['سيدي محمد', 'sidi@example.mr', '+222 26000003', hash, 'user', 'individual', 'rosso'],
@@ -123,11 +137,8 @@ async function main() {
       );
       productIds.push(rows[0].id);
       for (const v of [0, 1]) {
-        const file = `p${rows[0].id}-${v}.svg`;
-        fs.writeFileSync(path.join(seedDir, file), placeholderSvg(catIds[cat].icon, title, catIds[cat].color, v));
-        await client.query('INSERT INTO product_images (product_id, url, sort_order) VALUES ($1,$2,$3)', [
-          rows[0].id, `/uploads/seed/${file}`, v,
-        ]);
+        const url = await saveRaw(Buffer.from(placeholderSvg(catIds[cat].icon, title, catIds[cat].color, v)), 'image/svg+xml', client);
+        await client.query('INSERT INTO product_images (product_id, url, sort_order) VALUES ($1,$2,$3)', [rows[0].id, url, v]);
       }
     }
 
@@ -137,8 +148,8 @@ async function main() {
        VALUES ($1, $2, 'هاتف هواوي P30 للبيع', 'هاتف بحالة جيدة مع الشاحن، الشاشة سليمة.', 9000, 'nouakchott', 'used', 'pending') RETURNING id`,
       [userIds[3], catIds['phones-electronics'].id],
     );
-    fs.writeFileSync(path.join(seedDir, `p${pending[0].id}-0.svg`), placeholderSvg('📱', 'هاتف هواوي P30', COLORS[1], 0));
-    await client.query('INSERT INTO product_images (product_id, url) VALUES ($1, $2)', [pending[0].id, `/uploads/seed/p${pending[0].id}-0.svg`]);
+    const pendingUrl = await saveRaw(Buffer.from(placeholderSvg('📱', 'هاتف هواوي P30', COLORS[1], 0)), 'image/svg+xml', client);
+    await client.query('INSERT INTO product_images (product_id, url) VALUES ($1, $2)', [pending[0].id, pendingUrl]);
 
     // A conversation, a documented sale and a verified review.
     const buyer = userIds[5];
@@ -170,7 +181,7 @@ async function main() {
 
     await client.query('COMMIT');
     console.log('Seed complete.');
-    console.log(`  Admin:     ${users[0][1]} / ${process.env.ADMIN_PASSWORD || 'Admin12345'}`);
+    console.log(`  Admin:     ${adminEmail} / ${process.env.ADMIN_PASSWORD ? '(ADMIN_PASSWORD)' : 'Admin12345'}`);
     console.log('  Demo users (password "Password123"): mohamed@, fatimetou@ (merchant), sidi@, amana@ (merchant), buyer@ @example.mr');
   } catch (err) {
     await client.query('ROLLBACK');

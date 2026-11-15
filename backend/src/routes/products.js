@@ -6,7 +6,7 @@ import { CITY_KEYS, MAX_IMAGES } from '../lib/constants.js';
 import { badRequest, forbidden, notFound, pagination, parse } from '../lib/http.js';
 import { notify } from '../lib/notify.js';
 import { optionalAuth, requireAuth } from '../middleware/auth.js';
-import { fileUrl, removeUploads, upload } from '../middleware/upload.js';
+import { removeUploads, saveFile, upload } from '../middleware/upload.js';
 
 const router = Router();
 
@@ -168,78 +168,68 @@ async function assertCategory(id, client) {
 /** POST /api/products – create a listing (multipart, field "images"). */
 router.post('/', requireAuth, upload.array('images', MAX_IMAGES), async (req, res) => {
   const files = req.files || [];
-  try {
-    const data = parse(productSchema, req.body);
-    if (!files.length) throw badRequest('validation_error', { images: 'image_required' });
-    const status = config.autoApprove ? 'approved' : 'pending';
-    const product = await tx(async (client) => {
-      await assertCategory(data.categoryId, client);
-      const storeId = await storeIdFor(req.user.id, client);
-      const { rows } = await client.query(
-        `INSERT INTO products (seller_id, category_id, store_id, title, description, price, city, condition, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, status`,
-        [req.user.id, data.categoryId, storeId, data.title, data.description, data.price, data.city, data.condition, status],
-      );
-      for (const [i, file] of files.entries()) {
-        await client.query('INSERT INTO product_images (product_id, url, sort_order) VALUES ($1, $2, $3)', [
-          rows[0].id, fileUrl(file), i,
-        ]);
-      }
-      return rows[0];
-    });
-    res.status(201).json({ product });
-  } catch (err) {
-    removeUploads(files.map(fileUrl));
-    throw err;
-  }
+  const data = parse(productSchema, req.body);
+  if (!files.length) throw badRequest('validation_error', { images: 'image_required' });
+  const status = config.autoApprove ? 'approved' : 'pending';
+  const product = await tx(async (client) => {
+    await assertCategory(data.categoryId, client);
+    const storeId = await storeIdFor(req.user.id, client);
+    const { rows } = await client.query(
+      `INSERT INTO products (seller_id, category_id, store_id, title, description, price, city, condition, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, status`,
+      [req.user.id, data.categoryId, storeId, data.title, data.description, data.price, data.city, data.condition, status],
+    );
+    for (const [i, file] of files.entries()) {
+      await client.query('INSERT INTO product_images (product_id, url, sort_order) VALUES ($1, $2, $3)', [
+        rows[0].id, await saveFile(file, client), i,
+      ]);
+    }
+    return rows[0];
+  });
+  res.status(201).json({ product });
 });
 
 /** PUT /api/products/:id – edit. Content edits send the listing back to review. */
 router.put('/:id', requireAuth, upload.array('images', MAX_IMAGES), async (req, res) => {
   const files = req.files || [];
-  try {
-    const product = await loadProduct(req.params.id);
-    assertOwner(product, req.user);
-    const data = parse(productSchema, req.body);
-    const removeIds = []
-      .concat(req.body.removeImageIds || [])
-      .map((v) => parseInt(v, 10))
-      .filter(Boolean);
+  const product = await loadProduct(req.params.id);
+  assertOwner(product, req.user);
+  const data = parse(productSchema, req.body);
+  const removeIds = []
+    .concat(req.body.removeImageIds || [])
+    .map((v) => parseInt(v, 10))
+    .filter(Boolean);
 
-    const removed = await tx(async (client) => {
-      await assertCategory(data.categoryId, client);
-      const del = await client.query(
-        'DELETE FROM product_images WHERE product_id = $1 AND id = ANY($2::int[]) RETURNING url',
-        [product.id, removeIds],
-      );
-      const { rows } = await client.query(
-        'SELECT COUNT(*) AS n, COALESCE(MAX(sort_order), -1) AS max FROM product_images WHERE product_id = $1',
-        [product.id],
-      );
-      if (rows[0].n + files.length === 0) throw badRequest('validation_error', { images: 'image_required' });
-      if (rows[0].n + files.length > MAX_IMAGES) throw badRequest('validation_error', { images: 'too_many_images' });
-      for (const [i, file] of files.entries()) {
-        await client.query('INSERT INTO product_images (product_id, url, sort_order) VALUES ($1, $2, $3)', [
-          product.id, fileUrl(file), rows[0].max + 1 + i,
-        ]);
-      }
-      const keepApproved = config.autoApprove || req.user.role === 'admin';
-      await client.query(
-        `UPDATE products SET title = $1, description = $2, price = $3, category_id = $4, city = $5, condition = $6,
-           status = CASE WHEN $7 THEN status ELSE 'pending' END,
-           rejection_reason = CASE WHEN $7 THEN rejection_reason ELSE NULL END,
-           updated_at = now()
-         WHERE id = $8`,
-        [data.title, data.description, data.price, data.categoryId, data.city, data.condition, keepApproved, product.id],
-      );
-      return del.rows.map((r) => r.url);
-    });
-    removeUploads(removed);
-    res.json({ ok: true });
-  } catch (err) {
-    removeUploads(files.map(fileUrl));
-    throw err;
-  }
+  const removed = await tx(async (client) => {
+    await assertCategory(data.categoryId, client);
+    const del = await client.query(
+      'DELETE FROM product_images WHERE product_id = $1 AND id = ANY($2::int[]) RETURNING url',
+      [product.id, removeIds],
+    );
+    const { rows } = await client.query(
+      'SELECT COUNT(*) AS n, COALESCE(MAX(sort_order), -1) AS max FROM product_images WHERE product_id = $1',
+      [product.id],
+    );
+    if (rows[0].n + files.length === 0) throw badRequest('validation_error', { images: 'image_required' });
+    if (rows[0].n + files.length > MAX_IMAGES) throw badRequest('validation_error', { images: 'too_many_images' });
+    for (const [i, file] of files.entries()) {
+      await client.query('INSERT INTO product_images (product_id, url, sort_order) VALUES ($1, $2, $3)', [
+        product.id, await saveFile(file, client), rows[0].max + 1 + i,
+      ]);
+    }
+    const keepApproved = config.autoApprove || req.user.role === 'admin';
+    await client.query(
+      `UPDATE products SET title = $1, description = $2, price = $3, category_id = $4, city = $5, condition = $6,
+         status = CASE WHEN $7 THEN status ELSE 'pending' END,
+         rejection_reason = CASE WHEN $7 THEN rejection_reason ELSE NULL END,
+         updated_at = now()
+       WHERE id = $8`,
+      [data.title, data.description, data.price, data.categoryId, data.city, data.condition, keepApproved, product.id],
+    );
+    return del.rows.map((r) => r.url);
+  });
+  removeUploads(removed);
+  res.json({ ok: true });
 });
 
 /**

@@ -33,6 +33,8 @@ npm run dev:web     # Web on http://localhost:5173 (proxies /api and /uploads)
 
 **Production / single server:** run `npm run build` and then `npm start`. Express serves the built React app and the API on the same port.
 
+**Deploy online (Render + Supabase, free):** follow [docs/DEPLOY.md](docs/DEPLOY.md), a step-by-step guide in Arabic. The repo includes `render.yaml`.
+
 ### Demo accounts (after `db:reset`)
 
 | Role | Email | Password |

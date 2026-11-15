@@ -5,7 +5,7 @@ import { query } from '../db.js';
 import { CITIES, CITY_KEYS, REPORT_REASONS } from '../lib/constants.js';
 import { conflict, forbidden, notFound, parse, slugify } from '../lib/http.js';
 import { requireAuth } from '../middleware/auth.js';
-import { fileUrl, removeUploads, upload } from '../middleware/upload.js';
+import { removeUploads, saveFile, upload } from '../middleware/upload.js';
 import { PRODUCT_FROM, PRODUCT_SELECT } from './products.js';
 
 const router = Router();
@@ -98,7 +98,7 @@ router.put('/stores/me', requireAuth, upload.single('logo'), async (req, res) =>
     if (req.user.account_type !== 'merchant') throw forbidden('merchant_only');
     const data = parse(storeSchema, req.body);
     const existing = (await query('SELECT id, slug, logo_url FROM stores WHERE owner_id = $1', [req.user.id])).rows[0];
-    const logo = req.file ? fileUrl(req.file) : null;
+    const logo = req.file ? await saveFile(req.file) : null;
     let store;
     if (existing) {
       store = (
@@ -126,7 +126,6 @@ router.put('/stores/me', requireAuth, upload.single('logo'), async (req, res) =>
     }
     res.json({ store });
   } catch (err) {
-    if (req.file) removeUploads([fileUrl(req.file)]);
     if (err.code === '23505') throw conflict('store_exists');
     throw err;
   }

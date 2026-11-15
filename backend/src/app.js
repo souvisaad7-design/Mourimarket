@@ -8,6 +8,7 @@ import morgan from 'morgan';
 import multer from 'multer';
 import { config } from './config.js';
 import { HttpError } from './lib/http.js';
+import { serveFile } from './middleware/upload.js';
 import accountRoutes from './routes/account.js';
 import adminRoutes from './routes/admin.js';
 import authRoutes from './routes/auth.js';
@@ -32,6 +33,7 @@ export function createApp() {
   app.use(express.json({ limit: '200kb' }));
   if (process.env.NODE_ENV !== 'test') app.use(morgan(config.isProd ? 'combined' : 'dev'));
 
+  app.get('/uploads/f/:id', serveFile);
   app.use('/uploads', express.static(config.uploadDir, { maxAge: '30d', immutable: true }));
 
   // Brute-force protection on credential endpoints.

@@ -1,0 +1,36 @@
+# Render Blueprint – one web service serving the API and the React app.
+# The database is external (Supabase): paste its connection string as DATABASE_URL.
+services:
+  - type: web
+    name: maurimarket
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: >-
+      npm --prefix backend ci --omit=dev &&
+      npm --prefix frontend ci --include=dev &&
+      npm --prefix frontend run build
+    # Creates tables if missing and seeds categories + admin on first boot (no-op afterwards).
+    startCommand: >-
+      npm --prefix backend run db:migrate &&
+      npm --prefix backend run db:seed &&
+      npm --prefix backend start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: AUTO_APPROVE
+        value: "false"
+      - key: DB_POOL_MAX
+        value: "5"

@@ -7,7 +7,7 @@ const dir = path.dirname(fileURLToPath(import.meta.url));
 
 const TABLES = [
   'notifications', 'reports', 'reviews', 'messages', 'conversations', 'favorites',
-  'product_images', 'products', 'stores', 'categories', 'password_resets', 'users',
+  'product_images', 'products', 'stores', 'categories', 'password_resets', 'users', 'files',
 ];
 
 async function main() {

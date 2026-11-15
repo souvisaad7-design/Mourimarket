@@ -1,6 +1,14 @@
 -- MauriMarket – PostgreSQL schema
 -- All prices are stored in MRU (Mauritanian ouguiya, new).
 
+-- Uploaded images (stored in the database so they survive redeploys).
+CREATE TABLE IF NOT EXISTS files (
+  id          SERIAL PRIMARY KEY,
+  mime        VARCHAR(40) NOT NULL,
+  data        BYTEA NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS users (
   id             SERIAL PRIMARY KEY,
   name           VARCHAR(100) NOT NULL,

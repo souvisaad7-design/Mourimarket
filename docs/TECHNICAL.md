@@ -130,19 +130,24 @@ Base path `/api`. Errors look like `{ "error": "<code>", "fields": { "<field>": 
 | CORS_ORIGIN | http://localhost:5173 | comma-separated; also used to build reset links |
 | UPLOAD_DIR | uploads | |
 | AUTO_APPROVE | false | |
-| ADMIN_EMAIL / ADMIN_PASSWORD | admin@maurimarket.mr / Admin12345 | used by the seed script |
+| ADMIN_EMAIL / ADMIN_PASSWORD | admin@maurimarket.mr / Admin12345 | used by the seed script (password **required** in production) |
+| DB_SSL | auto | TLS to the database; on for any non-localhost URL |
+| SEED_DEMO | false in production | load demo users and listings |
+| DB_POOL_MAX | 10 | connection pool size |
 
 ## 6. Deployment
 
-1. Provision PostgreSQL and create the database.
-2. `npm run install:all && npm run build`
-3. Set `NODE_ENV=production` and the variables above, then run `npm --prefix backend run db:migrate` and, once, `db:seed` for the categories and admin account.
-4. `npm start` behind a reverse proxy (nginx/Caddy) with HTTPS. Persist `backend/uploads/` on disk, or move it to object storage later.
+Recommended setup: **Render** (web service, from `render.yaml`) with **Supabase** (PostgreSQL). The Arabic step-by-step guide is in [DEPLOY.md](DEPLOY.md).
+
+* Uploaded images live in the `files` table (BYTEA), so the app needs no persistent disk. The server checks each upload's real type from its magic bytes (JPEG, PNG or WebP only), and serves files with a long cache lifetime.
+* Startup runs `db:migrate` (idempotent DDL) and then `db:seed`. The seed does nothing once categories exist. In production it creates only the categories and the admin account (`ADMIN_EMAIL` / `ADMIN_PASSWORD`, required). `SEED_DEMO=true` loads demo data instead.
+* TLS to the database is enabled automatically for any non-localhost `DATABASE_URL` (override with `DB_SSL`). With Supabase, use the **Session pooler** connection string, because Render's free tier has no IPv6.
+* Any other host works the same way: `npm run install:all && npm run build`, set the variables, then `npm start` behind HTTPS.
 
 ## 7. Known limits of v1 / next steps
 
 * Password-reset emails are **logged, not sent**. Connect an SMTP or SMS provider in `routes/auth.js` (`forgot-password`).
 * Live updates use polling. Socket.IO would make messaging instant.
-* Images are stored on local disk. For scale, use S3-compatible storage and server-side thumbnails.
+* Images are stored in PostgreSQL. This is simple and durable for an MVP. At scale, move them to object storage (e.g. Supabase Storage or S3) and add server-side thumbnails.
 * Search uses `ILIKE`. For large catalogues, add `pg_trgm` or a full-text index.
 * Future features from §17 of the spec: mobile apps, online payment, delivery, seller identity verification, paid promotion, merchant analytics, recommendations.

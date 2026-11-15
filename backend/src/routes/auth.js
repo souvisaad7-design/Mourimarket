@@ -7,7 +7,7 @@ import { query } from '../db.js';
 import { CITY_KEYS } from '../lib/constants.js';
 import { badRequest, conflict, forbidden, parse, unauthorized } from '../lib/http.js';
 import { requireAuth, signToken } from '../middleware/auth.js';
-import { fileUrl, removeUploads, upload } from '../middleware/upload.js';
+import { removeUploads, saveFile, upload } from '../middleware/upload.js';
 
 const router = Router();
 
@@ -79,7 +79,7 @@ const profileSchema = z.object({
 router.put('/me', requireAuth, upload.single('avatar'), async (req, res) => {
   const data = parse(profileSchema, req.body);
   const old = await query('SELECT avatar_url FROM users WHERE id = $1', [req.user.id]);
-  const avatar = req.file ? fileUrl(req.file) : null;
+  const avatar = req.file ? await saveFile(req.file) : null;
   const { rows } = await query(
     `UPDATE users SET name = $1, phone = $2, city = $3, bio = $4,
        account_type = COALESCE($5, account_type), avatar_url = COALESCE($6, avatar_url), updated_at = now()

@@ -6,7 +6,12 @@ pg.types.setTypeParser(1700, (v) => (v === null ? null : Number(v)));
 // COUNT(*) returns BIGINT; counts here are always small.
 pg.types.setTypeParser(20, (v) => (v === null ? null : Number(v)));
 
-export const pool = new pg.Pool({ connectionString: config.databaseUrl });
+export const pool = new pg.Pool({
+  connectionString: config.databaseUrl,
+  // Hosted Postgres (Supabase, Neon, Render…) requires TLS.
+  ssl: config.dbSsl ? { rejectUnauthorized: false } : undefined,
+  max: Number(process.env.DB_POOL_MAX || 10),
+});
 
 export const query = (text, params) => pool.query(text, params);
 
