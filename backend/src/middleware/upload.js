@@ -66,7 +66,7 @@ export async function serveFile(req, res) {
   if (!rows[0]) return res.status(404).end();
   res.set({
     'Content-Type': rows[0].mime,
-    'Cache-Control': 'public, max-age=31536000, immutable',
+    'Cache-Control': 'public, max-age=31536000, s-maxage=31536000, immutable',
     'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'",
     'X-Content-Type-Options': 'nosniff',
   });

@@ -54,15 +54,15 @@ export async function api(path, { method = 'GET', body, query } = {}) {
 }
 
 /**
- * Downscale an image in the browser before upload (max 1600px, JPEG ~0.82).
+ * Downscale an image in the browser before upload (max 1400px, JPEG ~0.8; Vercel caps request bodies at 4.5 MB).
  * Keeps uploads small on mobile networks. Falls back to the original file.
  */
-export async function compressImage(file, maxSize = 1600, quality = 0.82) {
+export async function compressImage(file, maxSize = 1400, quality = 0.8) {
   if (!file.type.startsWith('image/')) return file;
   try {
     const bitmap = await createImageBitmap(file);
     const scale = Math.min(1, maxSize / Math.max(bitmap.width, bitmap.height));
-    if (scale === 1 && file.size < 600 * 1024) return file;
+    if (scale === 1 && file.size < 400 * 1024) return file;
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(bitmap.width * scale);
     canvas.height = Math.round(bitmap.height * scale);

@@ -137,7 +137,10 @@ Base path `/api`. Errors look like `{ "error": "<code>", "fields": { "<field>": 
 
 ## 6. Deployment
 
-Recommended setup: **Render** (web service, from `render.yaml`) with **Supabase** (PostgreSQL). The Arabic step-by-step guide is in [DEPLOY.md](DEPLOY.md).
+Two ready-made setups, with step-by-step instructions in Arabic in [DEPLOY.md](DEPLOY.md):
+
+* **Vercel + Supabase** (`vercel.json`, `api/index.js`): the React build is served as static files and Express runs as one serverless function. Migrations and seeding run during the build. `POSTGRES_URL` from the Supabase integration is accepted; `sslmode` and `supa` params are stripped so `pg` uses our TLS settings. Request bodies are capped at 4.5 MB, so photos are compressed in the browser first.
+* **Render + Supabase** (`render.yaml`): one long-running web service.
 
 * Uploaded images live in the `files` table (BYTEA), so the app needs no persistent disk. The server checks each upload's real type from its magic bytes (JPEG, PNG or WebP only), and serves files with a long cache lifetime.
 * Startup runs `db:migrate` (idempotent DDL) and then `db:seed`. The seed does nothing once categories exist. In production it creates only the categories and the admin account (`ADMIN_EMAIL` / `ADMIN_PASSWORD`, required). `SEED_DEMO=true` loads demo data instead.

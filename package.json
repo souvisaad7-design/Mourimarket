@@ -11,5 +11,9 @@
     "build": "npm --prefix frontend run build",
     "start": "npm --prefix backend start",
     "test": "npm --prefix backend test"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20"
   }
 }
