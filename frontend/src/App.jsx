@@ -8,7 +8,7 @@ import Dashboard from './pages/Dashboard.jsx';
 import Favorites from './pages/Favorites.jsx';
 import Home from './pages/Home.jsx';
 import Messages from './pages/Messages.jsx';
-import { NotFound, Safety } from './pages/Static.jsx';
+import { About, Help, NotFound, Safety } from './pages/Static.jsx';
 import Notifications from './pages/Notifications.jsx';
 import ProductDetail from './pages/ProductDetail.jsx';
 import ProductForm from './pages/ProductForm.jsx';
@@ -51,6 +51,8 @@ export default function App() {
         <Route path="stores" element={<Stores />} />
         <Route path="stores/:slug" element={<StoreDetail />} />
         <Route path="safety" element={<Safety />} />
+        <Route path="about" element={<About />} />
+        <Route path="help" element={<Help />} />
 
         {/* Auth */}
         <Route path="login" element={<GuestOnly><Login /></GuestOnly>} />

@@ -41,6 +41,7 @@ export function I18nProvider({ children }) {
   );
 
   const value = useMemo(() => {
+    const priceFmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
     const nf = new Intl.NumberFormat(meta.locale === 'ar-MR' ? 'ar-MR-u-nu-latn' : meta.locale);
     const df = new Intl.DateTimeFormat(meta.locale === 'ar-MR' ? 'ar-MR-u-nu-latn' : meta.locale, { dateStyle: 'medium' });
     const dtf = new Intl.DateTimeFormat(meta.locale === 'ar-MR' ? 'ar-MR-u-nu-latn' : meta.locale, { dateStyle: 'short', timeStyle: 'short' });
@@ -52,7 +53,7 @@ export function I18nProvider({ children }) {
       t,
       /** Localised field of an API row: name_ar / name_fr / name_en */
       tl: (row, field = 'name') => row?.[`${field}_${lang}`] ?? row?.[`${field}_ar`] ?? '',
-      price: (n) => `${nf.format(n)} ${lang === 'ar' ? 'أوقية' : 'MRU'}`,
+      price: (n) => `${(lang === 'fr' ? nf : priceFmt).format(Number(n))} MRU`,
       number: (n) => nf.format(n),
       date: (d) => df.format(new Date(d)),
       dateTime: (d) => dtf.format(new Date(d)),

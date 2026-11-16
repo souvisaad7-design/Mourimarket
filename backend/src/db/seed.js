@@ -17,7 +17,7 @@ const CATEGORIES = [
   ['home-furniture', 'الأثاث والمنزل', 'Maison & Meubles', 'Home & Furniture', '🛋️'],
   ['computers', 'الحواسيب ومعدات الإعلام الآلي', 'Informatique', 'Computers & IT', '💻'],
   ['tools-equipment', 'الأدوات والمعدات', 'Outils & Équipements', 'Tools & Equipment', '🛠️'],
-  ['services', 'الخدمات', 'Services', 'Services', '🤝'],
+  ['services', 'الخدمات', 'Services', 'Services', '💼'],
   ['other', 'منتجات أخرى', 'Autres', 'Other', '📦'],
 ];
 
@@ -171,6 +171,12 @@ async function main() {
     await client.query(
       'INSERT INTO reviews (product_id, reviewer_id, seller_id, rating, comment) VALUES ($1,$2,$3,5,$4)',
       [soldProduct, buyer, userIds[1], 'بائع صادق والهاتف كما في الوصف. أنصح بالتعامل معه.'],
+    );
+
+    // A few special offers (price before discount).
+    await client.query(
+      `UPDATE products SET old_price = ROUND(price * 1.18, -2) WHERE id = ANY($1::int[])`,
+      [[productIds[1], productIds[4], productIds[10], productIds[12], productIds[15]]],
     );
 
     // Verified merchants and a few featured listings.

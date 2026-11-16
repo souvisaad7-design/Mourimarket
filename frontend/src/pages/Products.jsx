@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
 
-const FILTER_KEYS = ['q', 'category', 'city', 'minPrice', 'maxPrice', 'condition', 'sort', 'availability', 'featured', 'page'];
+const FILTER_KEYS = ['q', 'category', 'city', 'minPrice', 'maxPrice', 'condition', 'sort', 'availability', 'featured', 'deals', 'page'];
 
 /** All listings + search results. Every filter lives in the URL so results are shareable. */
 export default function Products() {
@@ -26,6 +26,7 @@ export default function Products() {
   const category = categories.find((c) => c.slug === current.category);
   const title = current.q ? t('products.searchFor', { q: current.q })
     : current.featured ? t('home.featured')
+    : current.deals ? `🔥 ${t('nav.offers')}`
     : category ? tl(category) : t('products.title');
   useDocumentTitle(title);
 

@@ -84,10 +84,10 @@
    ------------------------------------------------------------------------- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .text-brand-700,
-  :root:not([data-theme='light']) .text-brand-800 { color: rgb(94 234 212); }
-  :root:not([data-theme='light']) .bg-brand-50 { background-color: rgb(19 78 74 / 0.35); }
-  :root:not([data-theme='light']) .bg-brand-100 { background-color: rgb(19 78 74 / 0.6); }
-  :root:not([data-theme='light']) .bg-brand-50\/60 { background-color: rgb(19 78 74 / 0.25); }
+  :root:not([data-theme='light']) .text-brand-800 { color: rgb(134 239 172); }
+  :root:not([data-theme='light']) .bg-brand-50 { background-color: rgb(20 83 45 / 0.4); }
+  :root:not([data-theme='light']) .bg-brand-100 { background-color: rgb(20 83 45 / 0.65); }
+  :root:not([data-theme='light']) .bg-brand-50\/60 { background-color: rgb(20 83 45 / 0.28); }
   :root:not([data-theme='light']) .bg-amber-50,
   :root:not([data-theme='light']) .bg-amber-100 { background-color: rgb(120 53 15 / 0.35); }
   :root:not([data-theme='light']) .text-amber-700,
@@ -110,3 +110,16 @@
   :root:not([data-theme='light']) .border-rose-200 { border-color: rgb(159 18 57); }
   :root:not([data-theme='light']) img { filter: brightness(0.92); }
 }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .dark-brand-text,
+  :root:not([data-theme='light']) .text-brand-900 { color: rgb(240 253 244); }
+  :root:not([data-theme='light']) .text-brand-600 { color: rgb(74 222 128); }
+}
+:root[data-theme='dark'] .dark-brand-text,
+:root[data-theme='dark'] .text-brand-900 { color: rgb(240 253 244); }
+:root[data-theme='dark'] .text-brand-600 { color: rgb(74 222 128); }
+:root[data-theme='dark'] .text-brand-700,
+:root[data-theme='dark'] .text-brand-800 { color: rgb(134 239 172); }
+:root[data-theme='dark'] .bg-brand-50 { background-color: rgb(20 83 45 / 0.4); }
+:root[data-theme='dark'] .bg-brand-100 { background-color: rgb(20 83 45 / 0.65); }

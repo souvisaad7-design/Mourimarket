@@ -15,10 +15,11 @@ export default {
         // Always-dark ink for overlays, toasts and badges, whatever the theme.
         ink: '#0f172a',
         brand: {
-          50: '#f0fdfa', 100: '#ccfbf1', 200: '#99f6e4', 300: '#5eead4', 400: '#2dd4bf',
-          500: '#14b8a6', 600: '#0d9488', 700: '#0f766e', 800: '#115e59', 900: '#134e4a',
+          // Mauritanian green
+          50: '#effaf3', 100: '#d8f3e2', 200: '#b3e6c8', 300: '#7fd2a5', 400: '#48b77c',
+          500: '#249b5e', 600: '#167d4a', 700: '#0f6a3d', 800: '#0d5532', 900: '#0b462a',
         },
-        gold: { 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706' },
+        gold: { 300: '#fde68a', 400: '#fbc531', 500: '#f5b301', 600: '#d99a00' },
       },
       keyframes: {
         'fade-in': { from: { opacity: 0, transform: 'translateY(4px)' }, to: { opacity: 1, transform: 'none' } },

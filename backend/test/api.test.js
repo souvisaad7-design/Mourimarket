@@ -269,3 +269,25 @@ describe('v1.1: smart search, featured listings, verified sellers', () => {
     assert.equal(r.data.items[0].city, 'nouakchott');
   });
 });
+
+describe('v1.2: special offers', () => {
+  it('lists only discounted listings with deals=1', async () => {
+    const r = await call('/api/products?deals=1');
+    assert.ok(r.data.total >= 1);
+    assert.ok(r.data.items.every((p) => p.old_price > p.price));
+  });
+
+  it('rejects an old price that is not higher than the price', async () => {
+    const token = await login('mohamed@example.mr');
+    const categoryId = (await call('/api/categories')).data.items[0].id;
+    const fd = new FormData();
+    for (const [k, v] of Object.entries({ title: 'Offer test', description: 'A discounted test item', price: '1000', oldPrice: '900', categoryId, city: 'nouakchott' })) fd.append(k, v);
+    fd.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+    const r = await call('/api/products', { method: 'POST', token, form: fd });
+    assert.equal(r.status, 400);
+    assert.equal(r.data.fields.oldPrice, 'old_price_higher');
+    fd.set('oldPrice', '1500');
+    const ok = await call('/api/products', { method: 'POST', token, form: fd });
+    assert.equal(ok.status, 201);
+  });
+});

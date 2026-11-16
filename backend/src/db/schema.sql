@@ -172,6 +172,13 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN NOT NULL DEFAULT 
 ALTER TABLE products ADD COLUMN IF NOT EXISTS featured_until TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS idx_products_featured ON products(featured_until) WHERE featured_until IS NOT NULL;
 
+-- Special offers: optional price before discount (shown struck through).
+ALTER TABLE products ADD COLUMN IF NOT EXISTS old_price NUMERIC(14,2) CHECK (old_price IS NULL OR old_price >= 0);
+CREATE INDEX IF NOT EXISTS idx_products_deals ON products(created_at DESC) WHERE old_price IS NOT NULL;
+
+-- Category icons closer to the new design.
+UPDATE categories SET icon = '💼' WHERE slug = 'services' AND icon = '🤝';
+
 -- Search normalisation: lower-case; unify Arabic letter variants (أ إ آ ٱ → ا, ة → ه,
 -- ى → ي, ؤ → و, ئ → ي); drop tashkeel/tatweel; strip French accents.
 CREATE OR REPLACE FUNCTION mm_normalize(t text) RETURNS text

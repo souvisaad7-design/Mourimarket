@@ -475,6 +475,133 @@ function deepMerge(target, extra) {
   }
   return target;
 }
+// ---- v1.2: new header/home design, special offers, about & help pages ----
+const v12 = {
+  ar: {
+    brand: { topTagline: 'سوقك الموريتاني، كل شيء في مكان واحد' },
+    nav: { loginShort: 'دخول', allProducts: 'جميع المنتجات', offers: 'العروض الخاصة', about: 'من نحن', help: 'مساعدة', contact: 'اتصل بنا' },
+    search: { headerPlaceholder: 'ابحث عن منتج، تصنيف أو مدينة…' },
+    hero: {
+      country: 'موريتانيا',
+      s1title: 'سوقك الموريتاني، كل شيء في مكان واحد', s1text: 'اشترِ • بِع • تصفّح بسهولة وأمان', s1cta: 'تصفح المنتجات',
+      s2title: 'سيارات ومركبات من كل المدن', s2text: 'قارن العروض وتواصل مباشرة مع البائع', s2cta: 'تصفح السيارات',
+      s3title: 'بِع هاتفك أو أي شيء لا تحتاجه', s3text: 'انشر إعلانك مجاناً في أقل من دقيقتين', s3cta: 'أضف إعلاناً',
+      s4title: 'عروض وتخفيضات خاصة', s4text: 'أسعار مخفّضة من التجار والأفراد', s4cta: 'شاهد العروض',
+    },
+    home: {
+      allCategories: 'عرض جميع التصنيفات',
+      whyTitle: 'لماذا MauriMarket؟', why1: 'منصة موثوقة وآمنة', why2: 'سهولة في البحث والتصفح', why3: 'تواصل مباشر مع البائعين', why4: 'مناسب لجميع مدن موريتانيا',
+      promoTitle: 'أعلن عن منتجاتك', promoTitle2: 'بكل سهولة', promoCta: 'إضافة إعلان',
+      stripPill: 'MauriMarket .. التسوق أسهل وأذكى',
+      feat1: 'مجتمع كبير من المشترين والبائعين', feat2: 'تجربة سريعة وسهلة', feat3: 'حماية بياناتك الشخصية', feat4: 'مساعدة ونصائح للأمان',
+    },
+    product: { viewDetails: 'عرض التفاصيل', oldPrice: 'السعر قبل التخفيض' },
+    form: { oldPrice: 'السعر قبل التخفيض (MRU)', oldPriceHelp: 'اختياري: يظهر إعلانك في «العروض الخاصة» مع نسبة التخفيض.' },
+    fields: { old_price_higher: 'يجب أن يكون أعلى من السعر الحالي' },
+    about: {
+      title: 'من نحن', intro: 'MauriMarket منصة موريتانية للبيع والشراء عبر الإنترنت، تجمع الأفراد والتجار في مكان واحد لعرض منتجاتهم وخدماتهم، وتمكّن المشترين من البحث والتواصل مباشرة مع البائعين.',
+      missionTitle: 'رسالتنا', mission: 'تسهيل التجارة الإلكترونية في موريتانيا عبر منصة بسيطة ومنظمة وآمنة، بالأوقية الموريتانية وباللغات العربية والفرنسية والإنجليزية.',
+      valuesTitle: 'ما يميزنا', v1: 'مراجعة كل إعلان قبل نشره', v2: 'بائعون موثّقون بعلامة ✓', v3: 'تقييمات مرتبطة بعمليات بيع حقيقية', v4: 'تواصل مباشر دون وسطاء',
+      contactTitle: 'اتصل بنا', contactText: 'لأي استفسار أو اقتراح أو شكوى، تواصل معنا:', contactSoon: 'سيتم إضافة معلومات التواصل قريباً. يمكنك حالياً الإبلاغ عن أي إعلان مخالف بزر «الإبلاغ عن الإعلان».',
+      email: 'البريد الإلكتروني', whatsapp: 'واتساب',
+    },
+    help: {
+      title: 'مساعدة', subtitle: 'أجوبة لأكثر الأسئلة شيوعاً',
+      q1: 'كيف أنشر إعلاناً؟', a1: 'أنشئ حساباً، ثم اضغط «أضف إعلاناً»، وأضف الصور والسعر والمدينة والوصف. يراجع فريقنا الإعلان ثم ينشره.',
+      q2: 'لماذا لا يظهر إعلاني؟', a2: 'كل إعلان جديد أو معدّل يمر بمراجعة الإدارة. ستصلك رسالة عند الموافقة أو الرفض مع السبب.',
+      q3: 'كيف أتواصل مع البائع؟', a3: 'من صفحة الإعلان اضغط «راسل البائع»، أو «إظهار الرقم» للاتصال أو واتساب.',
+      q4: 'هل الدفع داخل الموقع؟', a4: 'لا. الدفع والتسليم يتمّان مباشرة بين المشتري والبائع. قابل البائع في مكان عام وافحص المنتج قبل الدفع.',
+      q5: 'كيف أضع تخفيضاً على منتجي؟', a5: 'عند إضافة الإعلان أو تعديله، اكتب «السعر قبل التخفيض». سيظهر الإعلان في «العروض الخاصة» مع النسبة.',
+      q6: 'ما هي علامة ✓ الزرقاء؟', a6: 'تعني أن الإدارة تحققت من هوية البائع أو المتجر.',
+      q7: 'كيف أنشئ متجراً؟', a7: 'اختر نوع الحساب «تاجر» من الملف الشخصي، ثم افتح «متجري» وأضف الاسم والشعار ومعلومات التواصل.',
+      safetyLink: 'نصائح الأمان', more: 'لم تجد الجواب؟',
+    },
+  },
+  fr: {
+    brand: { topTagline: 'Votre marché mauritanien, tout en un seul lieu' },
+    nav: { loginShort: 'Connexion', allProducts: 'Tous les produits', offers: 'Offres spéciales', about: 'À propos', help: 'Aide', contact: 'Contact' },
+    search: { headerPlaceholder: 'Rechercher un produit, une catégorie ou une ville…' },
+    hero: {
+      country: 'Mauritanie',
+      s1title: 'Votre marché mauritanien, tout en un seul lieu', s1text: 'Achetez • Vendez • Parcourez en toute simplicité', s1cta: 'Voir les produits',
+      s2title: 'Véhicules de toutes les villes', s2text: 'Comparez les offres et contactez le vendeur', s2cta: 'Voir les véhicules',
+      s3title: 'Vendez votre téléphone ou tout objet inutile', s3text: 'Publiez gratuitement en moins de deux minutes', s3cta: 'Publier une annonce',
+      s4title: 'Offres et promotions', s4text: 'Des prix réduits par les commerçants et particuliers', s4cta: 'Voir les offres',
+    },
+    home: {
+      allCategories: 'Toutes les catégories',
+      whyTitle: 'Pourquoi MauriMarket ?', why1: 'Plateforme fiable et sûre', why2: 'Recherche facile', why3: 'Contact direct avec les vendeurs', why4: 'Pour toutes les villes de Mauritanie',
+      promoTitle: 'Publiez vos produits', promoTitle2: 'en toute simplicité', promoCta: 'Ajouter une annonce',
+      stripPill: 'MauriMarket .. acheter plus simplement',
+      feat1: 'Une grande communauté', feat2: 'Rapide et simple', feat3: 'Vos données protégées', feat4: 'Aide et conseils de sécurité',
+    },
+    product: { viewDetails: 'Voir les détails', oldPrice: 'Prix avant remise' },
+    form: { oldPrice: 'Prix avant remise (MRU)', oldPriceHelp: 'Facultatif : votre annonce apparaît dans les « Offres spéciales » avec le pourcentage de remise.' },
+    fields: { old_price_higher: 'Doit être supérieur au prix actuel' },
+    about: {
+      title: 'À propos', intro: 'MauriMarket est une plateforme mauritanienne d’achat et de vente en ligne qui réunit particuliers et commerçants et permet aux acheteurs de contacter directement les vendeurs.',
+      missionTitle: 'Notre mission', mission: 'Faciliter le commerce en ligne en Mauritanie avec une plateforme simple, organisée et sûre, en MRU et en arabe, français et anglais.',
+      valuesTitle: 'Nos atouts', v1: 'Chaque annonce est vérifiée', v2: 'Vendeurs vérifiés ✓', v3: 'Avis liés à de vraies ventes', v4: 'Contact direct, sans intermédiaire',
+      contactTitle: 'Contact', contactText: 'Pour toute question, suggestion ou réclamation :', contactSoon: 'Les coordonnées seront ajoutées prochainement. Vous pouvez signaler une annonce avec le bouton « Signaler ».',
+      email: 'E-mail', whatsapp: 'WhatsApp',
+    },
+    help: {
+      title: 'Aide', subtitle: 'Réponses aux questions fréquentes',
+      q1: 'Comment publier une annonce ?', a1: 'Créez un compte, touchez « Publier une annonce », ajoutez photos, prix, ville et description. Notre équipe la valide puis la publie.',
+      q2: 'Pourquoi mon annonce n’apparaît pas ?', a2: 'Chaque annonce nouvelle ou modifiée est vérifiée. Vous recevez une notification en cas de validation ou de refus.',
+      q3: 'Comment contacter le vendeur ?', a3: 'Sur la page de l’annonce, touchez « Contacter le vendeur » ou « Afficher le numéro ».',
+      q4: 'Le paiement se fait-il sur le site ?', a4: 'Non. Paiement et remise se font directement entre acheteur et vendeur. Rencontrez-vous dans un lieu public.',
+      q5: 'Comment mettre une remise ?', a5: 'Indiquez le « Prix avant remise » lors de la publication ou de la modification.',
+      q6: 'Que signifie le badge ✓ bleu ?', a6: 'L’identité du vendeur ou de la boutique a été vérifiée par l’administration.',
+      q7: 'Comment créer une boutique ?', a7: 'Choisissez le type « Commerçant » dans votre profil, puis ouvrez « Ma boutique ».',
+      safetyLink: 'Conseils de sécurité', more: 'Vous n’avez pas trouvé la réponse ?',
+    },
+  },
+  en: {
+    brand: { topTagline: 'Your Mauritanian market, everything in one place' },
+    nav: { loginShort: 'Log in', allProducts: 'All products', offers: 'Special offers', about: 'About us', help: 'Help', contact: 'Contact us' },
+    search: { headerPlaceholder: 'Search for a product, category or city…' },
+    hero: {
+      country: 'Mauritania',
+      s1title: 'Your Mauritanian market, everything in one place', s1text: 'Buy • Sell • Browse easily and safely', s1cta: 'Browse products',
+      s2title: 'Vehicles from every city', s2text: 'Compare offers and contact the seller directly', s2cta: 'Browse vehicles',
+      s3title: 'Sell your phone or anything you don’t need', s3text: 'Post for free in under two minutes', s3cta: 'Post an ad',
+      s4title: 'Special offers and discounts', s4text: 'Reduced prices from merchants and individuals', s4cta: 'See offers',
+    },
+    home: {
+      allCategories: 'All categories',
+      whyTitle: 'Why MauriMarket?', why1: 'Trusted and safe platform', why2: 'Easy search and browsing', why3: 'Direct contact with sellers', why4: 'For every city in Mauritania',
+      promoTitle: 'Advertise your products', promoTitle2: 'with ease', promoCta: 'Post an ad',
+      stripPill: 'MauriMarket .. easier, smarter shopping',
+      feat1: 'A large community of buyers and sellers', feat2: 'Fast and easy', feat3: 'Your personal data protected', feat4: 'Help and safety tips',
+    },
+    product: { viewDetails: 'View details', oldPrice: 'Price before discount' },
+    form: { oldPrice: 'Price before discount (MRU)', oldPriceHelp: 'Optional: your ad appears in “Special offers” with the discount percentage.' },
+    fields: { old_price_higher: 'Must be higher than the current price' },
+    about: {
+      title: 'About us', intro: 'MauriMarket is a Mauritanian online marketplace that brings individuals and merchants together and lets buyers contact sellers directly.',
+      missionTitle: 'Our mission', mission: 'Make online trade in Mauritania simple, organised and safe — in MRU, in Arabic, French and English.',
+      valuesTitle: 'What makes us different', v1: 'Every ad is reviewed', v2: 'Verified sellers ✓', v3: 'Reviews tied to real sales', v4: 'Direct contact, no middlemen',
+      contactTitle: 'Contact us', contactText: 'For questions, suggestions or complaints:', contactSoon: 'Contact details will be added soon. Meanwhile you can report any listing with the “Report” button.',
+      email: 'Email', whatsapp: 'WhatsApp',
+    },
+    help: {
+      title: 'Help', subtitle: 'Answers to common questions',
+      q1: 'How do I post an ad?', a1: 'Create an account, tap “Post an ad”, add photos, price, city and description. Our team reviews it, then it goes live.',
+      q2: 'Why isn’t my ad showing?', a2: 'Every new or edited ad is reviewed. You get a notification when it is approved or rejected.',
+      q3: 'How do I contact a seller?', a3: 'On the listing page tap “Message seller”, or “Show number” to call or WhatsApp.',
+      q4: 'Is payment made on the site?', a4: 'No. Payment and hand-over happen directly between buyer and seller. Meet in a public place.',
+      q5: 'How do I add a discount?', a5: 'Fill in “Price before discount” when posting or editing your ad.',
+      q6: 'What does the blue ✓ mean?', a6: 'The seller’s or store’s identity has been verified by an admin.',
+      q7: 'How do I open a store?', a7: 'Choose the “Merchant” account type in your profile, then open “My store”.',
+      safetyLink: 'Safety tips', more: 'Didn’t find your answer?',
+    },
+  },
+};
+deepMerge(ar, v12.ar);
+deepMerge(fr, v12.fr);
+deepMerge(en, v12.en);
+
 deepMerge(ar, v11.ar);
 deepMerge(fr, v11.fr);
 deepMerge(en, v11.en);

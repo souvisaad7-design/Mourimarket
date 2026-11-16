@@ -43,15 +43,23 @@ export function FavoriteButton({ product, className = '', onChange }) {
   );
 }
 
+export function discountPercent(product) {
+  const oldP = Number(product.old_price);
+  const p = Number(product.price);
+  if (!oldP || oldP <= p) return 0;
+  return Math.round(((oldP - p) / oldP) * 100);
+}
+
 export default function ProductCard({ product, onFavoriteChange }) {
-  const { t, tl, price, ago } = useI18n();
+  const { t, price, ago } = useI18n();
   const { meta } = useApp();
   const cityName = useCityName();
   const sold = product.availability === 'sold';
-  const category = { name_ar: product.category_name_ar, name_fr: product.category_name_fr, name_en: product.category_name_en };
+  const off = discountPercent(product);
 
   return (
-    <Link to={`/products/${product.id}`} className={`card group flex flex-col overflow-hidden transition hover:-translate-y-0.5 hover:shadow-md ${product.is_featured && !sold ? 'ring-2 ring-gold-400/70' : ''}`}>
+    <Link to={`/products/${product.id}`}
+      className={`card group flex flex-col overflow-hidden transition hover:-translate-y-1 hover:shadow-lg ${product.is_featured && !sold ? 'ring-2 ring-gold-400/70' : ''}`}>
       <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
         {product.cover_url ? (
           <img src={product.cover_url} alt={product.title} loading="lazy" className={`h-full w-full object-cover transition duration-300 group-hover:scale-105 ${sold ? 'opacity-60 grayscale' : ''}`} />
@@ -60,28 +68,32 @@ export default function ProductCard({ product, onFavoriteChange }) {
         )}
         <FavoriteButton product={product} className="absolute end-2 top-2" onChange={onFavoriteChange} />
         <div className="absolute start-2 top-2 flex flex-wrap gap-1">
+          {off > 0 && !sold && <span className="badge bg-brand-600 px-2 text-white shadow-sm"><bdi dir="ltr">{`-${off}%`}</bdi></span>}
           {product.is_featured && !sold && <span className="badge gap-1 bg-gold-400 text-ink shadow-sm"><Icon name="star" filled className="h-3 w-3" />{t('common.featured')}</span>}
           {sold && <span className="badge bg-ink text-white">{t('common.sold')}</span>}
-          {product.condition === 'new' && !sold && <span className="badge bg-gold-400 text-ink">{t('common.new')}</span>}
+          {product.condition === 'new' && !sold && !off && <span className="badge bg-surface/90 text-slate-800">{t('common.new')}</span>}
         </div>
       </div>
-      <div className="flex flex-1 flex-col gap-1.5 p-3.5">
-        <span className="text-xs font-medium text-brand-700">{tl(category)}</span>
-        <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-slate-900">{product.title}</h3>
-        <p className="mt-auto pt-1 text-lg font-bold text-slate-900"><span className="ltr-nums">{price(product.price)}</span></p>
-        <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
+      <div className="flex flex-1 flex-col gap-1 p-3.5 text-center">
+        <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-snug text-slate-900">{product.title}</h3>
+        <p className="mt-1 text-lg font-bold text-brand-700"><span className="ltr-nums">{price(product.price)}</span></p>
+        {off > 0 && <p className="-mt-1 text-xs text-slate-400 line-through"><span className="ltr-nums">{price(product.old_price)}</span></p>}
+        <div className="mt-1 flex items-center justify-center gap-3 text-xs text-slate-500">
           <span className="flex items-center gap-1 truncate"><Icon name="pin" className="h-3.5 w-3.5 shrink-0" />{cityName(meta.cities, product.city)}</span>
           <span className="shrink-0">{ago(product.created_at)}</span>
         </div>
-        {product.store_name && (
-          <span className="flex items-center gap-1 truncate text-xs text-slate-500">
-            <Icon name="store" className="h-3.5 w-3.5" />{product.store_name}
+        {(product.store_name || product.seller_verified) && (
+          <span className="flex items-center justify-center gap-1 truncate text-xs text-slate-500">
+            {product.store_name && <Icon name="store" className="h-3.5 w-3.5" />}
+            {product.store_name || product.seller_name}
             {product.seller_verified && <VerifiedBadge small />}
           </span>
         )}
-        {!product.store_name && product.seller_verified && (
-          <span className="flex items-center gap-1 truncate text-xs text-slate-500">{product.seller_name}<VerifiedBadge small /></span>
-        )}
+        <span className="mt-auto pt-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-800 px-4 py-1.5 text-xs font-semibold text-white transition group-hover:bg-brand-700">
+            {t('product.viewDetails')}<Icon name="arrow" className="h-3.5 w-3.5 ltr:rotate-180" />
+          </span>
+        </span>
       </div>
     </Link>
   );
@@ -105,10 +117,8 @@ export function ProductGridSkeleton({ count = 8 }) {
   );
 }
 
-export function ProductGrid({ items, onFavoriteChange }) {
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
-      {items.map((p) => <ProductCard key={p.id} product={p} onFavoriteChange={onFavoriteChange ? (v) => onFavoriteChange(p, v) : undefined} />)}
-    </div>
-  );
+export function ProductGrid({ items, onFavoriteChange, bare = false }) {
+  const cards = items.map((p) => <ProductCard key={p.id} product={p} onFavoriteChange={onFavoriteChange ? (v) => onFavoriteChange(p, v) : undefined} />);
+  if (bare) return cards;
+  return <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">{cards}</div>;
 }

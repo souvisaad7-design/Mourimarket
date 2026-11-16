@@ -15,7 +15,7 @@ export default function ProductForm() {
   const { t, tl } = useI18n();
   const { categories, meta, user, notify } = useApp();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ title: '', description: '', price: '', categoryId: '', city: user.city || '', condition: 'used' });
+  const [form, setForm] = useState({ title: '', description: '', price: '', oldPrice: '', categoryId: '', city: user.city || '', condition: 'used' });
   const [existing, setExisting] = useState([]);
   const [removeIds, setRemoveIds] = useState([]);
   const [files, setFiles] = useState([]);
@@ -30,6 +30,7 @@ export default function ProductForm() {
     api(`/products/${id}`).then(({ product }) => {
       setForm({
         title: product.title, description: product.description, price: String(product.price),
+        oldPrice: product.old_price ? String(product.old_price) : '',
         categoryId: String(product.category_id), city: product.city, condition: product.condition,
       });
       setExisting(product.images);
@@ -131,6 +132,9 @@ export default function ProductForm() {
             </Field>
             <Field label={t('form.price')} error={fieldError('price')}>
               <input className="input" type="number" min="0" step="1" inputMode="numeric" value={form.price} onChange={set('price')} required dir="ltr" />
+            </Field>
+            <Field label={t('form.oldPrice')} error={fieldError('oldPrice')} hint={t('form.oldPriceHelp')} optional>
+              <input className="input" type="number" min="0" step="1" inputMode="numeric" value={form.oldPrice} onChange={set('oldPrice')} dir="ltr" />
             </Field>
             <Field label={t('form.city')} error={fieldError('city')}>
               <CitySelect value={form.city} onChange={(v) => setForm({ ...form, city: v })} cities={meta.cities} placeholder={t('form.choose')} required />

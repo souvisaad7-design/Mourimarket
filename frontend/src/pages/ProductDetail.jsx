@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Gallery from '../components/Gallery.jsx';
-import { FavoriteButton, ProductGrid } from '../components/ProductCard.jsx';
+import { FavoriteButton, ProductGrid, discountPercent } from '../components/ProductCard.jsx';
 import { Avatar, ErrorBox, Field, Icon, Modal, Spinner, Stars, VerifiedBadge, useCityName } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
@@ -241,7 +241,15 @@ export default function ProductDetail() {
               <h1 className="text-xl font-bold leading-snug">{product.title}</h1>
               <FavoriteButton product={product} className="shrink-0 ring-1 ring-slate-200" />
             </div>
-            <p className="mt-3 text-3xl font-bold text-brand-800"><span className="ltr-nums">{price(product.price)}</span></p>
+            <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <p className="text-3xl font-bold text-brand-700"><span className="ltr-nums">{price(product.price)}</span></p>
+              {discountPercent(product) > 0 && (
+                <>
+                  <p className="text-base text-slate-400 line-through"><span className="ltr-nums">{price(product.old_price)}</span></p>
+                  <span className="badge bg-brand-600 text-white"><bdi dir="ltr">{`-${discountPercent(product)}%`}</bdi></span>
+                </>
+              )}
+            </div>
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
               <span className="flex items-center gap-1"><Icon name="pin" className="h-4 w-4" />{cityName(meta.cities, product.city)}</span>
               <span className="flex items-center gap-1"><Icon name="clock" className="h-4 w-4" />{ago(product.created_at)}</span>

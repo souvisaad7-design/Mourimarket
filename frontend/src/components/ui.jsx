@@ -36,6 +36,17 @@ const ICONS = {
   auto: 'M12 3a9 9 0 1 0 0 18V3z M12 3a9 9 0 1 1 0 18',
   download: 'M12 4v11m0 0l-4-4m4 4l4-4M5 20h14',
   chevronLeft: 'M15 6l-6 6 6 6',
+  chevronDown: 'M6 9l6 6 6-6',
+  home: 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z',
+  info: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zm0-10v5m0-8h.01',
+  help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zm-2.5-11.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6m0 3h.01',
+  mail: 'M3 6h18v12H3zm0 0l9 7 9-7',
+  userPlus: 'M15 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM3 21a8 8 0 0 1 12.5-6.6M19 14v6m-3-3h6',
+  users: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 10a7 7 0 0 1 14 0m1-10a3 3 0 1 0 0-6m2 16h3a6 6 0 0 0-4-5.6',
+  rocket: 'M5 15c-1 1-2 4-2 6 2 0 5-1 6-2m-4-4l4 4m-4-4c1-4 5-11 14-12-1 9-8 13-12 14m3-8a1.5 1.5 0 1 0 0-.01',
+  bolt: 'M13 2L4 14h7l-1 8 9-12h-7z',
+  handshake: 'M8 12l3 3a2 2 0 0 0 3-3l-3-3 2-2 6 6-6 6-2-2M2 12l6-6 3 3',
+  arrow: 'M19 12H5m6-6l-6 6 6 6',
 };
 
 export function Icon({ name, className = 'h-5 w-5', filled = false }) {
@@ -61,15 +72,31 @@ export function VerifiedBadge({ small = false, label }) {
   );
 }
 
-export function Logo({ className = '' }) {
+/** Brand mark: a green shopping bag with a gold star and swoosh. */
+export function LogoMark({ className = 'h-10 w-10' }) {
   return (
-    <Link to="/" className={`flex items-center gap-2 ${className}`} aria-label="MauriMarket">
-      <svg viewBox="0 0 64 64" className="h-9 w-9 shrink-0">
-        <rect width="64" height="64" rx="14" fill="#0f766e" />
-        <path d="M14 46V20l9 13 9-13 9 13 9-13v26" fill="none" stroke="#fbbf24" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      <span className="text-xl font-bold tracking-tight text-slate-900" dir="ltr">
-        Mauri<span className="text-brand-700">Market</span>
+    <svg viewBox="0 0 64 64" className={`shrink-0 ${className}`} aria-hidden="true">
+      <defs>
+        <linearGradient id="mm-bag" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#249b5e" />
+          <stop offset="1" stopColor="#0b462a" />
+        </linearGradient>
+      </defs>
+      <path d="M22 24v-6a10 10 0 0 1 20 0v6" fill="none" stroke="#0d5532" strokeWidth="4.5" strokeLinecap="round" />
+      <path d="M11 22h42l-3.2 31.5A6 6 0 0 1 43.8 59H20.2a6 6 0 0 1-6-5.5z" fill="url(#mm-bag)" />
+      <path d="M32 31.5l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L32 46.3l-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9z" fill="#fbc531" />
+      <path d="M6 51c14 7 33 5 52-11" fill="none" stroke="#fbc531" strokeWidth="3.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function Logo({ className = '', size = 'md' }) {
+  const big = size === 'lg';
+  return (
+    <Link to="/" className={`flex items-center gap-1.5 ${className}`} aria-label="MauriMarket">
+      <LogoMark className={big ? 'h-12 w-12' : 'h-10 w-10'} />
+      <span className={`${big ? 'text-2xl' : 'text-xl'} font-bold tracking-tight`} dir="ltr">
+        <span className="text-brand-900 dark-brand-text">Mauri</span><span className="text-brand-600">Market</span>
       </span>
     </Link>
   );

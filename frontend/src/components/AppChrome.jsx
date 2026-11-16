@@ -16,7 +16,7 @@ export function applyTheme(theme = readTheme()) {
   if (theme === 'auto') delete root.dataset.theme;
   else root.dataset.theme = theme;
   const dark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', dark ? '#0b1220' : '#0f766e'));
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', dark ? '#0b1220' : '#0f6a3d'));
 }
 
 export function ThemeToggle({ withLabel = false }) {

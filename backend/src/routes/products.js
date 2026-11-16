@@ -13,7 +13,7 @@ const router = Router();
 
 // Shared SELECT for product cards / detail.
 export const PRODUCT_SELECT = `
-  p.id, p.title, p.price, p.city, p.condition, p.status, p.availability, p.views,
+  p.id, p.title, p.price, p.old_price, p.city, p.condition, p.status, p.availability, p.views,
   p.created_at, p.updated_at, p.category_id, p.seller_id, p.store_id,
   c.slug AS category_slug, c.name_ar AS category_name_ar, c.name_fr AS category_name_fr, c.name_en AS category_name_en,
   (SELECT url FROM product_images i WHERE i.product_id = p.id ORDER BY sort_order, id LIMIT 1) AS cover_url,
@@ -35,6 +35,7 @@ const listSchema = z.object({
   condition: z.enum(['new', 'used']).optional().or(z.literal('')),
   sort: z.enum(['relevance', 'newest', 'oldest', 'price_asc', 'price_desc']).optional(),
   featured: z.enum(['1', 'true']).optional(),
+  deals: z.enum(['1', 'true']).optional(),
   availability: z.enum(['available', 'sold', 'all']).default('available'),
   seller: z.coerce.number().int().positive().optional(),
   store: z.string().trim().max(120).optional(),
@@ -68,6 +69,7 @@ router.get('/', optionalAuth, async (req, res) => {
     }
   }
   if (f.featured) where.push('p.featured_until > now()');
+  if (f.deals) where.push('p.old_price > p.price');
   if (f.category) add('c.slug = ?', f.category);
   if (f.city) add('p.city = ?', f.city);
   if (f.minPrice !== undefined) add('p.price >= ?', f.minPrice);
@@ -185,10 +187,21 @@ const productSchema = z.object({
   title: z.string().trim().min(3, 'min_3').max(140),
   description: z.string().trim().min(10, 'min_10').max(5000),
   price: z.coerce.number({ invalid_type_error: 'invalid_number' }).min(0, 'min_0').max(1e12),
+  // Optional "price before discount"; must be higher than the current price.
+  oldPrice: z.preprocess(
+    (v) => (v === '' || v === null || v === undefined || v === 'null' ? undefined : v),
+    z.coerce.number({ invalid_type_error: 'invalid_number' }).min(0, 'min_0').max(1e12).optional(),
+  ),
   categoryId: z.coerce.number().int().positive('required'),
   city: z.enum(CITY_KEYS, { errorMap: () => ({ message: 'required' }) }),
   condition: z.enum(['new', 'used']).default('used'),
 });
+
+function checkOldPrice(data) {
+  if (data.oldPrice !== undefined && data.oldPrice <= data.price) {
+    throw badRequest('validation_error', { oldPrice: 'old_price_higher' });
+  }
+}
 
 async function storeIdFor(userId, client) {
   const { rows } = await client.query(
@@ -208,15 +221,16 @@ async function assertCategory(id, client) {
 router.post('/', requireAuth, upload.array('images', MAX_IMAGES), async (req, res) => {
   const files = req.files || [];
   const data = parse(productSchema, req.body);
+    checkOldPrice(data);
   if (!files.length) throw badRequest('validation_error', { images: 'image_required' });
   const status = config.autoApprove ? 'approved' : 'pending';
   const product = await tx(async (client) => {
     await assertCategory(data.categoryId, client);
     const storeId = await storeIdFor(req.user.id, client);
     const { rows } = await client.query(
-      `INSERT INTO products (seller_id, category_id, store_id, title, description, price, city, condition, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, status`,
-      [req.user.id, data.categoryId, storeId, data.title, data.description, data.price, data.city, data.condition, status],
+      `INSERT INTO products (seller_id, category_id, store_id, title, description, price, old_price, city, condition, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, status`,
+      [req.user.id, data.categoryId, storeId, data.title, data.description, data.price, data.oldPrice ?? null, data.city, data.condition, status],
     );
     for (const [i, file] of files.entries()) {
       await client.query('INSERT INTO product_images (product_id, url, sort_order) VALUES ($1, $2, $3)', [
@@ -234,6 +248,7 @@ router.put('/:id', requireAuth, upload.array('images', MAX_IMAGES), async (req, 
   const product = await loadProduct(req.params.id);
   assertOwner(product, req.user);
   const data = parse(productSchema, req.body);
+    checkOldPrice(data);
   const removeIds = []
     .concat(req.body.removeImageIds || [])
     .map((v) => parseInt(v, 10))
@@ -261,9 +276,10 @@ router.put('/:id', requireAuth, upload.array('images', MAX_IMAGES), async (req, 
       `UPDATE products SET title = $1, description = $2, price = $3, category_id = $4, city = $5, condition = $6,
          status = CASE WHEN $7 THEN status ELSE 'pending' END,
          rejection_reason = CASE WHEN $7 THEN rejection_reason ELSE NULL END,
+         old_price = $9,
          updated_at = now()
        WHERE id = $8`,
-      [data.title, data.description, data.price, data.categoryId, data.city, data.condition, keepApproved, product.id],
+      [data.title, data.description, data.price, data.categoryId, data.city, data.condition, keepApproved, product.id, data.oldPrice ?? null],
     );
     return del.rows.map((r) => r.url);
   });
