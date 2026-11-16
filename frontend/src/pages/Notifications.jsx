@@ -8,6 +8,7 @@ import { useApi, useDocumentTitle } from '../lib/hooks.js';
 const ICON_FOR = {
   new_message: 'chat', seller_reply: 'chat', product_approved: 'check', product_rejected: 'x', product_deleted: 'trash',
   sale_recorded: 'check', new_review: 'star', store_enabled: 'store', store_disabled: 'store',
+  product_featured: 'star', account_verified: 'shield',
 };
 
 export default function Notifications() {

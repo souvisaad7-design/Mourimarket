@@ -74,7 +74,7 @@ function Thread({ id, onActivity }) {
           const mine = m.sender_id === user.id;
           return (
             <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm shadow-sm ${mine ? 'bg-brand-700 text-white' : 'bg-white text-slate-800'}`}>
+              <div className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm shadow-sm ${mine ? 'bg-brand-700 text-white' : 'bg-surface text-slate-800'}`}>
                 <p className="whitespace-pre-line break-words">{m.body}</p>
                 <p className={`mt-1 text-[10px] ${mine ? 'text-brand-100' : 'text-slate-400'}`}>
                   {dateTime(m.created_at)}{mine && m.read_at ? ' ✓✓' : ''}

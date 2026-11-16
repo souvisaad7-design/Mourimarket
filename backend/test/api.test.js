@@ -204,3 +204,68 @@ describe('pasted credentials', () => {
     assert.equal(r.status, 200);
   });
 });
+
+describe('v1.1: smart search, featured listings, verified sellers', () => {
+  let adminToken;
+  before(async () => { adminToken = await login('admin@maurimarket.mr', 'Admin12345'); });
+
+  it('matches Arabic spelling variants and the definite article', async () => {
+    // Seed title: «تويوتا هايلكس 2016 ديزل»; description mentions «سيارة»
+    for (const q of ['تويوتا', 'التويوتا', 'سياره', 'السيارة', 'تويوطا هايلكس']) {
+      const r = await call(`/api/products?q=${encodeURIComponent(q)}`);
+      assert.ok(r.data.items.some((p) => p.title.startsWith('تويوتا')), `query «${q}» should find the Toyota`);
+    }
+  });
+
+  it('ignores accents and case in French', async () => {
+    const r = await call(`/api/products?q=${encodeURIComponent('REFRIGERATEUR lg')}`);
+    assert.ok(r.data.items.some((p) => p.title.startsWith('Réfrigérateur')));
+  });
+
+  it('tolerates a typo', async () => {
+    const r = await call(`/api/products?q=${encodeURIComponent('Mercedez')}`);
+    assert.ok(r.data.items.some((p) => p.title.startsWith('Mercedes')));
+  });
+
+  it('suggests titles and categories while typing', async () => {
+    const r = await call(`/api/products/suggest?q=${encodeURIComponent('الهوا')}`);
+    assert.ok(r.data.categories.some((c) => c.slug === 'phones-electronics'));
+    const t = await call(`/api/products/suggest?q=${encodeURIComponent('latit')}`);
+    assert.ok(t.data.titles.length >= 1);
+  });
+
+  it('lists featured listings first and filters them', async () => {
+    const all = await call('/api/products?limit=60');
+    const flags = all.data.items.map((p) => p.is_featured);
+    const firstNonFeatured = flags.indexOf(false);
+    assert.ok(firstNonFeatured > 0 && flags.slice(firstNonFeatured).every((f) => !f), 'featured block comes first');
+    const only = await call('/api/products?featured=1');
+    assert.ok(only.data.total > 0 && only.data.items.every((p) => p.is_featured));
+  });
+
+  it('lets an admin feature and unfeature a listing, notifying the seller', async () => {
+    const p = (await call('/api/products?sort=oldest&limit=1')).data.items[0];
+    assert.equal((await call(`/api/admin/products/${p.id}/feature`, { method: 'PATCH', token: adminToken, body: { days: 7 } })).status, 200);
+    assert.ok((await call(`/api/products/${p.id}`)).data.product.is_featured);
+    assert.equal((await call(`/api/admin/products/${p.id}/feature`, { method: 'PATCH', token: adminToken, body: { days: 0 } })).status, 200);
+    assert.equal((await call(`/api/products/${p.id}`)).data.product.is_featured, false);
+    const buyer = await login('buyer@example.mr');
+    assert.equal((await call(`/api/admin/products/${p.id}/feature`, { method: 'PATCH', token: buyer, body: { days: 7 } })).status, 403);
+  });
+
+  it('lets an admin verify a seller; the badge shows on profile and listings', async () => {
+    const seller = (await call('/api/auth/me', { token: await login('sidi@example.mr') })).data.user;
+    assert.equal((await call(`/api/users/${seller.id}`)).data.user.is_verified, false);
+    await call(`/api/admin/users/${seller.id}`, { method: 'PATCH', token: adminToken, body: { isVerified: true } });
+    assert.equal((await call(`/api/users/${seller.id}`)).data.user.is_verified, true);
+    const listing = (await call(`/api/products?seller=${seller.id}`)).data.items[0];
+    assert.equal(listing.seller_verified, true);
+    const notes = await call('/api/notifications', { token: await login('sidi@example.mr') });
+    assert.ok(notes.data.items.some((n) => n.type === 'account_verified'));
+  });
+
+  it('reports live listings per city', async () => {
+    const r = await call('/api/stats/cities');
+    assert.equal(r.data.items[0].city, 'nouakchott');
+  });
+});

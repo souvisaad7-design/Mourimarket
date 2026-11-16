@@ -29,6 +29,13 @@ const ICONS = {
   globe: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zm0 0c2.5-2.5 3.5-5.5 3.5-9S14.5 5.5 12 3m0 18c-2.5-2.5-3.5-5.5-3.5-9S9.5 5.5 12 3M3.5 9h17M3.5 15h17',
   chevron: 'M9 6l6 6-6 6',
   star: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3z',
+  share: 'M8.7 13.3l6.6 3.4m0-9.4l-6.6 3.4M21 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM9 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0zm12 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0z',
+  link: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
+  sun: 'M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6l1.4 1.4m10 10l1.4 1.4m0-12.8L17 7m-10 10l-1.4 1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z',
+  moon: 'M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z',
+  auto: 'M12 3a9 9 0 1 0 0 18V3z M12 3a9 9 0 1 1 0 18',
+  download: 'M12 4v11m0 0l-4-4m4 4l4-4M5 20h14',
+  chevronLeft: 'M15 6l-6 6 6 6',
 };
 
 export function Icon({ name, className = 'h-5 w-5', filled = false }) {
@@ -36,6 +43,21 @@ export function Icon({ name, className = 'h-5 w-5', filled = false }) {
     <svg viewBox="0 0 24 24" className={className} fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d={ICONS[name]} />
     </svg>
+  );
+}
+
+/** Blue tick shown next to sellers verified by an admin. */
+export function VerifiedBadge({ small = false, label }) {
+  const { t } = useI18n();
+  const size = small ? 'h-3.5 w-3.5' : 'h-5 w-5';
+  return (
+    <span className="inline-flex items-center gap-1 text-sky-600" title={t('product.verifiedHint')}>
+      <svg viewBox="0 0 24 24" className={`${size} shrink-0`} aria-label={t('common.verified')} role="img">
+        <path fill="currentColor" d="M12 2l2.4 1.8 3-.2.9 2.9 2.5 1.7-1 2.8 1 2.8-2.5 1.7-.9 2.9-3-.2L12 22l-2.4-1.8-3 .2-.9-2.9L3.2 15.8l1-2.8-1-2.8 2.5-1.7.9-2.9 3 .2z" />
+        <path d="M8 12.2l2.6 2.6L16.2 9" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      {label && <span className="text-xs font-semibold">{t('common.verified')}</span>}
+    </span>
   );
 }
 
@@ -133,7 +155,7 @@ export function Modal({ open, onClose, title, children }) {
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 sm:items-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-4 sm:items-center" onClick={onClose}>
       <div role="dialog" aria-modal="true" className="card w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold">{title}</h2>

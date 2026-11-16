@@ -7,6 +7,7 @@ import { badRequest, forbidden, notFound, pagination, parse } from '../lib/http.
 import { notify } from '../lib/notify.js';
 import { optionalAuth, requireAuth } from '../middleware/auth.js';
 import { removeUploads, saveFile, upload } from '../middleware/upload.js';
+import { buildSearch, escapeLike, normalize } from '../lib/search.js';
 
 const router = Router();
 
@@ -16,7 +17,8 @@ export const PRODUCT_SELECT = `
   p.created_at, p.updated_at, p.category_id, p.seller_id, p.store_id,
   c.slug AS category_slug, c.name_ar AS category_name_ar, c.name_fr AS category_name_fr, c.name_en AS category_name_en,
   (SELECT url FROM product_images i WHERE i.product_id = p.id ORDER BY sort_order, id LIMIT 1) AS cover_url,
-  u.name AS seller_name, s.name AS store_name, s.slug AS store_slug`;
+  u.name AS seller_name, u.is_verified AS seller_verified, s.name AS store_name, s.slug AS store_slug,
+  (p.featured_until IS NOT NULL AND p.featured_until > now()) AS is_featured, p.featured_until`;
 
 export const PRODUCT_FROM = `
   FROM products p
@@ -31,14 +33,16 @@ const listSchema = z.object({
   minPrice: z.coerce.number().min(0).optional(),
   maxPrice: z.coerce.number().min(0).optional(),
   condition: z.enum(['new', 'used']).optional().or(z.literal('')),
-  sort: z.enum(['newest', 'oldest', 'price_asc', 'price_desc']).default('newest'),
+  sort: z.enum(['relevance', 'newest', 'oldest', 'price_asc', 'price_desc']).optional(),
+  featured: z.enum(['1', 'true']).optional(),
   availability: z.enum(['available', 'sold', 'all']).default('available'),
   seller: z.coerce.number().int().positive().optional(),
   store: z.string().trim().max(120).optional(),
 });
 
+const FEATURED_FIRST = '(p.featured_until IS NOT NULL AND p.featured_until > now()) DESC';
 const SORTS = {
-  newest: 'p.created_at DESC, p.id DESC',
+  newest: `${FEATURED_FIRST}, p.created_at DESC, p.id DESC`,
   oldest: 'p.created_at ASC, p.id ASC',
   price_asc: 'p.price ASC, p.id DESC',
   price_desc: 'p.price DESC, p.id DESC',
@@ -50,14 +54,20 @@ router.get('/', optionalAuth, async (req, res) => {
   const { page, limit, offset } = pagination(req.query);
   const where = [`p.status = 'approved'`, 'u.is_active'];
   const params = [];
-  const add = (sql, value) => {
+  const push = (value) => {
     params.push(value);
-    where.push(sql.replace('?', `$${params.length}`));
+    return `$${params.length}`;
   };
+  const add = (sql, value) => where.push(sql.replace('?', push(value)));
+  let scoreSql = null;
   if (f.q) {
-    const escaped = f.q.replace(/[\\%_]/g, (m) => `\\${m}`);
-    add(`(p.title ILIKE ? OR p.description ILIKE $${params.length + 1})`, `%${escaped}%`);
+    const search = await buildSearch(f.q, push);
+    if (search) {
+      where.push(search.where);
+      scoreSql = search.score;
+    }
   }
+  if (f.featured) where.push('p.featured_until > now()');
   if (f.category) add('c.slug = ?', f.category);
   if (f.city) add('p.city = ?', f.city);
   if (f.minPrice !== undefined) add('p.price >= ?', f.minPrice);
@@ -72,15 +82,44 @@ router.get('/', optionalAuth, async (req, res) => {
     ? `, EXISTS (SELECT 1 FROM favorites fv WHERE fv.product_id = p.id AND fv.user_id = ${Number(req.user.id)}) AS is_favorite`
     : ', false AS is_favorite';
 
+  const sort = f.sort || (scoreSql ? 'relevance' : 'newest');
+  const orderBy = sort === 'relevance' && scoreSql
+    ? `${FEATURED_FIRST}, (${scoreSql}) DESC, p.created_at DESC`
+    : SORTS[sort === 'relevance' ? 'newest' : sort];
+
   const [items, total] = await Promise.all([
     query(
       `SELECT ${PRODUCT_SELECT} ${favSql} ${PRODUCT_FROM} ${whereSql}
-       ORDER BY ${SORTS[f.sort]} LIMIT ${limit} OFFSET ${offset}`,
+       ORDER BY ${orderBy} LIMIT ${limit} OFFSET ${offset}`,
       params,
     ),
     query(`SELECT COUNT(*) AS n ${PRODUCT_FROM} ${whereSql}`, params),
   ]);
   res.json({ items: items.rows, total: total.rows[0].n, page, limit });
+});
+
+/** GET /api/products/suggest?q= – quick suggestions while typing (titles + categories). */
+router.get('/suggest', async (req, res) => {
+  const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 60) : '';
+  const norm = normalize(q).replace(/^(ال)(?=\S{2,})/, '');
+  if (norm.length < 2) return res.json({ titles: [], categories: [] });
+  const like = `%${escapeLike(norm)}%`;
+  const [titles, categories] = await Promise.all([
+    query(
+      `SELECT p.id, p.title FROM products p JOIN users u ON u.id = p.seller_id
+       WHERE p.status = 'approved' AND p.availability = 'available' AND u.is_active
+         AND mm_normalize(p.title) LIKE $1
+       ORDER BY (mm_normalize(p.title) LIKE $2) DESC, p.created_at DESC LIMIT 6`,
+      [like, `${escapeLike(norm)}%`],
+    ),
+    query(
+      `SELECT slug, name_ar, name_fr, name_en, icon FROM categories
+       WHERE mm_normalize(name_ar) LIKE $1 OR mm_normalize(name_fr) LIKE $1 OR mm_normalize(name_en) LIKE $1
+       ORDER BY sort_order LIMIT 3`,
+      [like],
+    ),
+  ]);
+  res.json({ titles: titles.rows, categories: categories.rows });
 });
 
 /** GET /api/products/mine – the seller's own listings in every status. */

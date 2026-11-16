@@ -1,6 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
 import { ProductGrid } from '../components/ProductCard.jsx';
-import { Avatar, EmptyState, ErrorBox, Icon, Spinner, Stars, useCityName } from '../components/ui.jsx';
+import { Avatar, EmptyState, ErrorBox, Icon, Spinner, Stars, VerifiedBadge, useCityName } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
@@ -43,7 +43,8 @@ export default function SellerProfile() {
         <div className="flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold">{u.name}</h1>
-            {u.account_type === 'merchant' && <span className="badge bg-gold-400 text-slate-900">{t('seller.merchant')}</span>}
+            {u.is_verified && <VerifiedBadge label />}
+            {u.account_type === 'merchant' && <span className="badge bg-gold-400 text-ink">{t('seller.merchant')}</span>}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
             {u.reviews_count > 0 ? <span className="flex items-center gap-1"><Stars value={u.rating} /> {u.rating} ({t('product.reviews', { n: u.reviews_count })})</span> : <span>{t('product.noRating')}</span>}

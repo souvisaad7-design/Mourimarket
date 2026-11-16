@@ -82,7 +82,7 @@ export default function Dashboard() {
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-bold">{t('dashboard.myListings')}</h2>
-        <div className="flex gap-1 rounded-xl bg-white p-1 ring-1 ring-slate-200">
+        <div className="flex gap-1 rounded-xl bg-surface p-1 ring-1 ring-slate-200">
           {['all', 'approved', 'pending', 'rejected', 'sold'].map((f) => (
             <button key={f} onClick={() => setFilter(f)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${filter === f ? 'bg-brand-700 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
               {f === 'all' ? t('common.all') : f === 'sold' ? t('common.sold') : t(`dashboard.status.${f}`)}
@@ -105,7 +105,7 @@ export default function Dashboard() {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <StatusBadge status={p.status} />
-                    {p.availability === 'sold' && <span className="badge bg-slate-900 text-white">{t('common.sold')}</span>}
+                    {p.availability === 'sold' && <span className="badge bg-ink text-white">{t('common.sold')}</span>}
                   </div>
                   <p className="mt-1 truncate font-semibold">{p.title}</p>
                   <p className="text-sm font-bold text-brand-800 ltr-nums">{price(p.price)}</p>

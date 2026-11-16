@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ProductGrid } from '../components/ProductCard.jsx';
-import { EmptyState, ErrorBox, Icon, PageHeader, Pagination, Spinner, Stars, useCityName } from '../components/ui.jsx';
+import { EmptyState, ErrorBox, Icon, PageHeader, Pagination, Spinner, Stars, VerifiedBadge, useCityName } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
@@ -36,7 +36,7 @@ export function Stores() {
             <Link key={s.id} to={`/stores/${s.slug}`} className="card flex gap-4 p-5 transition hover:shadow-md">
               <StoreLogo store={s} />
               <div className="min-w-0">
-                <h2 className="truncate font-bold">{s.name}</h2>
+                <h2 className="flex items-center gap-1 truncate font-bold">{s.name}{s.verified && <VerifiedBadge small />}</h2>
                 {s.description && <p className="mt-1 line-clamp-2 text-sm text-slate-600">{s.description}</p>}
                 <p className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
                   <span>{t('store.products', { n: number(s.product_count) })}</span>
@@ -73,7 +73,7 @@ export function StoreDetail() {
         <div className="card -mt-16 flex flex-col gap-5 p-6 sm:flex-row">
           <StoreLogo store={s} size="h-24 w-24" />
           <div className="flex-1">
-            <h1 className="text-2xl font-bold">{s.name}</h1>
+            <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold">{s.name}{s.verified && <VerifiedBadge label />}</h1>
             <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
               {s.reviews_count > 0 && <span className="flex items-center gap-1"><Stars value={s.rating} />({s.reviews_count})</span>}
               {s.city && <span className="flex items-center gap-1"><Icon name="pin" className="h-4 w-4" />{cityName(meta.cities, s.city)}</span>}

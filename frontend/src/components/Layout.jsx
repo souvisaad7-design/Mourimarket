@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { LANGS } from '../i18n/messages.js';
+import { InstallPrompt, OfflineBanner, ThemeToggle } from './AppChrome.jsx';
 import { Avatar, Icon, Logo } from './ui.jsx';
 
 function Badge({ n }) {
@@ -23,7 +24,7 @@ function LangSwitcher({ compact }) {
         aria-label="Language"
         value={lang}
         onChange={(e) => setLang(e.target.value)}
-        className={`cursor-pointer appearance-none rounded-lg border border-slate-200 bg-white py-1.5 pe-2 ps-7 text-sm hover:bg-slate-50 ${compact ? 'w-full' : ''}`}
+        className={`cursor-pointer appearance-none rounded-lg border border-slate-200 bg-surface py-1.5 pe-2 ps-7 text-sm hover:bg-slate-50 ${compact ? 'w-full' : ''}`}
       >
         {LANGS.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
       </select>
@@ -80,7 +81,7 @@ function Header() {
   const navCls = ({ isActive }) => `rounded-lg px-3 py-2 text-sm font-medium ${isActive ? 'bg-brand-50 text-brand-800' : 'text-slate-600 hover:bg-slate-100'}`;
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-surface/95 backdrop-blur">
       <div className="container-page flex h-16 items-center gap-3">
         <button className="btn-ghost -ms-2 p-2 lg:hidden" onClick={() => setMobileOpen(!mobileOpen)} aria-label={t('nav.menu')}>
           <Icon name={mobileOpen ? 'x' : 'menu'} />
@@ -93,6 +94,7 @@ function Header() {
         </nav>
         <div className="ms-auto flex items-center gap-1.5 sm:gap-2">
           <div className="hidden sm:block"><LangSwitcher /></div>
+          <div className="hidden sm:block"><ThemeToggle /></div>
           {user ? (
             <>
               <Link to="/messages" className="btn-ghost relative p-2" aria-label={t('nav.messages')} title={t('nav.messages')}>
@@ -110,7 +112,7 @@ function Header() {
         </div>
       </div>
       {mobileOpen && (
-        <div className="border-t border-slate-200 bg-white lg:hidden">
+        <div className="border-t border-slate-200 bg-surface lg:hidden">
           <nav className="container-page flex flex-col gap-1 py-3">
             <NavLink to="/" end className={navCls}>{t('nav.home')}</NavLink>
             <NavLink to="/products" className={navCls}>{t('nav.products')}</NavLink>
@@ -118,7 +120,7 @@ function Header() {
             <NavLink to="/stores" className={navCls}>{t('nav.stores')}</NavLink>
             {!user && <NavLink to="/login" className={navCls}>{t('nav.login')}</NavLink>}
             {!user && <NavLink to="/register" className={navCls}>{t('nav.register')}</NavLink>}
-            <div className="pt-2"><LangSwitcher compact /></div>
+            <div className="flex items-center gap-2 pt-2"><div className="flex-1"><LangSwitcher compact /></div><ThemeToggle withLabel /></div>
           </nav>
         </div>
       )}
@@ -131,7 +133,7 @@ function Footer() {
   const { categories } = useApp();
   const { tl } = useI18n();
   return (
-    <footer className="mt-16 border-t border-slate-200 bg-white pb-20 sm:pb-0">
+    <footer className="mt-16 border-t border-slate-200 bg-surface pb-20 sm:pb-0">
       <div className="container-page grid gap-8 py-10 sm:grid-cols-2 lg:grid-cols-4">
         <div className="lg:col-span-2">
           <Logo />
@@ -169,11 +171,11 @@ function MobileTabBar() {
   const { user, counts } = useApp();
   const cls = ({ isActive }) => `relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] ${isActive ? 'text-brand-700' : 'text-slate-500'}`;
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-white sm:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-surface sm:hidden">
       <NavLink to="/" end className={cls}><Icon name="grid" />{t('nav.home')}</NavLink>
       <NavLink to="/products" className={cls}><Icon name="search" />{t('common.search')}</NavLink>
       <NavLink to="/sell" className={cls}>
-        <span className="-mt-5 rounded-full bg-gold-400 p-3 text-slate-900 shadow-lg"><Icon name="plus" /></span>{t('nav.post')}
+        <span className="-mt-5 rounded-full bg-gold-400 p-3 text-ink shadow-lg"><Icon name="plus" /></span>{t('nav.post')}
       </NavLink>
       <NavLink to={user ? '/messages' : '/login'} className={cls}>
         <span className="relative"><Icon name="chat" /><Badge n={counts.messages} /></span>{t('nav.messages')}
@@ -188,7 +190,7 @@ function Toast() {
   if (!toast) return null;
   return (
     <div className="fixed inset-x-0 bottom-20 z-50 flex justify-center px-4 sm:bottom-6" role="status" aria-live="polite">
-      <div className={`rounded-xl px-4 py-3 text-sm font-medium text-white shadow-lg ${toast.type === 'error' ? 'bg-rose-600' : 'bg-slate-900'}`}>
+      <div className={`rounded-xl px-4 py-3 text-sm font-medium text-white shadow-lg ${toast.type === 'error' ? 'bg-rose-600' : 'bg-ink'}`}>
         {toast.message}
       </div>
     </div>
@@ -197,14 +199,18 @@ function Toast() {
 
 export default function Layout() {
   const { pathname } = useLocation();
+  // Listing pages have their own bottom action bar on phones.
+  const onListing = /^\/products\/\d+$/.test(pathname);
   useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
+      <OfflineBanner />
       <main className="flex-1"><Outlet /></main>
       <Footer />
-      <MobileTabBar />
+      {!onListing && <MobileTabBar />}
       <Toast />
+      <InstallPrompt />
     </div>
   );
 }

@@ -25,6 +25,8 @@ router.get('/stats', async (_req, res) => {
       (SELECT COUNT(*) FROM stores) AS stores,
       (SELECT COUNT(*) FROM messages) AS messages,
       (SELECT COUNT(*) FROM reports WHERE status = 'open') AS open_reports,
+      (SELECT COUNT(*) FROM products WHERE featured_until > now()) AS featured_products,
+      (SELECT COUNT(*) FROM users WHERE is_verified) AS verified_users,
       (SELECT COALESCE(SUM(views), 0) FROM products) AS views`),
     query(`SELECT c.slug, c.name_ar, c.name_fr, c.name_en, COUNT(p.id) AS n
            FROM categories c LEFT JOIN products p ON p.category_id = c.id AND p.status = 'approved'
@@ -47,7 +49,7 @@ router.get('/users', async (req, res) => {
   const where = `WHERE ($1 = '' OR u.name ILIKE '%' || $1 || '%' OR u.email ILIKE '%' || $1 || '%')`;
   const [items, total] = await Promise.all([
     query(
-      `SELECT u.id, u.name, u.email, u.phone, u.role, u.account_type, u.city, u.is_active, u.created_at,
+      `SELECT u.id, u.name, u.email, u.phone, u.role, u.account_type, u.city, u.is_active, u.is_verified, u.created_at,
          (SELECT COUNT(*) FROM products p WHERE p.seller_id = u.id) AS products_count
        FROM users u ${where} ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`,
       params,
@@ -64,17 +66,22 @@ router.patch('/users/:id', async (req, res) => {
       isActive: z.boolean().optional(),
       role: z.enum(['user', 'admin']).optional(),
       accountType: z.enum(['individual', 'merchant']).optional(),
+      isVerified: z.boolean().optional(),
     }),
     req.body,
   );
+  const before = (await query('SELECT is_verified FROM users WHERE id = $1', [id])).rows[0];
   if (id === req.user.id && (data.isActive === false || data.role === 'user')) throw badRequest('cannot_demote_self');
   const { rows } = await query(
     `UPDATE users SET is_active = COALESCE($1, is_active), role = COALESCE($2, role),
-       account_type = COALESCE($3, account_type), updated_at = now()
-     WHERE id = $4 RETURNING id, name, email, role, account_type, is_active`,
-    [data.isActive ?? null, data.role ?? null, data.accountType ?? null, id],
+       account_type = COALESCE($3, account_type), is_verified = COALESCE($5, is_verified), updated_at = now()
+     WHERE id = $4 RETURNING id, name, email, role, account_type, is_active, is_verified`,
+    [data.isActive ?? null, data.role ?? null, data.accountType ?? null, id, data.isVerified ?? null],
   );
   if (!rows[0]) throw notFound('user_not_found');
+  if (data.isVerified === true && before && !before.is_verified) {
+    await notify(id, 'account_verified', {}, `/users/${id}`);
+  }
   res.json({ user: rows[0] });
 });
 
@@ -82,10 +89,12 @@ router.patch('/users/:id', async (req, res) => {
 
 router.get('/products', async (req, res) => {
   const { limit, offset, page } = pagination(req.query, { defaultLimit: 30 });
+  const featuredOnly = req.query.status === 'featured';
   const status = ['pending', 'approved', 'rejected'].includes(req.query.status) ? req.query.status : '';
   const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
   const params = [status, q];
-  const where = `WHERE ($1 = '' OR p.status = $1) AND ($2 = '' OR p.title ILIKE '%' || $2 || '%')`;
+  const where = `WHERE ($1 = '' OR p.status = $1) AND ($2 = '' OR p.title ILIKE '%' || $2 || '%')
+    ${featuredOnly ? 'AND p.featured_until > now()' : ''}`;
   const [items, total] = await Promise.all([
     query(
       `SELECT ${PRODUCT_SELECT}, p.description, p.rejection_reason, u.email AS seller_email,
@@ -115,6 +124,21 @@ router.patch('/products/:id/status', async (req, res) => {
     await notify(p.seller_id, `product_${data.status}`, { title: p.title, reason: data.reason || null }, `/products/${p.id}`);
   }
   res.json({ ok: true });
+});
+
+/** PATCH /admin/products/:id/feature {days} – feature for N days (0 removes). */
+router.patch('/products/:id/feature', async (req, res) => {
+  const { days } = parse(z.object({ days: z.coerce.number().int().min(0).max(365) }), req.body);
+  const { rows } = await query(
+    `UPDATE products SET featured_until = CASE WHEN $1::int > 0 THEN now() + make_interval(days => $1::int) ELSE NULL END,
+       updated_at = now()
+     WHERE id = $2 AND status = 'approved' RETURNING id, seller_id, title, featured_until`,
+    [days, parseInt(req.params.id, 10) || 0],
+  );
+  const p = rows[0];
+  if (!p) throw notFound('product_not_found');
+  if (days > 0) await notify(p.seller_id, 'product_featured', { title: p.title, days }, `/products/${p.id}`);
+  res.json({ ok: true, featuredUntil: p.featured_until });
 });
 
 router.delete('/products/:id', async (req, res) => {
@@ -211,7 +235,8 @@ router.patch('/reports/:id', async (req, res) => {
 
 router.get('/stores', async (_req, res) => {
   const { rows } = await query(
-    `SELECT s.id, s.name, s.slug, s.city, s.is_active, s.created_at, u.name AS owner_name, u.email AS owner_email,
+    `SELECT s.id, s.name, s.slug, s.city, s.is_active, s.created_at, u.id AS owner_id, u.name AS owner_name, u.email AS owner_email,
+       u.is_verified AS owner_verified,
        (SELECT COUNT(*) FROM products p WHERE p.store_id = s.id) AS products_count
      FROM stores s JOIN users u ON u.id = s.owner_id ORDER BY s.created_at DESC`,
   );

@@ -1,32 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import Gallery from '../components/Gallery.jsx';
 import { FavoriteButton, ProductGrid } from '../components/ProductCard.jsx';
-import { Avatar, ErrorBox, Field, Icon, Modal, Spinner, Stars, useCityName } from '../components/ui.jsx';
+import { Avatar, ErrorBox, Field, Icon, Modal, Spinner, Stars, VerifiedBadge, useCityName } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
-
-function Gallery({ images, title }) {
-  const [active, setActive] = useState(0);
-  if (!images.length) return <div className="card aspect-[4/3] bg-slate-100" />;
-  return (
-    <div>
-      <div className="card overflow-hidden bg-slate-900">
-        <img src={images[active].url} alt={title} className="mx-auto aspect-[4/3] w-full object-contain" />
-      </div>
-      {images.length > 1 && (
-        <div className="mt-3 flex gap-2 overflow-x-auto">
-          {images.map((img, i) => (
-            <button key={img.id} onClick={() => setActive(i)} className={`h-16 w-20 shrink-0 overflow-hidden rounded-lg ring-2 ${i === active ? 'ring-brand-600' : 'ring-transparent opacity-70 hover:opacity-100'}`}>
-              <img src={img.url} alt="" className="h-full w-full object-cover" />
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function ReportModal({ productId, open, onClose }) {
   const { t } = useI18n();
@@ -129,7 +109,7 @@ function ContactBox({ product }) {
   };
 
   return (
-    <div className="card space-y-3 p-4">
+    <div id="contact-box" className="card space-y-3 p-4">
       <form onSubmit={send} className="space-y-3">
         <ErrorBox error={error} />
         {user && (
@@ -153,6 +133,53 @@ function ContactBox({ product }) {
   );
 }
 
+function ShareBar({ product }) {
+  const { t, price } = useI18n();
+  const { notify } = useApp();
+  const url = typeof window !== 'undefined' ? window.location.href : '';
+  const text = t('product.shareText', { title: product.title, price: price(product.price) });
+  const nativeShare = async () => {
+    try { await navigator.share({ title: product.title, text, url }); } catch { /* cancelled */ }
+  };
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(url); notify(t('product.linkCopied')); } catch { /* ignore */ }
+  };
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-sm font-semibold text-slate-600">{t('product.share')}:</span>
+      <a href={`https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`} target="_blank" rel="noreferrer"
+        className="btn bg-[#25D366] px-3 py-1.5 text-xs text-white hover:brightness-95">{t('product.whatsapp')}</a>
+      {canShare && <button type="button" onClick={nativeShare} className="btn-outline px-3 py-1.5 text-xs"><Icon name="share" className="h-4 w-4" />{t('product.share')}</button>}
+      <button type="button" onClick={copy} className="btn-outline px-3 py-1.5 text-xs"><Icon name="link" className="h-4 w-4" />{t('product.copyLink')}</button>
+    </div>
+  );
+}
+
+/** Phones: price + contact actions pinned to the bottom of the screen. */
+function MobileActionBar({ product }) {
+  const { t, price } = useI18n();
+  const { user } = useApp();
+  const navigate = useNavigate();
+  if (user?.id === product.seller_id || product.availability === 'sold') return null;
+  const phone = (product.seller_phone || '').replace(/[^\d+]/g, '');
+  const message = () => {
+    if (!user) return navigate('/login', { state: { from: `/products/${product.id}` } });
+    const box = document.getElementById('contact-box');
+    box?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => box?.querySelector('textarea')?.focus(), 400);
+  };
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-surface/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur lg:hidden">
+      <div className="flex items-center gap-2">
+        <p className="me-auto min-w-0 truncate text-lg font-bold text-brand-800"><span className="ltr-nums">{price(product.price)}</span></p>
+        {phone && <a href={`tel:${phone}`} className="btn-outline px-3" aria-label={t('product.call')}><Icon name="phone" className="h-5 w-5" /></a>}
+        <button type="button" onClick={message} className="btn-primary"><Icon name="chat" className="h-4 w-4" />{t('product.contactSeller')}</button>
+      </div>
+    </div>
+  );
+}
+
 export default function ProductDetail() {
   const { id } = useParams();
   const { t, tl, price, date, number, ago } = useI18n();
@@ -171,7 +198,7 @@ export default function ProductDetail() {
   const similarItems = (similar.data?.items || []).filter((p) => p.id !== product.id).slice(0, 4);
 
   return (
-    <div className="container-page py-6">
+    <div className="container-page py-6 pb-28 lg:pb-6">
       <nav className="mb-4 flex flex-wrap items-center gap-1 text-sm text-slate-500" aria-label="breadcrumb">
         <Link to="/" className="hover:text-brand-700">{t('nav.home')}</Link>
         <Icon name="chevron" className="h-4 w-4 rtl:rotate-180" />
@@ -180,11 +207,13 @@ export default function ProductDetail() {
 
       {product.status === 'pending' && <div className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">{t('product.pendingNotice')}</div>}
       {product.status === 'rejected' && <div className="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{t('product.rejectedNotice', { reason: product.rejection_reason || '—' })}</div>}
-      {product.availability === 'sold' && <div className="mb-4 rounded-xl bg-slate-900 px-4 py-3 text-sm text-white">{t('product.soldNotice')}</div>}
+      {product.availability === 'sold' && <div className="mb-4 rounded-xl bg-ink px-4 py-3 text-sm text-white">{t('product.soldNotice')}</div>}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">
-          <Gallery images={product.images} title={product.title} />
+          <Gallery images={product.images} title={product.title}
+            badge={product.is_featured && <span className="badge gap-1 bg-gold-400 text-ink shadow"><Icon name="star" filled className="h-3 w-3" />{t('common.featured')}</span>} />
+          <div className="card p-4"><ShareBar product={product} /></div>
           <div className="card p-5">
             <h2 className="mb-3 text-lg font-bold">{t('product.description')}</h2>
             <p className="whitespace-pre-line leading-relaxed text-slate-700">{product.description}</p>
@@ -227,7 +256,8 @@ export default function ProductDetail() {
             <Link to={`/users/${product.seller_id}`} className="flex items-center gap-3">
               <Avatar name={product.seller_name} url={product.seller_avatar} />
               <div className="min-w-0">
-                <p className="truncate font-semibold">{product.seller_name}</p>
+                <p className="flex items-center gap-1 truncate font-semibold">{product.seller_name}{product.seller_verified && <VerifiedBadge />}</p>
+                {product.seller_verified && <p className="text-xs font-semibold text-sky-600">{t('common.verified')}</p>}
                 <div className="flex items-center gap-1.5 text-xs text-slate-500">
                   {product.seller_reviews_count > 0 ? (
                     <><Stars value={product.seller_rating} size="h-3.5 w-3.5" /><span>{t('product.reviews', { n: product.seller_reviews_count })}</span></>
@@ -263,6 +293,7 @@ export default function ProductDetail() {
       )}
 
       <ReportModal productId={product.id} open={reportOpen} onClose={() => setReportOpen(false)} />
+      <MobileActionBar product={product} />
     </div>
   );
 }

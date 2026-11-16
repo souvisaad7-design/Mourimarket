@@ -2,6 +2,57 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------------------------------------------------------------------------
+   Theme tokens. Greys are RGB triplets consumed by tailwind.config.js, so the
+   whole interface switches to dark mode when the device asks for it.
+   ------------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+  --surface: 255 255 255;
+  --slate-50: 248 250 252;
+  --slate-100: 241 245 249;
+  --slate-200: 226 232 240;
+  --slate-300: 203 213 225;
+  --slate-400: 148 163 184;
+  --slate-500: 100 116 139;
+  --slate-600: 71 85 105;
+  --slate-700: 51 65 85;
+  --slate-800: 30 41 59;
+  --slate-900: 15 23 42;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --surface: 17 25 40;
+    --slate-50: 8 13 25;
+    --slate-100: 30 41 59;
+    --slate-200: 43 56 76;
+    --slate-300: 64 79 102;
+    --slate-400: 112 128 150;
+    --slate-500: 148 163 184;
+    --slate-600: 191 202 216;
+    --slate-700: 214 222 232;
+    --slate-800: 232 237 243;
+    --slate-900: 245 248 251;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --surface: 17 25 40;
+  --slate-50: 8 13 25;
+  --slate-100: 30 41 59;
+  --slate-200: 43 56 76;
+  --slate-300: 64 79 102;
+  --slate-400: 112 128 150;
+  --slate-500: 148 163 184;
+  --slate-600: 191 202 216;
+  --slate-700: 214 222 232;
+  --slate-800: 232 237 243;
+  --slate-900: 245 248 251;
+}
+
 @layer base {
   body { @apply bg-slate-50 text-slate-800 antialiased; }
   h1, h2, h3 { @apply text-slate-900; }
@@ -9,18 +60,53 @@
 
 @layer components {
   .container-page { @apply mx-auto w-full max-w-7xl px-4 sm:px-6; }
-  .card { @apply rounded-2xl border border-slate-200 bg-white shadow-sm; }
-  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60; }
+  .card { @apply rounded-2xl border border-slate-200 bg-surface shadow-sm; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-60; }
   .btn-primary { @apply btn bg-brand-700 text-white hover:bg-brand-800; }
-  .btn-accent { @apply btn bg-gold-400 text-slate-900 hover:bg-gold-500; }
-  .btn-outline { @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50; }
+  .btn-accent { @apply btn bg-gold-400 text-ink hover:bg-gold-500; }
+  .btn-outline { @apply btn border border-slate-300 bg-surface text-slate-700 hover:bg-slate-100; }
   .btn-ghost { @apply btn text-slate-600 hover:bg-slate-100; }
   .btn-danger { @apply btn bg-rose-600 text-white hover:bg-rose-700; }
-  .input { @apply block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm placeholder:text-slate-400 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/20; }
+  .input { @apply block w-full rounded-xl border border-slate-300 bg-surface px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/20; }
   .label { @apply mb-1.5 block text-sm font-medium text-slate-700; }
   .badge { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold; }
   .link { @apply font-medium text-brand-700 hover:underline; }
+  .no-scrollbar { scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
 }
 
 /* Numbers and prices stay left-to-right inside RTL text. */
 .ltr-nums { direction: ltr; unicode-bidi: isolate; }
+
+/* ---------------------------------------------------------------------------
+   Dark mode: brand and status tints are fixed colours, so lighten the text
+   shades and darken the pale backgrounds to keep contrast readable.
+   ------------------------------------------------------------------------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .text-brand-700,
+  :root:not([data-theme='light']) .text-brand-800 { color: rgb(94 234 212); }
+  :root:not([data-theme='light']) .bg-brand-50 { background-color: rgb(19 78 74 / 0.35); }
+  :root:not([data-theme='light']) .bg-brand-100 { background-color: rgb(19 78 74 / 0.6); }
+  :root:not([data-theme='light']) .bg-brand-50\/60 { background-color: rgb(19 78 74 / 0.25); }
+  :root:not([data-theme='light']) .bg-amber-50,
+  :root:not([data-theme='light']) .bg-amber-100 { background-color: rgb(120 53 15 / 0.35); }
+  :root:not([data-theme='light']) .text-amber-700,
+  :root:not([data-theme='light']) .text-amber-800,
+  :root:not([data-theme='light']) .text-amber-900,
+  :root:not([data-theme='light']) .text-amber-800\/80 { color: rgb(252 211 77); }
+  :root:not([data-theme='light']) .bg-rose-50,
+  :root:not([data-theme='light']) .bg-rose-100 { background-color: rgb(136 19 55 / 0.35); }
+  :root:not([data-theme='light']) .text-rose-600,
+  :root:not([data-theme='light']) .text-rose-700,
+  :root:not([data-theme='light']) .text-rose-900 { color: rgb(253 164 175); }
+  :root:not([data-theme='light']) .bg-emerald-50,
+  :root:not([data-theme='light']) .bg-emerald-100 { background-color: rgb(6 78 59 / 0.45); }
+  :root:not([data-theme='light']) .text-emerald-700,
+  :root:not([data-theme='light']) .text-emerald-800 { color: rgb(110 231 183); }
+  :root:not([data-theme='light']) .bg-sky-50,
+  :root:not([data-theme='light']) .bg-sky-100 { background-color: rgb(12 74 110 / 0.45); }
+  :root:not([data-theme='light']) .text-sky-700 { color: rgb(125 211 252); }
+  :root:not([data-theme='light']) .border-amber-300 { border-color: rgb(146 64 14); }
+  :root:not([data-theme='light']) .border-rose-200 { border-color: rgb(159 18 57); }
+  :root:not([data-theme='light']) img { filter: brightness(0.92); }
+}

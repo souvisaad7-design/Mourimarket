@@ -173,6 +173,13 @@ async function main() {
       [soldProduct, buyer, userIds[1], 'بائع صادق والهاتف كما في الوصف. أنصح بالتعامل معه.'],
     );
 
+    // Verified merchants and a few featured listings.
+    await client.query('UPDATE users SET is_verified = true WHERE id = ANY($1::int[])', [[userIds[2], userIds[4]]]);
+    await client.query(
+      `UPDATE products SET featured_until = now() + interval '14 days' WHERE id = ANY($1::int[])`,
+      [[productIds[0], productIds[4], productIds[8], productIds[12]]],
+    );
+
     // An open report for the admin queue.
     await client.query(
       `INSERT INTO reports (reporter_id, product_id, reason, details) VALUES ($1, $2, 'duplicate', 'Annonce publiée deux fois.')`,

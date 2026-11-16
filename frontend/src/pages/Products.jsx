@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ProductGrid } from '../components/ProductCard.jsx';
-import { CitySelect, EmptyState, ErrorBox, Icon, Pagination, Spinner } from '../components/ui.jsx';
+import { ProductGrid, ProductGridSkeleton } from '../components/ProductCard.jsx';
+import { CitySelect, EmptyState, ErrorBox, Icon, Pagination } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
 
-const FILTER_KEYS = ['q', 'category', 'city', 'minPrice', 'maxPrice', 'condition', 'sort', 'availability', 'page'];
+const FILTER_KEYS = ['q', 'category', 'city', 'minPrice', 'maxPrice', 'condition', 'sort', 'availability', 'featured', 'page'];
 
 /** All listings + search results. Every filter lives in the URL so results are shareable. */
 export default function Products() {
@@ -24,7 +24,9 @@ export default function Products() {
   const { data, loading, error } = useApi(`/products?${apiParams}`);
 
   const category = categories.find((c) => c.slug === current.category);
-  const title = current.q ? t('products.searchFor', { q: current.q }) : category ? tl(category) : t('products.title');
+  const title = current.q ? t('products.searchFor', { q: current.q })
+    : current.featured ? t('home.featured')
+    : category ? tl(category) : t('products.title');
   useDocumentTitle(title);
 
   const update = (patch) => {
@@ -95,7 +97,8 @@ export default function Products() {
         <div className="flex items-center gap-2">
           <button className="btn-outline lg:hidden" onClick={() => setShowFilters(!showFilters)}><Icon name="filter" className="h-4 w-4" />{t('common.filters')}</button>
           <label className="sr-only" htmlFor="sort">{t('products.sort')}</label>
-          <select id="sort" className="input w-auto" value={current.sort || 'newest'} onChange={(e) => update({ sort: e.target.value })}>
+          <select id="sort" className="input w-auto" value={current.sort || (current.q ? 'relevance' : 'newest')} onChange={(e) => update({ sort: e.target.value })}>
+            {current.q && <option value="relevance">{t('products.sortRelevance')}</option>}
             <option value="newest">{t('products.sortNewest')}</option>
             <option value="oldest">{t('products.sortOldest')}</option>
             <option value="price_asc">{t('products.sortPriceAsc')}</option>
@@ -105,9 +108,9 @@ export default function Products() {
       </div>
 
       <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
-        <button onClick={() => update({ category: '' })} className={`badge shrink-0 px-3 py-1.5 text-sm ${!current.category ? 'bg-brand-700 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200'}`}>{t('common.all')}</button>
+        <button onClick={() => update({ category: '' })} className={`badge shrink-0 px-3 py-1.5 text-sm ${!current.category ? 'bg-brand-700 text-white' : 'bg-surface text-slate-700 ring-1 ring-slate-200'}`}>{t('common.all')}</button>
         {categories.map((c) => (
-          <button key={c.id} onClick={() => update({ category: c.slug })} className={`badge shrink-0 gap-1 px-3 py-1.5 text-sm ${current.category === c.slug ? 'bg-brand-700 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200'}`}>
+          <button key={c.id} onClick={() => update({ category: c.slug })} className={`badge shrink-0 gap-1 px-3 py-1.5 text-sm ${current.category === c.slug ? 'bg-brand-700 text-white' : 'bg-surface text-slate-700 ring-1 ring-slate-200'}`}>
             <span aria-hidden="true">{c.icon}</span>{tl(c)}
           </button>
         ))}
@@ -117,7 +120,7 @@ export default function Products() {
         <aside className={`${showFilters ? 'block' : 'hidden'} lg:block`}>{filters}</aside>
         <section>
           <ErrorBox error={error} />
-          {loading ? <Spinner /> : data?.items?.length ? (
+          {loading ? <ProductGridSkeleton /> : data?.items?.length ? (
             <>
               <ProductGrid items={data.items} />
               <Pagination page={data.page} total={data.total} limit={data.limit} onPage={(p) => update({ page: String(p) })} />

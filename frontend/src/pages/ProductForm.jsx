@@ -92,8 +92,8 @@ export default function ProductForm() {
               {keptExisting.map((img, i) => (
                 <div key={img.id} className="relative aspect-square overflow-hidden rounded-xl bg-slate-100">
                   <img src={img.url} alt="" className="h-full w-full object-cover" />
-                  {i === 0 && <span className="badge absolute bottom-1 start-1 bg-slate-900/80 text-white">{t('form.cover')}</span>}
-                  <button type="button" onClick={() => setRemoveIds([...removeIds, img.id])} className="absolute end-1 top-1 rounded-full bg-white/90 p-1 text-rose-600" aria-label={t('common.delete')}>
+                  {i === 0 && <span className="badge absolute bottom-1 start-1 bg-ink/80 text-white">{t('form.cover')}</span>}
+                  <button type="button" onClick={() => setRemoveIds([...removeIds, img.id])} className="absolute end-1 top-1 rounded-full bg-surface/90 p-1 text-rose-600" aria-label={t('common.delete')}>
                     <Icon name="x" className="h-4 w-4" />
                   </button>
                 </div>
@@ -101,8 +101,8 @@ export default function ProductForm() {
               {previews.map((p, i) => (
                 <div key={p.url} className="relative aspect-square overflow-hidden rounded-xl bg-slate-100">
                   <img src={p.url} alt="" className="h-full w-full object-cover" />
-                  {keptExisting.length === 0 && i === 0 && <span className="badge absolute bottom-1 start-1 bg-slate-900/80 text-white">{t('form.cover')}</span>}
-                  <button type="button" onClick={() => setFiles(files.filter((f) => f !== p.file))} className="absolute end-1 top-1 rounded-full bg-white/90 p-1 text-rose-600" aria-label={t('common.delete')}>
+                  {keptExisting.length === 0 && i === 0 && <span className="badge absolute bottom-1 start-1 bg-ink/80 text-white">{t('form.cover')}</span>}
+                  <button type="button" onClick={() => setFiles(files.filter((f) => f !== p.file))} className="absolute end-1 top-1 rounded-full bg-surface/90 p-1 text-rose-600" aria-label={t('common.delete')}>
                     <Icon name="x" className="h-4 w-4" />
                   </button>
                 </div>

@@ -373,6 +373,112 @@ const en = {
   notFound: { title: 'Page not found', text: 'The page may have moved or been deleted.', home: 'Back to home' },
 };
 
+// ---- v1.1: featured listings, verified sellers, smart search, sharing, PWA, theme ----
+const v11 = {
+  ar: {
+    common: { featured: 'مميز', verified: 'بائع موثّق' },
+    home: {
+      featured: 'إعلانات مميزة', popularCities: 'تصفح حسب المدينة', listings: '{n} إعلان',
+      trust1: 'بائعون موثّقون', trust1Text: 'علامة ✓ للبائعين الذين تحققنا منهم',
+      trust2: 'مراجعة كل إعلان', trust2Text: 'فريقنا يراجع الإعلانات قبل نشرها',
+      trust3: 'تقييمات حقيقية', trust3Text: 'التقييم فقط بعد عملية بيع موثقة',
+    },
+    products: { sortRelevance: 'الأكثر صلة' },
+    search: { categories: 'التصنيفات', listings: 'إعلانات', seeAll: 'كل النتائج لـ «{q}»' },
+    product: {
+      share: 'مشاركة', copyLink: 'نسخ الرابط', linkCopied: 'تم نسخ الرابط', shareText: '{title} — {price} على MauriMarket',
+      photo: 'صورة {i} من {n}', zoom: 'تكبير الصورة', verifiedHint: 'تحققت الإدارة من هوية هذا البائع',
+    },
+    notifications: { types: {
+      product_featured: 'أصبح إعلانك «{title}» مميزاً لمدة {days} يوماً ⭐',
+      account_verified: 'تم توثيق حسابك! تظهر الآن علامة ✓ بجانب اسمك',
+    } },
+    admin: {
+      feature: 'تمييز', unfeature: 'إلغاء التمييز', featureFor: 'تمييز الإعلان لمدة', days: '{n} أيام',
+      featuredUntil: 'مميز حتى {d}', verify: 'توثيق', unverify: 'إلغاء التوثيق',
+      featuredCount: 'إعلانات مميزة', verifiedCount: 'بائعون موثّقون', featuredTab: 'المميزة',
+    },
+    pwa: {
+      install: 'ثبّت التطبيق', installText: 'أضف MauriMarket إلى شاشتك الرئيسية وافتحه بلمسة واحدة كتطبيق.',
+      iosHint: 'اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية»', later: 'لاحقاً', offline: 'لا يوجد اتصال بالإنترنت',
+    },
+    theme: { label: 'المظهر', auto: 'تلقائي', light: 'فاتح', dark: 'داكن' },
+  },
+  fr: {
+    common: { featured: 'À la une', verified: 'Vendeur vérifié' },
+    home: {
+      featured: 'Annonces à la une', popularCities: 'Parcourir par ville', listings: '{n} annonces',
+      trust1: 'Vendeurs vérifiés', trust1Text: 'Badge ✓ pour les vendeurs contrôlés',
+      trust2: 'Annonces vérifiées', trust2Text: 'Chaque annonce est validée avant publication',
+      trust3: 'Avis authentiques', trust3Text: 'Avis uniquement après une vente documentée',
+    },
+    products: { sortRelevance: 'Pertinence' },
+    search: { categories: 'Catégories', listings: 'Annonces', seeAll: 'Tous les résultats pour « {q} »' },
+    product: {
+      share: 'Partager', copyLink: 'Copier le lien', linkCopied: 'Lien copié', shareText: '{title} — {price} sur MauriMarket',
+      photo: 'Photo {i} sur {n}', zoom: 'Agrandir la photo', verifiedHint: 'L’identité de ce vendeur a été vérifiée',
+    },
+    notifications: { types: {
+      product_featured: 'Votre annonce « {title} » est à la une pour {days} jours ⭐',
+      account_verified: 'Votre compte est vérifié ! Le badge ✓ apparaît à côté de votre nom',
+    } },
+    admin: {
+      feature: 'Mettre à la une', unfeature: 'Retirer de la une', featureFor: 'Mettre à la une pendant', days: '{n} jours',
+      featuredUntil: 'À la une jusqu’au {d}', verify: 'Vérifier', unverify: 'Retirer la vérification',
+      featuredCount: 'Annonces à la une', verifiedCount: 'Vendeurs vérifiés', featuredTab: 'À la une',
+    },
+    pwa: {
+      install: 'Installer l’app', installText: 'Ajoutez MauriMarket à votre écran d’accueil et ouvrez-le comme une application.',
+      iosHint: 'Touchez Partager puis « Sur l’écran d’accueil »', later: 'Plus tard', offline: 'Pas de connexion Internet',
+    },
+    theme: { label: 'Thème', auto: 'Auto', light: 'Clair', dark: 'Sombre' },
+  },
+  en: {
+    common: { featured: 'Featured', verified: 'Verified seller' },
+    home: {
+      featured: 'Featured listings', popularCities: 'Browse by city', listings: '{n} listings',
+      trust1: 'Verified sellers', trust1Text: 'A ✓ badge for sellers we have checked',
+      trust2: 'Reviewed listings', trust2Text: 'Every ad is checked before it goes live',
+      trust3: 'Genuine reviews', trust3Text: 'Reviews only after a documented sale',
+    },
+    products: { sortRelevance: 'Most relevant' },
+    search: { categories: 'Categories', listings: 'Listings', seeAll: 'All results for “{q}”' },
+    product: {
+      share: 'Share', copyLink: 'Copy link', linkCopied: 'Link copied', shareText: '{title} — {price} on MauriMarket',
+      photo: 'Photo {i} of {n}', zoom: 'Enlarge photo', verifiedHint: 'This seller’s identity has been verified',
+    },
+    notifications: { types: {
+      product_featured: 'Your listing “{title}” is featured for {days} days ⭐',
+      account_verified: 'Your account is verified! The ✓ badge now shows next to your name',
+    } },
+    admin: {
+      feature: 'Feature', unfeature: 'Unfeature', featureFor: 'Feature this listing for', days: '{n} days',
+      featuredUntil: 'Featured until {d}', verify: 'Verify', unverify: 'Remove verification',
+      featuredCount: 'Featured listings', verifiedCount: 'Verified sellers', featuredTab: 'Featured',
+    },
+    pwa: {
+      install: 'Install the app', installText: 'Add MauriMarket to your home screen and open it like an app.',
+      iosHint: 'Tap Share, then “Add to Home Screen”', later: 'Later', offline: 'No internet connection',
+    },
+    theme: { label: 'Theme', auto: 'Auto', light: 'Light', dark: 'Dark' },
+  },
+};
+
+function deepMerge(target, extra) {
+  for (const [k, val] of Object.entries(extra)) {
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      target[k] = target[k] || {};
+      deepMerge(target[k], val);
+    } else {
+      target[k] = val;
+    }
+  }
+  return target;
+}
+deepMerge(ar, v11.ar);
+deepMerge(fr, v11.fr);
+deepMerge(en, v11.en);
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },

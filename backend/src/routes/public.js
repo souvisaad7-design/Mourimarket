@@ -32,11 +32,21 @@ router.get('/stats/public', async (_req, res) => {
   res.json(rows[0]);
 });
 
+/** Number of live listings per city, for the homepage. */
+router.get('/stats/cities', async (_req, res) => {
+  const { rows } = await query(
+    `SELECT p.city, COUNT(*) AS n FROM products p JOIN users u ON u.id = p.seller_id
+     WHERE p.status = 'approved' AND p.availability = 'available' AND u.is_active
+     GROUP BY p.city ORDER BY n DESC LIMIT 8`,
+  );
+  res.json({ items: rows });
+});
+
 /** Public seller profile with active listings and reviews. */
 router.get('/users/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const { rows } = await query(
-    `SELECT u.id, u.name, u.city, u.bio, u.avatar_url, u.account_type, u.created_at, u.phone,
+    `SELECT u.id, u.name, u.city, u.bio, u.avatar_url, u.account_type, u.created_at, u.phone, u.is_verified,
        (SELECT ROUND(AVG(rating)::numeric, 1) FROM reviews WHERE seller_id = u.id) AS rating,
        (SELECT COUNT(*) FROM reviews WHERE seller_id = u.id) AS reviews_count,
        (SELECT COUNT(*) FROM products WHERE seller_id = u.id AND availability = 'sold') AS sold_count,
@@ -66,7 +76,7 @@ router.get('/users/:id', async (req, res) => {
 router.get('/stores', async (req, res) => {
   const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : '';
   const { rows } = await query(
-    `SELECT s.id, s.name, s.slug, s.logo_url, s.description, s.city, s.created_at,
+    `SELECT s.id, s.name, s.slug, s.logo_url, s.description, s.city, s.created_at, u.is_verified AS verified,
        (SELECT COUNT(*) FROM products p WHERE p.store_id = s.id AND p.status = 'approved' AND p.availability = 'available') AS product_count
      FROM stores s JOIN users u ON u.id = s.owner_id
      WHERE s.is_active AND u.is_active AND u.account_type = 'merchant' AND ($1 = '' OR s.name ILIKE '%' || $1 || '%')
@@ -134,7 +144,7 @@ router.put('/stores/me', requireAuth, upload.single('logo'), async (req, res) =>
 router.get('/stores/:slug', async (req, res) => {
   const { rows } = await query(
     `SELECT s.id, s.owner_id, s.name, s.slug, s.logo_url, s.description, s.phone, s.whatsapp, s.email, s.city, s.created_at,
-       u.name AS owner_name,
+       u.name AS owner_name, u.is_verified AS verified,
        (SELECT ROUND(AVG(rating)::numeric, 1) FROM reviews WHERE seller_id = s.owner_id) AS rating,
        (SELECT COUNT(*) FROM reviews WHERE seller_id = s.owner_id) AS reviews_count
      FROM stores s JOIN users u ON u.id = s.owner_id

@@ -161,6 +161,49 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read, created_at DESC);
 
+-- ---------------------------------------------------------------------------
+-- v1.1 additions (safe to re-run on an existing database)
+-- ---------------------------------------------------------------------------
+
+-- Verified sellers (badge granted by an admin).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Featured listings: shown first with a badge until this date.
+ALTER TABLE products ADD COLUMN IF NOT EXISTS featured_until TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_products_featured ON products(featured_until) WHERE featured_until IS NOT NULL;
+
+-- Search normalisation: lower-case; unify Arabic letter variants (أ إ آ ٱ → ا, ة → ه,
+-- ى → ي, ؤ → و, ئ → ي); drop tashkeel/tatweel; strip French accents.
+CREATE OR REPLACE FUNCTION mm_normalize(t text) RETURNS text
+LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $fn$
+  SELECT regexp_replace(
+    translate(lower(coalesce(t, '')),
+      'أإآٱةىؤئéèêëàâäîïôöùûüç',
+      'ااااهيويeeeeaaaiioouuuc'),
+    '[ً-ْـ]', '', 'g')
+$fn$;
+
+ALTER TABLE products ADD COLUMN IF NOT EXISTS search_text TEXT
+  GENERATED ALWAYS AS (mm_normalize(title || ' ' || description)) STORED;
+
+-- Typo-tolerant search uses pg_trgm when it is available (it is on Supabase).
+DO $do$
+BEGIN
+  BEGIN
+    CREATE EXTENSION IF NOT EXISTS pg_trgm;
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'pg_trgm could not be created by this role; ask an admin to install it';
+  END;
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm') THEN
+    BEGIN
+      EXECUTE 'CREATE INDEX IF NOT EXISTS idx_products_search_trgm ON products USING gin (search_text gin_trgm_ops)';
+    EXCEPTION WHEN undefined_object THEN
+      RAISE NOTICE 'gin_trgm_ops not on search_path; skipping trigram index';
+    END;
+  END IF;
+END
+$do$;
+
 -- Supabase exposes the public schema through its REST API (PostgREST) to anyone
 -- holding the public anon key. Enabling RLS with no policies blocks that API
 -- entirely; the app connects as the table owner, which bypasses RLS.

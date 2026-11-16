@@ -15,7 +15,7 @@ export default function AdminLayout() {
   return (
     <div className="container-page py-6">
       <h1 className="mb-4 flex items-center gap-2 text-2xl font-bold"><Icon name="shield" className="h-6 w-6 text-brand-700" />{t('admin.title')}</h1>
-      <nav className="mb-6 flex gap-1 overflow-x-auto rounded-xl bg-white p-1 ring-1 ring-slate-200">
+      <nav className="mb-6 flex gap-1 overflow-x-auto rounded-xl bg-surface p-1 ring-1 ring-slate-200">
         {TABS.map(([path, key, icon]) => (
           <NavLink key={key} to={`/admin${path ? `/${path}` : ''}`} end={!path}
             className={({ isActive }) => `flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold ${isActive ? 'bg-brand-700 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
@@ -59,7 +59,7 @@ function DailyChart({ rows }) {
           <div key={r.day} className="group relative flex h-full flex-1 items-end justify-center gap-0.5">
             <div className="w-1/2 rounded-t bg-brand-600" style={{ height: `${(r.products / max) * 100}%`, minHeight: r.products ? 3 : 0 }} />
             <div className="w-1/2 rounded-t bg-gold-400" style={{ height: `${(r.users / max) * 100}%`, minHeight: r.users ? 3 : 0 }} />
-            <div className="pointer-events-none absolute bottom-full z-10 mb-1 hidden whitespace-nowrap rounded-lg bg-slate-900 px-2 py-1 text-[11px] text-white group-hover:block">
+            <div className="pointer-events-none absolute bottom-full z-10 mb-1 hidden whitespace-nowrap rounded-lg bg-ink px-2 py-1 text-[11px] text-white group-hover:block">
               {new Date(r.day).toLocaleDateString(lang === 'ar' ? 'ar-u-nu-latn' : lang, { day: 'numeric', month: 'short' })}: {r.products} / {r.users}
             </div>
           </div>
@@ -84,6 +84,7 @@ export function AdminOverview() {
 
   const tiles = [
     ['users', t('admin.users'), totals.users], ['merchants', t('admin.merchants'), totals.merchants],
+    ['featured', t('admin.featuredCount'), totals.featured_products], ['verified', t('admin.verifiedCount'), totals.verified_users],
     ['live', t('dashboard.live'), totals.live_products], ['sold', t('dashboard.soldCount'), totals.sold_products],
     ['stores', t('admin.stores'), totals.stores], ['messages', t('admin.messagesCount'), totals.messages],
     ['views', t('admin.totalViews'), totals.views], ['new', t('admin.newUsers7d'), totals.new_users_7d],

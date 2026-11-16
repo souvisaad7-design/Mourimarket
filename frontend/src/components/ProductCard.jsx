@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
-import { Icon, useCityName } from './ui.jsx';
+import { Icon, VerifiedBadge, useCityName } from './ui.jsx';
 
 export function FavoriteButton({ product, className = '', onChange }) {
   const { user, notify } = useApp();
@@ -36,7 +36,7 @@ export function FavoriteButton({ product, className = '', onChange }) {
       aria-pressed={fav}
       aria-label={fav ? t('product.removeFavorite') : t('product.addFavorite')}
       title={fav ? t('product.removeFavorite') : t('product.addFavorite')}
-      className={`rounded-full bg-white/90 p-2 shadow-sm backdrop-blur transition hover:scale-105 ${fav ? 'text-rose-600' : 'text-slate-600'} ${className}`}
+      className={`rounded-full bg-surface/90 p-2 shadow-sm backdrop-blur transition hover:scale-105 ${fav ? 'text-rose-600' : 'text-slate-600'} ${className}`}
     >
       <Icon name="heart" filled={fav} className="h-5 w-5" />
     </button>
@@ -51,7 +51,7 @@ export default function ProductCard({ product, onFavoriteChange }) {
   const category = { name_ar: product.category_name_ar, name_fr: product.category_name_fr, name_en: product.category_name_en };
 
   return (
-    <Link to={`/products/${product.id}`} className="card group flex flex-col overflow-hidden transition hover:-translate-y-0.5 hover:shadow-md">
+    <Link to={`/products/${product.id}`} className={`card group flex flex-col overflow-hidden transition hover:-translate-y-0.5 hover:shadow-md ${product.is_featured && !sold ? 'ring-2 ring-gold-400/70' : ''}`}>
       <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
         {product.cover_url ? (
           <img src={product.cover_url} alt={product.title} loading="lazy" className={`h-full w-full object-cover transition duration-300 group-hover:scale-105 ${sold ? 'opacity-60 grayscale' : ''}`} />
@@ -59,9 +59,10 @@ export default function ProductCard({ product, onFavoriteChange }) {
           <div className="flex h-full items-center justify-center text-slate-400"><Icon name="image" className="h-10 w-10" /></div>
         )}
         <FavoriteButton product={product} className="absolute end-2 top-2" onChange={onFavoriteChange} />
-        <div className="absolute start-2 top-2 flex gap-1">
-          {sold && <span className="badge bg-slate-900 text-white">{t('common.sold')}</span>}
-          {product.condition === 'new' && !sold && <span className="badge bg-gold-400 text-slate-900">{t('common.new')}</span>}
+        <div className="absolute start-2 top-2 flex flex-wrap gap-1">
+          {product.is_featured && !sold && <span className="badge gap-1 bg-gold-400 text-ink shadow-sm"><Icon name="star" filled className="h-3 w-3" />{t('common.featured')}</span>}
+          {sold && <span className="badge bg-ink text-white">{t('common.sold')}</span>}
+          {product.condition === 'new' && !sold && <span className="badge bg-gold-400 text-ink">{t('common.new')}</span>}
         </div>
       </div>
       <div className="flex flex-1 flex-col gap-1.5 p-3.5">
@@ -73,10 +74,34 @@ export default function ProductCard({ product, onFavoriteChange }) {
           <span className="shrink-0">{ago(product.created_at)}</span>
         </div>
         {product.store_name && (
-          <span className="flex items-center gap-1 truncate text-xs text-slate-500"><Icon name="store" className="h-3.5 w-3.5" />{product.store_name}</span>
+          <span className="flex items-center gap-1 truncate text-xs text-slate-500">
+            <Icon name="store" className="h-3.5 w-3.5" />{product.store_name}
+            {product.seller_verified && <VerifiedBadge small />}
+          </span>
+        )}
+        {!product.store_name && product.seller_verified && (
+          <span className="flex items-center gap-1 truncate text-xs text-slate-500">{product.seller_name}<VerifiedBadge small /></span>
         )}
       </div>
     </Link>
+  );
+}
+
+/** Placeholder cards shown while listings load (avoids layout jumps). */
+export function ProductGridSkeleton({ count = 8 }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4" aria-hidden="true">
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="card overflow-hidden">
+          <div className="aspect-[4/3] animate-pulse bg-slate-100" />
+          <div className="space-y-2 p-3.5">
+            <div className="h-3 w-1/3 animate-pulse rounded bg-slate-100" />
+            <div className="h-4 w-4/5 animate-pulse rounded bg-slate-100" />
+            <div className="h-5 w-1/2 animate-pulse rounded bg-slate-100" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
