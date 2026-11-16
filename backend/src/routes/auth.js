@@ -13,12 +13,18 @@ const router = Router();
 
 const USER_FIELDS = `id, name, email, phone, role, account_type, city, bio, avatar_url, created_at`;
 
-const password = z.string().min(8, 'min_8').max(100);
+// Text copied from RTL (Arabic) content often carries invisible direction marks
+// (U+200E, U+200F, U+202A–U+202E, U+2066–U+2069, zero-width chars). Strip them
+// from credentials so a pasted email/password still works.
+const INVISIBLE = /[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g;
+const clean = (v) => (typeof v === 'string' ? v.replace(INVISIBLE, '') : v);
+const emailField = z.preprocess(clean, z.string().trim().toLowerCase().email('invalid_email'));
+const password = z.preprocess(clean, z.string().min(8, 'min_8').max(100));
 const phone = z.string().trim().regex(/^\+?[0-9 ]{8,15}$/, 'invalid_phone');
 
 const registerSchema = z.object({
   name: z.string().trim().min(2, 'min_2').max(100),
-  email: z.string().trim().toLowerCase().email('invalid_email'),
+  email: emailField,
   phone: phone.optional().or(z.literal('')),
   password,
   accountType: z.enum(['individual', 'merchant']).default('individual'),
@@ -41,8 +47,8 @@ router.post('/register', async (req, res) => {
 const DUMMY_HASH = bcrypt.hashSync('timing-equalizer', 12);
 
 const loginSchema = z.object({
-  email: z.string().trim().toLowerCase().email('invalid_email'),
-  password: z.string().min(1),
+  email: emailField,
+  password: z.preprocess(clean, z.string().min(1)),
 });
 
 router.post('/login', async (req, res) => {
@@ -91,7 +97,7 @@ router.put('/me', requireAuth, upload.single('avatar'), async (req, res) => {
 });
 
 router.put('/me/password', requireAuth, async (req, res) => {
-  const data = parse(z.object({ currentPassword: z.string().min(1), newPassword: password }), req.body);
+  const data = parse(z.object({ currentPassword: z.preprocess(clean, z.string().min(1)), newPassword: password }), req.body);
   const { rows } = await query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
   if (!(await bcrypt.compare(data.currentPassword, rows[0].password_hash))) {
     throw badRequest('wrong_password');
@@ -106,7 +112,7 @@ router.put('/me/password', requireAuth, async (req, res) => {
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 
 router.post('/forgot-password', async (req, res) => {
-  const { email } = parse(z.object({ email: z.string().trim().toLowerCase().email('invalid_email') }), req.body);
+  const { email } = parse(z.object({ email: emailField }), req.body);
   const { rows } = await query('SELECT id FROM users WHERE email = $1 AND is_active', [email]);
   const response = { ok: true };
   if (rows[0]) {

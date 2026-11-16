@@ -197,3 +197,10 @@ describe('MauriMarket API', () => {
     assert.equal((await call('/api/auth/me', { token })).status, 403);
   });
 });
+
+describe('pasted credentials', () => {
+  it('ignores invisible direction marks copied from Arabic text', async () => {
+    const r = await call('/api/auth/login', { method: 'POST', body: { email: '‏buyer@example.mr‏', password: '⁧Password123⁩' } });
+    assert.equal(r.status, 200);
+  });
+});

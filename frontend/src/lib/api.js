@@ -1,4 +1,5 @@
 const TOKEN_KEY = 'mm_token';
+const INVISIBLE = /[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g;
 
 export function getToken() {
   try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
@@ -37,7 +38,8 @@ export async function api(path, { method = 'GET', body, query } = {}) {
   let payload = body;
   if (body && !(body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
-    payload = JSON.stringify(body);
+    // Drop invisible bidi/zero-width marks that sneak in when copying from Arabic text.
+    payload = JSON.stringify(body, (_k, v) => (typeof v === 'string' ? v.replace(INVISIBLE, '') : v));
   }
   let res;
   try {

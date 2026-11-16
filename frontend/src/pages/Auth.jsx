@@ -46,7 +46,7 @@ export function Login() {
   return (
     <AuthCard title={t('auth.loginTitle')} subtitle={t('auth.loginSubtitle')}
       footer={<>{t('auth.noAccount')} <Link to="/register" className="link">{t('nav.register')}</Link></>}>
-      <form onSubmit={submit} className="space-y-4">
+      <form onSubmit={submit} className="space-y-4" noValidate>
         <ErrorBox error={error} />
         <Field label={t('auth.email')}>
           <input className="input" type="email" autoComplete="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} dir="ltr" />
