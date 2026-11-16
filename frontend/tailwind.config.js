@@ -6,7 +6,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"IBM Plex Sans Arabic"', 'Tahoma', 'system-ui', 'sans-serif'],
+        sans: ['"El Messiri"', 'Tahoma', 'system-ui', 'sans-serif'],
       },
       colors: {
         // Neutral greys are CSS variables so the whole UI flips in dark mode (see index.css).
