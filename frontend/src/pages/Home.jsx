@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import HeroCarousel from '../components/HeroCarousel.jsx';
 import { ProductGrid, ProductGridSkeleton } from '../components/ProductCard.jsx';
-import { Icon, VerifiedBadge, useCityName } from '../components/ui.jsx';
+import { EmptyState, Icon, VerifiedBadge, useCityName } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
@@ -143,9 +143,7 @@ export default function Home() {
   const stores = useApi('/stores');
   const cities = useApi('/stats/cities');
 
-  // Show featured listings; fall back to the latest ones until an admin features some.
-  const spotlight = featured.data?.items?.length ? featured.data.items : (latest.data?.items || []).slice(0, 4);
-  const spotlightLoading = featured.loading || (!featured.data?.items?.length && latest.loading);
+  const hasFeatured = featured.data?.items?.length > 0;
 
   return (
     <div className="container-page space-y-7 py-4 sm:space-y-10 sm:py-5">
@@ -156,20 +154,29 @@ export default function Home() {
         <CategoryTiles categories={categories} />
       </section>
 
-      {/* Why · Featured · Post an ad */}
-      <section className="grid gap-4 lg:grid-cols-[250px_1fr_250px]">
+      <section>
+        <SectionTitle action={<PillLink to="/products">{t('common.viewAll')}</PillLink>}>{t('home.latest')}</SectionTitle>
+        {latest.loading ? <ProductGridSkeleton /> : latest.data?.items?.length ? <ProductGrid items={latest.data.items} /> : (
+          <EmptyState icon="plus" title={t('home.noListingsYet')}>
+            <Link to="/sell" className="btn-accent rounded-full"><Icon name="plus" className="h-4 w-4" />{t('home.promoCta')}</Link>
+          </EmptyState>
+        )}
+      </section>
+
+      {/* Why · Featured (only when an admin has featured listings) · Post an ad */}
+      <section className={`grid gap-4 ${hasFeatured ? 'lg:grid-cols-[250px_1fr_250px]' : 'sm:grid-cols-2'}`}>
         <div className="order-3 lg:order-none"><WhyCard /></div>
-        <div className="order-1 min-w-0 lg:order-none">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="flex items-center gap-2 text-xl font-bold"><span className="text-gold-500"><Icon name="star" filled className="h-6 w-6" /></span>{t('home.featured')}</h2>
-            <PillLink to={featured.data?.items?.length ? '/products?featured=1' : '/products'}>{t('common.viewAll')}</PillLink>
-          </div>
-          {spotlightLoading ? <ProductGridSkeleton count={4} /> : (
-            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-              <ProductGridInner items={spotlight} />
+        {hasFeatured && (
+          <div className="order-1 min-w-0 lg:order-none">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="flex items-center gap-2 text-xl font-bold"><span className="text-gold-500"><Icon name="star" filled className="h-6 w-6" /></span>{t('home.featured')}</h2>
+              <PillLink to="/products?featured=1">{t('common.viewAll')}</PillLink>
             </div>
-          )}
-        </div>
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+              <ProductGridInner items={featured.data.items} />
+            </div>
+          </div>
+        )}
         <div className="order-2 lg:order-none"><PromoCard /></div>
       </section>
 
@@ -179,11 +186,6 @@ export default function Home() {
           <ProductGrid items={deals.data.items} />
         </section>
       )}
-
-      <section>
-        <SectionTitle action={<PillLink to="/products">{t('common.viewAll')}</PillLink>}>{t('home.latest')}</SectionTitle>
-        {latest.loading ? <ProductGridSkeleton /> : <ProductGrid items={latest.data?.items || []} />}
-      </section>
 
       {cities.data?.items?.length > 0 && (
         <section>

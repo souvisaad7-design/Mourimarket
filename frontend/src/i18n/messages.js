@@ -713,6 +713,9 @@ const v14 = {
     errors: { phone_taken: 'This phone number is already registered.', sellers_only: 'Only sellers can post ads. Switch to a seller account in your profile.' },
   },
 };
+deepMerge(ar, { home: { noListingsYet: 'لا توجد إعلانات بعد. كن أول من ينشر إعلاناً على MauriMarket!' } });
+deepMerge(fr, { home: { noListingsYet: 'Pas encore d’annonces. Soyez le premier à publier sur MauriMarket !' } });
+deepMerge(en, { home: { noListingsYet: 'No listings yet. Be the first to post on MauriMarket!' } });
 deepMerge(ar, v14.ar);
 deepMerge(fr, v14.fr);
 deepMerge(en, v14.en);
