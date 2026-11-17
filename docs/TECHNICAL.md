@@ -17,7 +17,7 @@ PostgreSQL 16
 * **Roles**: anonymous *visitor*; authenticated *user*, who can both buy and sell (`account_type` = `individual` | `merchant`); and `role = admin`. Only merchants can own a store.
 * **Moderation**: new listings start as `pending`. Editing a listing's content sends it back to `pending`. Set `AUTO_APPROVE=true` to skip review.
 * **Notifications** are stored as `type` + JSON `data`, and the client renders the text in the user's language. Header badges are polled every 20 seconds, and an open conversation every 8 seconds. Websockets are a possible future upgrade.
-* **Images**: the browser downsizes each photo to at most 1600 px as a JPEG before upload. The server accepts JPEG, PNG and WebP up to 5 MB, with at most 8 per listing.
+* **Images**: as soon as a photo is picked, the browser resizes it to at most 1000 px wide and re-encodes it as WebP at quality 0.75 (`frontend/src/lib/image.js`, HTML5 Canvas). Browsers that cannot encode WebP fall back to JPEG. Re-encoding applies the EXIF orientation and strips metadata such as GPS location; the form shows each photo's size and the total saved. The server accepts JPEG, PNG and WebP up to 5 MB, with at most 8 per listing.
 
 ## 2. Database design
 

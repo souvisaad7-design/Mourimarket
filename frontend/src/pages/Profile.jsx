@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Avatar, CitySelect, ErrorBox, Field, PageHeader, useFieldError } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
-import { api, compressImage } from '../lib/api.js';
+import { api } from '../lib/api.js';
+import { compressImage } from '../lib/image.js';
 import { useDocumentTitle } from '../lib/hooks.js';
 
 function ProfileForm() {
@@ -24,7 +25,7 @@ function ProfileForm() {
     try {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
-      if (avatar) fd.append('avatar', await compressImage(avatar, 512));
+      if (avatar) fd.append('avatar', (await compressImage(avatar, { maxWidth: 512 })).file);
       await api('/auth/me', { method: 'PUT', body: fd });
       await refreshUser();
       setAvatar(null);

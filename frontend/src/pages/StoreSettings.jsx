@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { CitySelect, EmptyState, ErrorBox, Field, Icon, PageHeader, Spinner, useFieldError } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
-import { api, compressImage } from '../lib/api.js';
+import { api } from '../lib/api.js';
+import { compressImage } from '../lib/image.js';
 import { useDocumentTitle } from '../lib/hooks.js';
 
 export default function StoreSettings() {
@@ -44,7 +45,7 @@ export default function StoreSettings() {
     try {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
-      if (logo) fd.append('logo', await compressImage(logo, 512));
+      if (logo) fd.append('logo', (await compressImage(logo, { maxWidth: 512 })).file);
       const { store: s } = await api('/stores/me', { method: 'PUT', body: fd });
       setStore(s);
       setLogo(null);

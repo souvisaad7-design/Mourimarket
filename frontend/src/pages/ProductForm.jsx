@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { CitySelect, ErrorBox, Field, Icon, PageHeader, Spinner, useFieldError } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
-import { api, compressImage } from '../lib/api.js';
+import { api } from '../lib/api.js';
+import { compressImage, formatBytes } from '../lib/image.js';
 import { useDocumentTitle } from '../lib/hooks.js';
 
 const MAX_IMAGES = 8;
@@ -18,6 +19,8 @@ export default function ProductForm() {
   const [form, setForm] = useState({ title: '', description: '', price: '', oldPrice: '', categoryId: '', city: user.city || '', condition: 'used' });
   const [existing, setExisting] = useState([]);
   const [removeIds, setRemoveIds] = useState([]);
+  // New photos: { key, file, originalSize, status: 'processing' | 'ready' | 'error' }.
+  // Each one is compressed (WebP, ≤1000px wide, quality 0.75) as soon as it is picked.
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(editing);
   const [busy, setBusy] = useState(false);
@@ -37,8 +40,15 @@ export default function ProductForm() {
     }).catch(setError).finally(() => setLoading(false));
   }, [editing, id]);
 
-  const previews = useMemo(() => files.map((f) => ({ file: f, url: URL.createObjectURL(f) })), [files]);
-  useEffect(() => () => previews.forEach((p) => URL.revokeObjectURL(p.url)), [previews]);
+  const previews = useMemo(
+    () => files.map((item) => ({ ...item, url: item.file ? URL.createObjectURL(item.file) : null })),
+    [files],
+  );
+  useEffect(() => () => previews.forEach((p) => p.url && URL.revokeObjectURL(p.url)), [previews]);
+  const processing = files.some((f) => f.status === 'processing');
+  const ready = files.filter((f) => f.status === 'ready');
+  const savedBytes = ready.reduce((sum, f) => sum + Math.max(0, f.originalSize - f.file.size), 0);
+  const beforeBytes = ready.reduce((sum, f) => sum + f.originalSize, 0);
 
   const keptExisting = existing.filter((img) => !removeIds.includes(img.id));
   const imageCount = keptExisting.length + files.length;
@@ -46,7 +56,19 @@ export default function ProductForm() {
 
   const addFiles = (list) => {
     const room = MAX_IMAGES - imageCount;
-    setFiles([...files, ...Array.from(list).filter((f) => f.type.startsWith('image/')).slice(0, room)]);
+    const picked = Array.from(list).filter((f) => f.type.startsWith('image/') || /\.(heic|heif)$/i.test(f.name)).slice(0, room);
+    const items = picked.map((f, i) => ({ key: `${Date.now()}-${i}-${f.name}`, file: null, originalSize: f.size, status: 'processing' }));
+    setFiles((prev) => [...prev, ...items]);
+    // Compress in the browser right away so the preview shows exactly what will be uploaded.
+    picked.forEach(async (f, i) => {
+      const { key } = items[i];
+      try {
+        const out = await compressImage(f);
+        setFiles((prev) => prev.map((it) => (it.key === key ? { ...it, file: out.file, status: 'ready' } : it)));
+      } catch {
+        setFiles((prev) => prev.map((it) => (it.key === key ? { ...it, status: 'error' } : it)));
+      }
+    });
   };
 
   const submit = async (e) => {
@@ -57,7 +79,7 @@ export default function ProductForm() {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
       removeIds.forEach((rid) => fd.append('removeImageIds', rid));
-      for (const f of files) fd.append('images', await compressImage(f));
+      for (const item of ready) fd.append('images', item.file);
       if (editing) {
         await api(`/products/${id}`, { method: 'PUT', body: fd });
         notify(t('form.updated'));
@@ -100,10 +122,25 @@ export default function ProductForm() {
                 </div>
               ))}
               {previews.map((p, i) => (
-                <div key={p.url} className="relative aspect-square overflow-hidden rounded-xl bg-slate-100">
-                  <img src={p.url} alt="" className="h-full w-full object-cover" />
-                  {keptExisting.length === 0 && i === 0 && <span className="badge absolute bottom-1 start-1 bg-ink/80 text-white">{t('form.cover')}</span>}
-                  <button type="button" onClick={() => setFiles(files.filter((f) => f !== p.file))} className="absolute end-1 top-1 rounded-full bg-surface/90 p-1 text-rose-600" aria-label={t('common.delete')}>
+                <div key={p.key} className={`relative aspect-square overflow-hidden rounded-xl bg-slate-100 ${p.status === 'error' ? 'ring-2 ring-rose-500' : ''}`}>
+                  {p.url && <img src={p.url} alt="" className="h-full w-full object-cover" />}
+                  {p.status === 'processing' && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-slate-100 text-xs text-slate-500" role="status">
+                      <span className="h-6 w-6 animate-spin rounded-full border-[3px] border-brand-200 border-t-brand-700" />{t('form.compressing')}
+                    </div>
+                  )}
+                  {p.status === 'error' && (
+                    <div className="absolute inset-0 flex items-center justify-center p-2 text-center text-xs font-semibold text-rose-600">{t('form.imageError')}</div>
+                  )}
+                  {p.status === 'ready' && (
+                    <div className="absolute inset-x-1 bottom-1 flex items-center justify-between gap-1">
+                      {keptExisting.length === 0 && i === 0 ? <span className="badge bg-ink/80 text-white">{t('form.cover')}</span> : <span />}
+                      <span className="badge bg-ink/75 px-1.5 text-[10px] text-white" title={`${formatBytes(p.originalSize)} → ${formatBytes(p.file.size)}`}>
+                        <bdi dir="ltr">{formatBytes(p.file.size)}</bdi>
+                      </span>
+                    </div>
+                  )}
+                  <button type="button" onClick={() => setFiles((prev) => prev.filter((f) => f.key !== p.key))} className="absolute end-1 top-1 rounded-full bg-surface/90 p-1 text-rose-600" aria-label={t('common.delete')}>
                     <Icon name="x" className="h-4 w-4" />
                   </button>
                 </div>
@@ -112,11 +149,18 @@ export default function ProductForm() {
                 <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-slate-300 text-slate-500 hover:border-brand-500 hover:text-brand-700">
                   <Icon name="image" className="h-7 w-7" />
                   <span className="text-xs font-medium">{t('form.addImages')}</span>
-                  <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
+                  <input type="file" accept="image/*" multiple className="sr-only" onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
                 </label>
               )}
             </div>
           </Field>
+          {ready.length > 0 && savedBytes > 0 && (
+            <p className="flex items-center gap-1.5 text-xs font-medium text-brand-700" role="status">
+              <Icon name="check" className="h-4 w-4" />
+              <span>{t('form.compressedSummary', { n: ready.length, pct: Math.round((savedBytes / beforeBytes) * 100) })}</span>
+              <bdi dir="ltr" className="font-semibold">{formatBytes(beforeBytes)} → {formatBytes(beforeBytes - savedBytes)}</bdi>
+            </p>
+          )}
         </section>
 
         <section className="card space-y-4 p-5">
@@ -156,8 +200,8 @@ export default function ProductForm() {
         </section>
 
         <p className="text-sm text-slate-500">{t('form.reviewNote')}</p>
-        <button className="btn-primary w-full py-3 text-base sm:w-auto sm:px-10" disabled={busy}>
-          {busy ? t('common.loading') : editing ? t('form.update') : t('form.publish')}
+        <button className="btn-primary w-full py-3 text-base sm:w-auto sm:px-10" disabled={busy || processing}>
+          {busy ? t('common.loading') : processing ? t('form.compressing') : editing ? t('form.update') : t('form.publish')}
         </button>
       </form>
     </div>

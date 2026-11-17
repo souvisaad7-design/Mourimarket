@@ -598,6 +598,23 @@ const v12 = {
     },
   },
 };
+const v13 = {
+  ar: { form: {
+    imagesHelp: 'حتى {n} صور. تُضغط كل صورة تلقائياً في متصفحك إلى WebP بعرض أقصى 1000 بكسل قبل الرفع. الصورة الأولى هي الغلاف.',
+    compressing: 'جارٍ ضغط الصور…', imageError: 'تعذّر قراءة هذه الصورة',
+    compressedSummary: 'تم ضغط {n} صورة (توفير {pct}٪):',
+  } },
+  fr: { form: {
+    imagesHelp: 'Jusqu’à {n} photos. Chaque photo est compressée dans votre navigateur en WebP (1000 px de large max.) avant l’envoi. La première est la couverture.',
+    compressing: 'Compression des photos…', imageError: 'Impossible de lire cette image',
+    compressedSummary: '{n} photo(s) compressée(s) (−{pct} %) :',
+  } },
+  en: { form: {
+    imagesHelp: 'Up to {n} photos. Each photo is compressed in your browser to WebP (max 1000px wide) before upload. The first one is the cover.',
+    compressing: 'Compressing photos…', imageError: 'Could not read this image',
+    compressedSummary: '{n} photo(s) compressed ({pct}% smaller):',
+  } },
+};
 deepMerge(ar, v12.ar);
 deepMerge(fr, v12.fr);
 deepMerge(en, v12.en);
@@ -605,6 +622,9 @@ deepMerge(en, v12.en);
 deepMerge(ar, v11.ar);
 deepMerge(fr, v11.fr);
 deepMerge(en, v11.en);
+deepMerge(ar, v13.ar);
+deepMerge(fr, v13.fr);
+deepMerge(en, v13.en);
 
 export const messages = { ar, fr, en };
 export const LANGS = [
