@@ -9,6 +9,7 @@ const ICON_FOR = {
   new_message: 'chat', seller_reply: 'chat', product_approved: 'check', product_rejected: 'x', product_deleted: 'trash',
   sale_recorded: 'check', new_review: 'star', store_enabled: 'store', store_disabled: 'store',
   product_featured: 'star', account_verified: 'shield',
+  merchant_request: 'store', merchant_approved: 'store', merchant_rejected: 'x',
   upgrade_request_verify: 'shield', upgrade_request_feature: 'star', upgrade_rejected_verify: 'x', upgrade_rejected_feature: 'x',
 };
 

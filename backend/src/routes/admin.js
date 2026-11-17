@@ -30,6 +30,7 @@ router.get('/stats', async (_req, res) => {
       (SELECT COUNT(*) FROM products WHERE featured_until > now()) AS featured_products,
       (SELECT COUNT(*) FROM users WHERE is_verified) AS verified_users,
       (SELECT COUNT(*) FROM upgrade_requests WHERE status = 'pending') AS pending_upgrades,
+      (SELECT COUNT(*) FROM users WHERE merchant_status = 'pending') AS pending_merchants,
       (SELECT COALESCE(SUM(views), 0) FROM products) AS views`),
     query(`SELECT c.slug, c.name_ar, c.name_fr, c.name_en, COUNT(p.id) AS n
            FROM categories c LEFT JOIN products p ON p.category_id = c.id AND p.status = 'approved'
@@ -89,7 +90,10 @@ router.patch('/users/:id', async (req, res) => {
   if (id === req.user.id && (data.isActive === false || data.role === 'user')) throw badRequest('cannot_demote_self');
   const { rows } = await query(
     `UPDATE users SET is_active = COALESCE($1, is_active), role = COALESCE($2, role),
-       account_type = COALESCE($3, account_type), is_verified = COALESCE($5, is_verified), updated_at = now()
+       account_type = COALESCE($3, account_type), is_verified = COALESCE($5, is_verified),
+       merchant_status = CASE WHEN $3::text = 'merchant' THEN 'approved'
+                              WHEN $3::text IS NOT NULL THEN NULL ELSE merchant_status END,
+       updated_at = now()
      WHERE id = $4 RETURNING id, name, email, role, account_type, is_active, is_verified`,
     [data.isActive ?? null, data.role ?? null, data.accountType ?? null, id, data.isVerified ?? null],
   );
@@ -373,4 +377,58 @@ router.patch('/upgrade-requests/:id', async (req, res) => {
     return { ok: true, featuredUntil: product?.featured_until || null };
   });
   res.json(result);
+});
+
+// ---------- Merchant account requests ----------
+
+/** GET /admin/merchant-requests?status=pending|approved|rejected */
+router.get('/merchant-requests', async (req, res) => {
+  const { limit, offset, page } = pagination(req.query, { defaultLimit: 30 });
+  const status = ['pending', 'approved', 'rejected'].includes(req.query.status) ? req.query.status : 'pending';
+  const [items, total, counts] = await Promise.all([
+    query(
+      `SELECT u.id, u.name, u.phone, u.email, u.city, u.bio, u.avatar_url, u.account_type, u.is_verified, u.is_active,
+         u.merchant_status, u.merchant_note, u.merchant_requested_at, u.merchant_reviewed_at, u.created_at,
+         rv.name AS reviewed_by_name,
+         (SELECT COUNT(*) FROM products p WHERE p.seller_id = u.id) AS listings_count,
+         (SELECT COUNT(*) FROM products p WHERE p.seller_id = u.id AND p.status = 'approved') AS approved_count,
+         (SELECT COUNT(*) FROM reports r JOIN products p ON p.id = r.product_id WHERE p.seller_id = u.id) AS reports_count,
+         (SELECT row_to_json(s) FROM (SELECT id, name, slug FROM stores WHERE owner_id = u.id) s) AS store
+       FROM users u LEFT JOIN users rv ON rv.id = u.merchant_reviewed_by
+       WHERE u.merchant_status = $1
+       ORDER BY ${status === 'pending' ? 'u.merchant_requested_at ASC' : 'COALESCE(u.merchant_reviewed_at, u.merchant_requested_at) DESC NULLS LAST'}
+       LIMIT ${limit} OFFSET ${offset}`,
+      [status],
+    ),
+    query('SELECT COUNT(*) AS n FROM users WHERE merchant_status = $1', [status]),
+    query('SELECT merchant_status AS status, COUNT(*) AS n FROM users WHERE merchant_status IS NOT NULL GROUP BY merchant_status'),
+  ]);
+  res.json({
+    items: items.rows, total: total.rows[0].n, page, limit,
+    counts: Object.fromEntries(counts.rows.map((c) => [c.status, Number(c.n)])),
+  });
+});
+
+/** PATCH /admin/merchant-requests/:id {status: 'approved'|'rejected', note} */
+router.patch('/merchant-requests/:id', async (req, res) => {
+  const data = parse(
+    z.object({ status: z.enum(['approved', 'rejected']), note: z.string().trim().max(500).optional() }),
+    req.body,
+  );
+  if (data.status === 'rejected' && !data.note) throw badRequest('validation_error', { note: 'required' });
+  const id = parseInt(req.params.id, 10) || 0;
+  const { rows } = await query(
+    `UPDATE users SET merchant_status = $1,
+       account_type = CASE WHEN $1 = 'approved' THEN 'merchant' ELSE account_type END,
+       merchant_note = $2, merchant_reviewed_by = $3, merchant_reviewed_at = now(), updated_at = now()
+     WHERE id = $4 AND merchant_status = 'pending' RETURNING id, account_type, merchant_status`,
+    [data.status, data.status === 'rejected' ? data.note : null, req.user.id, id],
+  );
+  if (!rows[0]) {
+    const exists = (await query('SELECT 1 FROM users WHERE id = $1', [id])).rowCount;
+    throw exists ? conflict('request_already_reviewed') : notFound('user_not_found');
+  }
+  if (data.status === 'approved') await notify(id, 'merchant_approved', {}, '/dashboard/store');
+  else await notify(id, 'merchant_rejected', { reason: data.note }, '/profile');
+  res.json({ user: rows[0] });
 });

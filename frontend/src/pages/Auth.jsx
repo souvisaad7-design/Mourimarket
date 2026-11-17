@@ -117,6 +117,9 @@ export function Register() {
               </label>
             ))}
           </div>
+          {form.accountType === 'merchant' && (
+            <p className="mt-2 flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800"><Icon name="clock" className="h-4 w-4 shrink-0" />{t('merchant.reviewNote')}</p>
+          )}
         </fieldset>
         <Field label={t('auth.name')} error={fieldError('name')}>
           <input className="input" autoComplete="name" required value={form.name} onChange={set('name')} />

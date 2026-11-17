@@ -7,6 +7,7 @@ import { api } from '../lib/api.js';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
 import BecomeSeller from '../components/BecomeSeller.jsx';
 import ProfileCard from '../components/ProfileCard.jsx';
+import MerchantStatus from '../components/MerchantStatus.jsx';
 import { UpgradeModal, UpgradePanel, isFeaturable } from '../components/Upgrades.jsx';
 
 function SoldModal({ product, onClose, onDone }) {
@@ -79,6 +80,8 @@ function SellerDashboard() {
           <Link to="/sell" className="btn-accent"><Icon name="plus" className="h-4 w-4" />{t('nav.post')}</Link>
         </div>
       </PageHeader>
+
+      <MerchantStatus user={user} className="mb-6" />
 
       <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
         {Object.entries(stats).map(([k, v]) => (

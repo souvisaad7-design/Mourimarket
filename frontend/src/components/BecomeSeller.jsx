@@ -26,8 +26,8 @@ export default function BecomeSeller({ compact = false, onDone }) {
       if (user.bio) fd.append('bio', user.bio);
       fd.append('accountType', accountType);
       await api('/auth/me', { method: 'PUT', body: fd });
-      await refreshUser();
-      notify(t('seller.switched'));
+      const fresh = await refreshUser();
+      notify(fresh?.merchant_status === 'pending' ? t('merchant.requested') : t('seller.switched'));
       onDone?.(accountType);
     } catch (err) {
       setError(err);

@@ -838,6 +838,76 @@ deepMerge(fr, { common: { copy: 'Copier', copied: 'Copié' } });
 deepMerge(en, v15.en);
 deepMerge(en, { common: { copy: 'Copy', copied: 'Copied' } });
 
+// ---------- v16: merchant accounts reviewed by an admin ----------
+const v16 = {
+  ar: {
+    merchant: {
+      pendingTitle: 'طلب حساب التاجر قيد المراجعة', pendingText: 'ستراجع الإدارة طلبك قريباً. حتى ذلك الحين يمكنك نشر الإعلانات كبائع فردي، وسيصلك إشعار عند القبول.',
+      rejectedTitle: 'لم تتم الموافقة على حساب التاجر', rejectedText: 'السبب: {reason}', reapply: 'يمكنك تعديل معلوماتك ثم إعادة الطلب من «الملف الشخصي».',
+      approvedToast: 'تمت الموافقة! أصبح حسابك حساب تاجر.', requested: 'تم إرسال طلبك ليصبح حسابك حساب تاجر. ستراجعه الإدارة قريباً.',
+      reviewNote: 'يخضع حساب التاجر لموافقة الإدارة', storeLocked: 'يمكنك إنشاء متجرك بعد موافقة الإدارة على حساب التاجر.',
+      profileHint: 'اختيار «تاجر» يرسل طلباً للإدارة. تبقى بائعاً فردياً حتى الموافقة.', pendingBadge: 'طلب تاجر قيد المراجعة',
+      completeProfile: 'أكمل ملفك (المدينة والنبذة) لتسريع المراجعة',
+    },
+    admin: {
+      merchantsTab: 'طلبات التجار', merchantRequests: 'طلبات حساب تاجر', approveMerchant: 'قبول كتاجر', rejectMerchant: 'رفض',
+      rejectMerchantTitle: 'رفض طلب حساب التاجر', confirmApproveMerchant: 'قبول «{name}» كتاجر؟ سيتمكن من إنشاء متجر.',
+      requestedAt: 'طلب {time}', listingsCount: '{n} إعلان', approvedCount: '{n} منشور', reportsCount: '{n} بلاغ', joinedOn: 'مسجّل منذ {date}',
+      noBio: 'لم يكتب نبذة عن نشاطه', viewProfile: 'عرض الملف', trustHint: 'تحقّق من رقم الهاتف والإعلانات والبلاغات قبل القبول.', storeName: 'المتجر: {name}',
+    },
+    notifications: { types: {
+      merchant_request: '{name} طلب حساب تاجر، بانتظار موافقتك',
+      merchant_approved: 'تمت الموافقة على حسابك كتاجر 🎉 يمكنك الآن إنشاء متجرك',
+      merchant_rejected: 'لم تتم الموافقة على حساب التاجر. السبب: {reason}',
+    } },
+  },
+  fr: {
+    merchant: {
+      pendingTitle: 'Demande de compte commerçant en cours d’examen', pendingText: 'L’équipe examinera votre demande bientôt. En attendant, vous pouvez publier en tant que particulier ; vous serez notifié de la décision.',
+      rejectedTitle: 'Compte commerçant non approuvé', rejectedText: 'Motif : {reason}', reapply: 'Complétez votre profil puis refaites la demande depuis « Profil ».',
+      approvedToast: 'Approuvé ! Votre compte est désormais commerçant.', requested: 'Votre demande de compte commerçant a été envoyée à l’administration.',
+      reviewNote: 'Le compte commerçant est soumis à validation', storeLocked: 'Vous pourrez créer votre boutique une fois votre compte commerçant approuvé.',
+      profileHint: 'Choisir « Commerçant » envoie une demande à l’administration. Vous restez particulier jusqu’à l’approbation.', pendingBadge: 'Demande commerçant en attente',
+      completeProfile: 'Complétez votre profil (ville, présentation) pour accélérer l’examen',
+    },
+    admin: {
+      merchantsTab: 'Demandes commerçants', merchantRequests: 'Demandes de compte commerçant', approveMerchant: 'Accepter comme commerçant', rejectMerchant: 'Refuser',
+      rejectMerchantTitle: 'Refuser la demande de compte commerçant', confirmApproveMerchant: 'Accepter « {name} » comme commerçant ? Il pourra créer une boutique.',
+      requestedAt: 'Demandé {time}', listingsCount: '{n} annonces', approvedCount: '{n} publiées', reportsCount: '{n} signalements', joinedOn: 'Inscrit depuis le {date}',
+      noBio: 'Aucune présentation', viewProfile: 'Voir le profil', trustHint: 'Vérifiez le téléphone, les annonces et les signalements avant d’accepter.', storeName: 'Boutique : {name}',
+    },
+    notifications: { types: {
+      merchant_request: '{name} demande un compte commerçant',
+      merchant_approved: 'Votre compte commerçant est approuvé 🎉 Créez votre boutique',
+      merchant_rejected: 'Compte commerçant non approuvé. Motif : {reason}',
+    } },
+  },
+  en: {
+    merchant: {
+      pendingTitle: 'Merchant account request under review', pendingText: 'The team will review your request soon. Meanwhile you can post ads as an individual seller; you will be notified of the decision.',
+      rejectedTitle: 'Merchant account not approved', rejectedText: 'Reason: {reason}', reapply: 'Update your profile, then apply again from “Profile”.',
+      approvedToast: 'Approved! Your account is now a merchant account.', requested: 'Your merchant account request was sent to the admin team.',
+      reviewNote: 'Merchant accounts are reviewed by the admin', storeLocked: 'You can create your store once your merchant account is approved.',
+      profileHint: 'Choosing “Merchant” sends a request to the admin. You stay an individual seller until it is approved.', pendingBadge: 'Merchant request pending',
+      completeProfile: 'Complete your profile (city, bio) to speed up the review',
+    },
+    admin: {
+      merchantsTab: 'Merchant requests', merchantRequests: 'Merchant account requests', approveMerchant: 'Approve as merchant', rejectMerchant: 'Reject',
+      rejectMerchantTitle: 'Reject merchant request', confirmApproveMerchant: 'Approve “{name}” as a merchant? They will be able to create a store.',
+      requestedAt: 'Requested {time}', listingsCount: '{n} listings', approvedCount: '{n} published', reportsCount: '{n} reports', joinedOn: 'Joined {date}',
+      noBio: 'No bio written', viewProfile: 'View profile', trustHint: 'Check the phone number, listings and reports before approving.', storeName: 'Store: {name}',
+    },
+    notifications: { types: {
+      merchant_request: '{name} requested a merchant account',
+      merchant_approved: 'Your merchant account is approved 🎉 You can create your store now',
+      merchant_rejected: 'Merchant account not approved. Reason: {reason}',
+    } },
+  },
+};
+deepMerge(ar, v16.ar);
+deepMerge(fr, v16.fr);
+deepMerge(en, v16.en);
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },

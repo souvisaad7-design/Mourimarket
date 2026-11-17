@@ -4,6 +4,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { config } from '../config.js';
 import { query } from '../db.js';
+import { notifyMerchantRequest } from '../lib/merchant.js';
 import { CITY_KEYS } from '../lib/constants.js';
 import { badRequest, conflict, forbidden, parse, unauthorized } from '../lib/http.js';
 import { normalizePhone } from '../lib/phone.js';
@@ -12,7 +13,7 @@ import { removeUploads, saveFile, upload } from '../middleware/upload.js';
 
 const router = Router();
 
-const USER_FIELDS = `id, name, email, phone, role, account_type, city, bio, avatar_url, is_verified, created_at`;
+const USER_FIELDS = `id, name, email, phone, role, account_type, merchant_status, merchant_note, city, bio, avatar_url, is_verified, created_at`;
 
 // Text copied from RTL (Arabic) content often carries invisible direction marks
 // (U+200E, U+200F, U+202A–U+202E, U+2066–U+2069, zero-width chars). Strip them
@@ -55,12 +56,16 @@ router.post('/register', async (req, res) => {
   if ((await query('SELECT 1 FROM users WHERE phone = $1', [data.phone])).rowCount) throw conflict('phone_taken');
   if (data.email && (await query('SELECT 1 FROM users WHERE email = $1', [data.email])).rowCount) throw conflict('email_taken');
   const hash = await bcrypt.hash(data.password, 12);
+  // A merchant account needs an admin's approval: until then it is an individual seller.
+  const wantsMerchant = data.accountType === 'merchant';
   try {
     const { rows } = await query(
-      `INSERT INTO users (name, email, phone, password_hash, account_type, city)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING ${USER_FIELDS}`,
-      [data.name, data.email ?? null, data.phone, hash, data.accountType, data.city || null],
+      `INSERT INTO users (name, email, phone, password_hash, account_type, city, merchant_status, merchant_requested_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING ${USER_FIELDS}`,
+      [data.name, data.email ?? null, data.phone, hash, wantsMerchant ? 'individual' : data.accountType, data.city || null,
+        wantsMerchant ? 'pending' : null, wantsMerchant ? new Date() : null],
     );
+    if (wantsMerchant) await notifyMerchantRequest(rows[0]);
     res.status(201).json({ user: rows[0], token: signToken(rows[0]) });
   } catch (err) {
     throw uniqueConflict(err);
@@ -128,18 +133,33 @@ const profileSchema = z.object({
 
 router.put('/me', requireAuth, upload.single('avatar'), async (req, res) => {
   const data = parse(profileSchema, req.body);
-  const old = (await query('SELECT avatar_url, phone, email FROM users WHERE id = $1', [req.user.id])).rows[0];
+  const old = (await query('SELECT avatar_url, phone, email, account_type, merchant_status FROM users WHERE id = $1', [req.user.id])).rows[0];
+  // Account type: asking for "merchant" files a request for an admin to review instead.
+  let accountType = data.accountType || old.account_type;
+  let merchantStatus = old.merchant_status;
+  let newRequest = false;
+  if (data.accountType === 'merchant' && old.account_type !== 'merchant') {
+    accountType = old.account_type === 'buyer' ? 'individual' : old.account_type;
+    newRequest = merchantStatus !== 'pending';
+    merchantStatus = 'pending';
+  } else if (data.accountType && data.accountType !== 'merchant') {
+    // Choosing another type withdraws a pending request; leaving a merchant account ends it.
+    if (merchantStatus === 'pending' || old.account_type === 'merchant') merchantStatus = null;
+  }
   // Every account needs a way to log in: a phone number, or an email for older accounts.
   if (!data.phone && !data.email) throw badRequest('validation_error', { phone: 'required' });
   const avatar = req.file ? await saveFile(req.file) : null;
   try {
     const { rows } = await query(
       `UPDATE users SET name = $1, phone = $2, email = $3, city = $4, bio = $5,
-         account_type = COALESCE($6, account_type), avatar_url = COALESCE($7, avatar_url), updated_at = now()
+         account_type = $6, avatar_url = COALESCE($7, avatar_url), merchant_status = $9,
+         merchant_requested_at = CASE WHEN $10 THEN now() ELSE merchant_requested_at END,
+         merchant_note = CASE WHEN $10 THEN NULL ELSE merchant_note END, updated_at = now()
        WHERE id = $8 RETURNING ${USER_FIELDS}`,
       [data.name, data.phone ?? null, data.email ?? null, data.city || null, data.bio || null,
-        data.accountType || null, avatar, req.user.id],
+        accountType, avatar, req.user.id, merchantStatus, newRequest],
     );
+    if (newRequest) await notifyMerchantRequest(rows[0]);
     if (avatar) removeUploads([old?.avatar_url]);
     res.json({ user: rows[0] });
   } catch (err) {

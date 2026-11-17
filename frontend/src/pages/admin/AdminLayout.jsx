@@ -5,7 +5,7 @@ import { useI18n } from '../../i18n/index.jsx';
 import { useApi, useDocumentTitle } from '../../lib/hooks.js';
 
 const TABS = [
-  ['', 'overview', 'grid'], ['listings', 'listings', 'image'], ['reports', 'reports', 'flag'], ['requests', 'requests', 'star'],
+  ['', 'overview', 'grid'], ['listings', 'listings', 'image'], ['merchants', 'merchantsTab', 'store'], ['reports', 'reports', 'flag'], ['requests', 'requests', 'star'],
   ['users', 'users', 'user'], ['stores', 'stores', 'store'], ['categories', 'categories', 'filter'],
 ];
 
@@ -75,6 +75,7 @@ function DailyChart({ rows }) {
 }
 
 const TONES = {
+  violet: { card: 'border-violet-200 bg-violet-50 hover:border-violet-300', label: 'text-violet-900', count: 'text-violet-700', go: 'bg-violet-100 text-violet-800 group-hover:bg-violet-200' },
   sky: { card: 'border-sky-200 bg-sky-50 hover:border-sky-300', label: 'text-sky-900', count: 'text-sky-700', go: 'bg-sky-100 text-sky-800 group-hover:bg-sky-200' },
   amber: { card: 'border-amber-300 bg-amber-50 hover:border-amber-400', label: 'text-amber-900', count: 'text-amber-700', go: 'bg-amber-100 text-amber-800 group-hover:bg-amber-200' },
   rose: { card: 'border-rose-200 bg-rose-50 hover:border-rose-300', label: 'text-rose-900', count: 'text-rose-700', go: 'bg-rose-100 text-rose-700 group-hover:bg-rose-200' },
@@ -149,8 +150,9 @@ export function AdminOverview() {
   return (
     <div className="space-y-6">
       <ActiveListingsCard live={totals.live_products} total={totals.products} />
-      <div className={`grid gap-3 ${meta.upgrades ? 'md:grid-cols-3' : 'sm:grid-cols-2'}`}>
+      <div className={`grid gap-3 md:grid-cols-3 ${meta.upgrades ? 'xl:grid-cols-4' : ''}`}>
         <QueueCard to="/admin/listings?status=pending" label={t('admin.pendingQueue')} count={totals.pending_products} tone="amber" />
+        <QueueCard to="/admin/merchants" label={t('admin.merchantRequests')} count={totals.pending_merchants} tone="violet" />
         {meta.upgrades && <QueueCard to="/admin/requests" label={t('admin.pendingUpgrades')} count={totals.pending_upgrades} tone="sky" />}
         <QueueCard to="/admin/reports" label={t('admin.openReports')} count={totals.open_reports} tone="rose" />
       </div>

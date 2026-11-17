@@ -269,3 +269,16 @@ CREATE INDEX IF NOT EXISTS idx_upgrade_requests_user ON upgrade_requests(user_id
 CREATE UNIQUE INDEX IF NOT EXISTS upgrade_requests_one_pending_verify ON upgrade_requests(user_id) WHERE status = 'pending' AND kind = 'verify';
 CREATE UNIQUE INDEX IF NOT EXISTS upgrade_requests_one_pending_feature ON upgrade_requests(product_id) WHERE status = 'pending' AND kind = 'feature';
 ALTER TABLE upgrade_requests ENABLE ROW LEVEL SECURITY;
+
+-- ---------- Merchant accounts are reviewed by an admin ----------
+-- Choosing "merchant" puts the account in a queue (merchant_status = 'pending'); it stays an
+-- individual seller until an admin approves it. Existing merchants are approved already.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS merchant_status TEXT;
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_merchant_status_check;
+ALTER TABLE users ADD CONSTRAINT users_merchant_status_check CHECK (merchant_status IS NULL OR merchant_status IN ('pending', 'approved', 'rejected'));
+ALTER TABLE users ADD COLUMN IF NOT EXISTS merchant_note TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS merchant_requested_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS merchant_reviewed_by INT REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS merchant_reviewed_at TIMESTAMPTZ;
+UPDATE users SET merchant_status = 'approved' WHERE account_type = 'merchant' AND merchant_status IS NULL;
+CREATE INDEX IF NOT EXISTS idx_users_merchant_status ON users(merchant_status, merchant_requested_at);

@@ -165,6 +165,15 @@ describe('MauriMarket API', () => {
   });
 
   it('creates a merchant store and links listings', async () => {
+    // Signing up as a merchant files a request: no store until an admin approves it.
+    const me = (await call('/api/auth/me', { token })).data.user;
+    assert.equal(me.account_type, 'individual');
+    assert.equal(me.merchant_status, 'pending');
+    const early = new FormData(); early.append('name', 'Too early');
+    assert.equal((await call('/api/stores/me', { method: 'PUT', token, form: early })).status, 403);
+    const ok = await call(`/api/admin/merchant-requests/${me.id}`, { method: 'PATCH', token: adminToken, body: { status: 'approved' } });
+    assert.equal(ok.status, 200);
+    assert.equal(ok.data.user.account_type, 'merchant');
     const fd = new FormData();
     fd.append('name', 'Test Store'); fd.append('city', 'nouakchott');
     const r = await call('/api/stores/me', { method: 'PUT', token, form: fd });
@@ -480,5 +489,71 @@ describe('verification & featuring requests (PAID_UPGRADES=true)', () => {
     const notes = (await call('/api/notifications', { token: seller })).data.items;
     assert.ok(notes.some((n) => n.type === 'upgrade_rejected_feature' && n.data.reason === 'الإيصال غير واضح'));
     assert.ok(notes.some((n) => n.type === 'account_verified'));
+  });
+});
+
+describe('merchant accounts need an admin\'s approval', () => {
+  let admin;
+  before(async () => { admin = await login('admin@maurimarket.mr', 'Admin12345'); });
+  const reg = async (name) => {
+    const r = await call('/api/auth/register', { method: 'POST', body: { name, phone: `4${String(Date.now() + Math.floor(Math.random() * 1e4)).slice(-7)}`, password: 'merchant1', accountType: 'merchant' } });
+    assert.equal(r.status, 201);
+    return r.data;
+  };
+
+  it('signing up as a merchant creates a pending request, visible to admins', async () => {
+    const { user, token } = await reg('تاجر جديد');
+    assert.equal(user.account_type, 'individual');
+    assert.equal(user.merchant_status, 'pending');
+    // Can still post ads as an individual seller meanwhile.
+    const stats = (await call('/api/admin/stats', { token: admin })).data.totals;
+    assert.ok(Number(stats.pending_merchants) >= 1);
+    const list = (await call('/api/admin/merchant-requests', { token: admin })).data;
+    assert.ok(list.items.some((x) => x.id === user.id));
+    assert.ok(list.counts.pending >= 1);
+    const notes = (await call('/api/notifications', { token: admin })).data.items;
+    assert.ok(notes.some((n) => n.type === 'merchant_request' && n.data.name === 'تاجر جديد'));
+    assert.equal((await call('/api/admin/merchant-requests', { token })).status, 403);
+  });
+
+  it('rejects with a reason, and the seller can apply again from the profile', async () => {
+    const { user, token } = await reg('تاجر مرفوض');
+    assert.equal((await call(`/api/admin/merchant-requests/${user.id}`, { method: 'PATCH', token: admin, body: { status: 'rejected' } })).status, 400);
+    const r = await call(`/api/admin/merchant-requests/${user.id}`, { method: 'PATCH', token: admin, body: { status: 'rejected', note: 'معلومات غير كافية' } });
+    assert.equal(r.status, 200);
+    assert.equal(r.data.user.account_type, 'individual');
+    assert.equal((await call(`/api/admin/merchant-requests/${user.id}`, { method: 'PATCH', token: admin, body: { status: 'approved' } })).status, 409);
+    const me = (await call('/api/auth/me', { token })).data.user;
+    assert.equal(me.merchant_status, 'rejected');
+    assert.equal(me.merchant_note, 'معلومات غير كافية');
+    const notes = (await call('/api/notifications', { token })).data.items;
+    assert.ok(notes.some((n) => n.type === 'merchant_rejected' && n.data.reason === 'معلومات غير كافية'));
+    // Apply again through the profile form.
+    const fd = new FormData(); fd.append('name', 'تاجر مرفوض'); fd.append('phone', me.phone); fd.append('accountType', 'merchant');
+    const again = await call('/api/auth/me', { method: 'PUT', token, form: fd });
+    assert.equal(again.data.user.merchant_status, 'pending');
+    assert.equal(again.data.user.merchant_note, null);
+    assert.equal(again.data.user.account_type, 'individual');
+  });
+
+  it('a buyer switching to merchant becomes an individual seller with a pending request', async () => {
+    const r = await call('/api/auth/register', { method: 'POST', body: { name: 'مشتري', phone: `2${String(Date.now()).slice(-7)}`, password: 'buyer1234' } });
+    const fd = new FormData(); fd.append('name', 'مشتري'); fd.append('phone', r.data.user.phone); fd.append('accountType', 'merchant');
+    const u = (await call('/api/auth/me', { method: 'PUT', token: r.data.token, form: fd })).data.user;
+    assert.equal(u.account_type, 'individual');
+    assert.equal(u.merchant_status, 'pending');
+    // Choosing "individual" again withdraws the request.
+    const fd2 = new FormData(); fd2.append('name', 'مشتري'); fd2.append('phone', u.phone); fd2.append('accountType', 'individual');
+    assert.equal((await call('/api/auth/me', { method: 'PUT', token: r.data.token, form: fd2 })).data.user.merchant_status, null);
+  });
+
+  it('approval turns the account into a merchant and notifies the seller', async () => {
+    const { user, token } = await reg('تاجر مقبول');
+    const r = await call(`/api/admin/merchant-requests/${user.id}`, { method: 'PATCH', token: admin, body: { status: 'approved' } });
+    assert.equal(r.data.user.account_type, 'merchant');
+    const notes = (await call('/api/notifications', { token })).data.items;
+    assert.ok(notes.some((n) => n.type === 'merchant_approved'));
+    const approved = (await call('/api/admin/merchant-requests?status=approved', { token: admin })).data.items;
+    assert.ok(approved.some((x) => x.id === user.id && x.reviewed_by_name));
   });
 });

@@ -5,13 +5,14 @@ import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
 import { compressImage } from '../lib/image.js';
+import MerchantStatus from '../components/MerchantStatus.jsx';
 import { useDocumentTitle } from '../lib/hooks.js';
 
 function ProfileForm() {
   const { t } = useI18n();
   const { user, meta, refreshUser, notify } = useApp();
   const [form, setForm] = useState({
-    name: user.name, phone: (user.phone || '').replace(/^\+222/, ''), email: user.email || '', city: user.city || '', bio: user.bio || '', accountType: user.account_type,
+    name: user.name, phone: (user.phone || '').replace(/^\+222/, ''), email: user.email || '', city: user.city || '', bio: user.bio || '', accountType: user.merchant_status === 'pending' ? 'merchant' : user.account_type,
   });
   const [avatar, setAvatar] = useState(null);
   const [error, setError] = useState(null);
@@ -28,9 +29,10 @@ function ProfileForm() {
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
       if (avatar) fd.append('avatar', (await compressImage(avatar, { maxWidth: 512 })).file);
       await api('/auth/me', { method: 'PUT', body: fd });
-      await refreshUser();
+      const wasPending = user.merchant_status === 'pending';
+      const fresh = await refreshUser();
       setAvatar(null);
-      notify(t('common.saved'));
+      notify(!wasPending && fresh?.merchant_status === 'pending' ? t('merchant.requested') : t('common.saved'));
     } catch (err) { setError(err); } finally { setBusy(false); }
   };
 
@@ -52,7 +54,8 @@ function ProfileForm() {
       </div>
       <Field label={t('form.city')} optional><CitySelect value={form.city} onChange={(v) => setForm({ ...form, city: v })} cities={meta.cities} placeholder="—" /></Field>
       <Field label={t('profile.bio')} optional><textarea className="input" rows={3} maxLength={500} value={form.bio} onChange={set('bio')} /></Field>
-      <Field label={t('auth.accountType')} hint={t(`roles.${form.accountType}Text`)}>
+      <MerchantStatus user={user} />
+      <Field label={t('auth.accountType')} hint={form.accountType === 'merchant' && user.account_type !== 'merchant' ? t('merchant.profileHint') : t(`roles.${form.accountType}Text`)}>
         <select className="input" value={form.accountType} onChange={set('accountType')}>
           <option value="buyer">{t('roles.buyer')}</option>
           <option value="individual">{t('roles.individual')}</option>

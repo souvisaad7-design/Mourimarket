@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
 import { compressImage } from '../lib/image.js';
+import MerchantStatus from '../components/MerchantStatus.jsx';
 import { useDocumentTitle } from '../lib/hooks.js';
 
 export default function StoreSettings() {
@@ -31,7 +32,12 @@ export default function StoreSettings() {
   if (user.account_type !== 'merchant') {
     return (
       <div className="container-page max-w-2xl py-10">
-        <EmptyState icon="store" title={t('store.merchantOnly')}><Link to="/profile" className="btn-primary">{t('nav.profile')}</Link></EmptyState>
+        {user.merchant_status === 'pending' || user.merchant_status === 'rejected' ? (
+          <div className="space-y-4">
+            <MerchantStatus user={user} />
+            <p className="text-center text-sm text-slate-500">{t('merchant.storeLocked')}</p>
+          </div>
+        ) : <EmptyState icon="store" title={t('store.merchantOnly')}><Link to="/profile" className="btn-primary">{t('nav.profile')}</Link></EmptyState>}
       </div>
     );
   }

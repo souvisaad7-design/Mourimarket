@@ -59,6 +59,13 @@ The full DDL is in `backend/src/db/schema.sql`. Indexes cover the listing query 
 
 This meets the spec's requirement to tie reviews to documented sales and so limit fake reviews.
 
+### Merchant accounts are approved by an admin
+
+1. Choosing **merchant** at sign-up, in the profile or from "become a seller" does not make the account a merchant: it becomes an `individual` seller with `users.merchant_status = 'pending'` (it can still post ads, which are moderated anyway), and every admin is notified.
+2. Admins review the queue in **Admin → Merchant requests** (`GET /admin/merchant-requests?status`), with phone, city, bio, listing and report counts.
+3. `PATCH /admin/merchant-requests/:id {status: approved}` sets `account_type = 'merchant'` (store creation is unlocked); `{status: rejected, note}` keeps the account individual and stores the reason. The seller is notified either way and can apply again from the profile. Choosing another account type withdraws a pending request.
+4. Merchants that existed before this feature are marked `approved` by the migration.
+
 ### Paid verification & featuring (`upgrade_requests`)
 
 > **Off by default — the site is free.** The feature is only active when the environment variable `PAID_UPGRADES=true` is set (Vercel → Settings → Environment Variables, then redeploy). When off, `/api/meta` returns `upgrades: null`, the request endpoints return 404, and the seller panel and admin tab are hidden. Admins can still verify accounts and feature listings for free from the Users and Listings tabs.

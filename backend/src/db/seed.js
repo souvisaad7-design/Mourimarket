@@ -181,6 +181,7 @@ async function main() {
 
     // Verified merchants and a few featured listings.
     await client.query('UPDATE users SET is_verified = true WHERE id = ANY($1::int[])', [[userIds[2], userIds[4]]]);
+    await client.query("UPDATE users SET merchant_status = 'approved' WHERE account_type = 'merchant' AND merchant_status IS NULL");
     await client.query(
       `UPDATE products SET featured_until = now() + interval '14 days' WHERE id = ANY($1::int[])`,
       [[productIds[0], productIds[4], productIds[8], productIds[12]]],

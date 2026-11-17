@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { EmptyState, ErrorBox, Field, Icon, Modal, Pagination, Spinner, StatusBadge, VerifiedBadge, useFieldError } from '../../components/ui.jsx';
+import { Avatar, EmptyState, ErrorBox, Field, Icon, Modal, Pagination, Spinner, StatusBadge, VerifiedBadge, useCityName, useFieldError } from '../../components/ui.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useI18n } from '../../i18n/index.jsx';
 import { api, getToken } from '../../lib/api.js';
@@ -519,6 +519,98 @@ export function AdminUpgrades() {
         <form onSubmit={reject} className="space-y-4">
           <Field label={t('admin.rejectReason')}><textarea className="input" rows={3} required maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
           <button className="btn-danger w-full">{t('admin.reject')}</button>
+        </form>
+      </Modal>
+    </div>
+  );
+}
+
+// ---------- Merchant account requests ----------
+
+const MERCHANT_TONE = { pending: 'bg-amber-100 text-amber-800', approved: 'bg-emerald-100 text-emerald-800', rejected: 'bg-rose-100 text-rose-700' };
+
+export function AdminMerchants() {
+  const { t, ago, date, dateTime, number } = useI18n();
+  const { meta } = useApp();
+  const cityName = useCityName();
+  const [params, setParams] = useSearchParams();
+  const status = ['pending', 'approved', 'rejected'].includes(params.get('status')) ? params.get('status') : 'pending';
+  const [page, setPage] = useState(1);
+  const { data, loading, error, reload } = useApi(`/admin/merchant-requests?status=${status}&page=${page}`);
+  const act = useAction(reload);
+  const [rejecting, setRejecting] = useState(null);
+  const [reason, setReason] = useState('');
+  const counts = data?.counts || {};
+  const label = (s) => `${t(`upgrades.status.${s}`)}${counts[s] ? ` (${number(counts[s])})` : ''}`;
+  const setStatus = (v) => { setParams(v === 'pending' ? {} : { status: v }, { replace: true }); setPage(1); };
+
+  const approve = (u) => {
+    if (window.confirm(t('admin.confirmApproveMerchant', { name: u.name }))) {
+      act(() => api(`/admin/merchant-requests/${u.id}`, { method: 'PATCH', body: { status: 'approved' } }));
+    }
+  };
+  const reject = (e) => {
+    e.preventDefault();
+    const u = rejecting;
+    setRejecting(null);
+    act(() => api(`/admin/merchant-requests/${u.id}`, { method: 'PATCH', body: { status: 'rejected', note: reason } }));
+  };
+
+  return (
+    <div>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <Tabs value={status} onChange={setStatus} options={['pending', 'approved', 'rejected'].map((s) => [s, label(s)])} />
+        {status === 'pending' && <p className="flex items-center gap-1.5 text-xs text-slate-500"><Icon name="shield" className="h-4 w-4 text-brand-700" />{t('admin.trustHint')}</p>}
+      </div>
+      <ErrorBox error={error} />
+      {loading ? <Spinner /> : !data?.items?.length ? <EmptyState icon="store" title={t('common.empty')} /> : (
+        <ul className="space-y-3">
+          {data.items.map((u) => (
+            <li key={u.id} className="card flex flex-col gap-4 p-4 sm:flex-row sm:items-start">
+              <Avatar name={u.name} url={u.avatar_url} size="h-14 w-14" />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link to={`/users/${u.id}`} className="text-base font-bold hover:underline">{u.name}</Link>
+                  {u.is_verified && <VerifiedBadge small />}
+                  {status !== 'pending' && <span className={`badge ${MERCHANT_TONE[u.merchant_status]}`}>{t(`upgrades.status.${u.merchant_status}`)}</span>}
+                  {!u.is_active && <span className="badge bg-slate-200 text-slate-600">{t('admin.disabled')}</span>}
+                </div>
+                <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
+                  {u.phone && <bdi dir="ltr" className="font-semibold text-slate-800">{formatPhone(u.phone)}</bdi>}
+                  {u.city && <span className="flex items-center gap-1"><Icon name="pin" className="h-3.5 w-3.5" />{cityName(meta.cities, u.city)}</span>}
+                  <span className="text-xs text-slate-500">{t('admin.joinedOn', { date: date(u.created_at) })}</span>
+                </p>
+                <p className={`text-sm ${u.bio ? 'text-slate-700' : 'italic text-slate-400'}`}>{u.bio ? `«${u.bio}»` : t('admin.noBio')}</p>
+                <div className="flex flex-wrap gap-1.5 text-xs">
+                  <span className="badge bg-slate-100 text-slate-700">{t('admin.listingsCount', { n: number(u.listings_count) })}</span>
+                  <span className="badge bg-emerald-50 text-emerald-800">{t('admin.approvedCount', { n: number(u.approved_count) })}</span>
+                  <span className={`badge ${Number(u.reports_count) ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-500'}`}>{t('admin.reportsCount', { n: number(u.reports_count) })}</span>
+                  {u.store && <Link to={`/stores/${u.store.slug}`} className="badge bg-gold-400 text-ink">{t('admin.storeName', { name: u.store.name })}</Link>}
+                </div>
+                <p className="text-xs text-slate-400">
+                  {u.merchant_requested_at && <time dateTime={u.merchant_requested_at} title={dateTime(u.merchant_requested_at)}>{t('admin.requestedAt', { time: ago(u.merchant_requested_at) })}</time>}
+                  {u.reviewed_by_name && <> · {t('admin.reviewedBy', { name: u.reviewed_by_name })}</>}
+                </p>
+                {u.merchant_status === 'rejected' && u.merchant_note && <p className="text-xs text-rose-600">{t('upgrades.reason', { reason: u.merchant_note })}</p>}
+              </div>
+              <div className="flex shrink-0 gap-2 sm:flex-col">
+                {status === 'pending' ? (
+                  <>
+                    <button className="btn-primary flex-1 whitespace-nowrap px-3 py-2 text-xs" onClick={() => approve(u)}><Icon name="check" className="h-4 w-4" />{t('admin.approveMerchant')}</button>
+                    <button className="btn-outline flex-1 whitespace-nowrap px-3 py-2 text-xs text-rose-600" onClick={() => { setReason(''); setRejecting(u); }}><Icon name="x" className="h-4 w-4" />{t('admin.rejectMerchant')}</button>
+                  </>
+                ) : null}
+                <Link to={`/users/${u.id}`} className="btn-ghost flex-1 whitespace-nowrap px-3 py-2 text-xs">{t('admin.viewProfile')}</Link>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {data && <Pagination page={data.page} total={data.total} limit={data.limit} onPage={setPage} />}
+      <Modal open={Boolean(rejecting)} onClose={() => setRejecting(null)} title={t('admin.rejectMerchantTitle')}>
+        <form onSubmit={reject} className="space-y-4">
+          <Field label={t('admin.rejectReason')}><textarea className="input" rows={3} required maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+          <button className="btn-danger w-full">{t('admin.rejectMerchant')}</button>
         </form>
       </Modal>
     </div>
