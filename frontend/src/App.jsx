@@ -20,7 +20,7 @@ import SellerProfile from './pages/SellerProfile.jsx';
 import { StoreDetail, Stores } from './pages/Stores.jsx';
 import StoreSettings from './pages/StoreSettings.jsx';
 import AdminLayout, { AdminOverview } from './pages/admin/AdminLayout.jsx';
-import { AdminCategories, AdminListings, AdminReports, AdminStores, AdminUsers } from './pages/admin/AdminPages.jsx';
+import { AdminCategories, AdminListings, AdminReports, AdminStores, AdminUpgrades, AdminUsers } from './pages/admin/AdminPages.jsx';
 
 function RequireAuth({ children, admin = false }) {
   const { user, ready } = useApp();
@@ -94,6 +94,7 @@ export default function App() {
           <Route path="listings" element={<AdminListings />} />
           <Route path="categories" element={<AdminCategories />} />
           <Route path="reports" element={<AdminReports />} />
+          <Route path="requests" element={<AdminUpgrades />} />
           <Route path="stores" element={<AdminStores />} />
         </Route>
 

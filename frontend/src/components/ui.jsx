@@ -191,7 +191,7 @@ export function useCityName() {
   return (cities, key) => cities.find((c) => c.key === key)?.[lang] || key || '';
 }
 
-export function Modal({ open, onClose, title, children }) {
+export function Modal({ open, onClose, title, children, size = 'md' }) {
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -201,7 +201,7 @@ export function Modal({ open, onClose, title, children }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-4 sm:items-center" onClick={onClose}>
-      <div role="dialog" aria-modal="true" className="card w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-label={title} className={`card max-h-[92vh] w-full overflow-y-auto p-5 ${size === 'lg' ? 'max-w-2xl' : 'max-w-md'}`} onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold">{title}</h2>
           <button className="btn-ghost p-1.5" onClick={onClose} aria-label="close"><Icon name="x" /></button>

@@ -59,6 +59,13 @@ The full DDL is in `backend/src/db/schema.sql`. Indexes cover the listing query 
 
 This meets the spec's requirement to tie reviews to documented sales and so limit fake reviews.
 
+### Paid verification & featuring (`upgrade_requests`)
+
+1. A seller picks **verify account** (`VERIFY_PRICE`) or **feature a listing** for 7/15/30 days (`FEATURE_PLANS`, in `backend/src/lib/constants.js`), pays by mobile money (numbers in `frontend/src/siteConfig.js` → `SITE_PAYMENT`) and uploads the receipt photo.
+2. The amount is always set by the server. One pending request per account (verify) or per listing (feature), enforced by partial unique indexes.
+3. Receipts are stored in `files` with `is_private = true`: the public `/uploads/f/:id` route returns 404 for them; admins load them via `GET /admin/upgrade-requests/:id/receipt` (bearer token → blob URL).
+4. An admin approves (sets `users.is_verified`, or extends `products.featured_until` by the paid days on top of any time left) or rejects with a reason; the seller is notified either way.
+
 ## 3. REST API
 
 Base path `/api`. Errors look like `{ "error": "<code>", "fields": { "<field>": "<code>" } }`.
@@ -104,9 +111,11 @@ Base path `/api`. Errors look like `{ "error": "<code>", "fields": { "<field>": 
 | POST | /notifications/read-all · PATCH /notifications/:id/read | |
 | POST | /reviews | `{productId, rating, comment?}` (documented sale only) |
 | POST | /reports | `{productId, reason, details?}` |
+| GET | /upgrade-requests | The user's own verification/featuring requests |
+| POST | /upgrade-requests | multipart: `kind` (verify\|feature), `productId?`, `days?`, `paymentMethod`, `paymentRef?`, `note?`, `receipt` (image) – sellers only |
 
 ### Admin (🛡)
-`GET /admin/stats` · `GET /admin/users?q&page` · `PATCH /admin/users/:id {isActive?, role?, accountType?}` · `GET /admin/products?status&q&page` · `PATCH /admin/products/:id/status {status, reason?}` · `DELETE /admin/products/:id` · `POST/PUT/DELETE /admin/categories[/:id]` · `GET /admin/reports?status` · `PATCH /admin/reports/:id {status}` · `GET /admin/stores` · `PATCH /admin/stores/:id {isActive}`
+`GET /admin/stats` · `GET /admin/users?q&page` · `PATCH /admin/users/:id {isActive?, role?, accountType?}` · `GET /admin/products?status&q&page` · `PATCH /admin/products/:id/status {status, reason?}` · `DELETE /admin/products/:id` · `POST/PUT/DELETE /admin/categories[/:id]` · `GET /admin/reports?status` · `PATCH /admin/reports/:id {status}` · `GET /admin/stores` · `PATCH /admin/stores/:id {isActive}` · `GET /admin/upgrade-requests?status&kind&page` · `GET /admin/upgrade-requests/:id/receipt` · `PATCH /admin/upgrade-requests/:id {status: approved|rejected, note?}`
 
 ## 4. Security
 

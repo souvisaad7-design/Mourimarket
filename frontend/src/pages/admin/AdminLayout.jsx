@@ -5,7 +5,7 @@ import { useI18n } from '../../i18n/index.jsx';
 import { useApi, useDocumentTitle } from '../../lib/hooks.js';
 
 const TABS = [
-  ['', 'overview', 'grid'], ['listings', 'listings', 'image'], ['reports', 'reports', 'flag'],
+  ['', 'overview', 'grid'], ['listings', 'listings', 'image'], ['reports', 'reports', 'flag'], ['requests', 'requests', 'star'],
   ['users', 'users', 'user'], ['stores', 'stores', 'store'], ['categories', 'categories', 'filter'],
 ];
 
@@ -73,6 +73,7 @@ function DailyChart({ rows }) {
 }
 
 const TONES = {
+  sky: { card: 'border-sky-200 bg-sky-50 hover:border-sky-300', label: 'text-sky-900', count: 'text-sky-700', go: 'bg-sky-100 text-sky-800 group-hover:bg-sky-200' },
   amber: { card: 'border-amber-300 bg-amber-50 hover:border-amber-400', label: 'text-amber-900', count: 'text-amber-700', go: 'bg-amber-100 text-amber-800 group-hover:bg-amber-200' },
   rose: { card: 'border-rose-200 bg-rose-50 hover:border-rose-300', label: 'text-rose-900', count: 'text-rose-700', go: 'bg-rose-100 text-rose-700 group-hover:bg-rose-200' },
 };
@@ -99,6 +100,32 @@ function QueueCard({ to, label, count, tone }) {
   );
 }
 
+/** Headline figure: listings that are published and still for sale, with their share of all listings. */
+function ActiveListingsCard({ live, total }) {
+  const { t, number } = useI18n();
+  const pct = Number(total) ? Math.round((Number(live) / Number(total)) * 100) : 0;
+  return (
+    <Link to="/admin/listings?status=approved"
+      className="group relative block overflow-hidden rounded-3xl bg-gradient-to-l from-brand-800 to-brand-600 p-5 text-white shadow-sm transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400 sm:p-6">
+      <span aria-hidden="true" className="absolute -top-10 end-[-2.5rem] h-40 w-40 rounded-full bg-white/10" />
+      <span className="relative flex items-center justify-between gap-4">
+        <span className="min-w-0">
+          <span className="flex items-center gap-2 text-sm font-semibold text-brand-100"><Icon name="grid" className="h-4 w-4" />{t('admin.activeListings')}</span>
+          <span className="mt-1 block text-4xl font-bold ltr-nums sm:text-5xl">{number(live)}</span>
+          <span className="mt-1 block text-xs text-brand-100">{t('admin.activeListingsSub', { total: number(total) })}</span>
+        </span>
+        <span className="flex shrink-0 flex-col items-center gap-1">
+          <span className="relative flex h-16 w-16 items-center justify-center rounded-full sm:h-20 sm:w-20"
+            style={{ background: `conic-gradient(#fbc531 ${pct * 3.6}deg, rgba(255,255,255,.18) 0)` }}>
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-700 text-sm font-bold ltr-nums sm:h-16 sm:w-16 sm:text-base">{pct}%</span>
+          </span>
+          <Icon name="chevron" className="h-5 w-5 text-brand-100 transition-transform rtl:rotate-180 group-hover:-translate-x-1 ltr:group-hover:translate-x-1" />
+        </span>
+      </span>
+    </Link>
+  );
+}
+
 export function AdminOverview() {
   const { t, tl, number } = useI18n();
   const { meta } = useApp();
@@ -112,15 +139,17 @@ export function AdminOverview() {
   const tiles = [
     ['users', t('admin.users'), totals.users], ['merchants', t('admin.merchants'), totals.merchants],
     ['featured', t('admin.featuredCount'), totals.featured_products], ['verified', t('admin.verifiedCount'), totals.verified_users],
-    ['live', t('dashboard.live'), totals.live_products], ['sold', t('dashboard.soldCount'), totals.sold_products],
+    ['all', t('admin.totalListings'), totals.products], ['sold', t('dashboard.soldCount'), totals.sold_products],
     ['stores', t('admin.stores'), totals.stores], ['messages', t('admin.messagesCount'), totals.messages],
     ['views', t('admin.totalViews'), totals.views], ['new', t('admin.newUsers7d'), totals.new_users_7d],
   ];
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <ActiveListingsCard live={totals.live_products} total={totals.products} />
+      <div className="grid gap-3 md:grid-cols-3">
         <QueueCard to="/admin/listings?status=pending" label={t('admin.pendingQueue')} count={totals.pending_products} tone="amber" />
+        <QueueCard to="/admin/requests" label={t('admin.pendingUpgrades')} count={totals.pending_upgrades} tone="sky" />
         <QueueCard to="/admin/reports" label={t('admin.openReports')} count={totals.open_reports} tone="rose" />
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

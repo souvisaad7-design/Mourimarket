@@ -2,11 +2,11 @@ import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { Router } from 'express';
 import { z } from 'zod';
-import { query } from '../db.js';
+import { query, tx } from '../db.js';
 import { badRequest, conflict, notFound, pagination, parse } from '../lib/http.js';
 import { notify } from '../lib/notify.js';
 import { requireAdmin, requireAuth } from '../middleware/auth.js';
-import { removeUploads } from '../middleware/upload.js';
+import { removeUploads, sendFile } from '../middleware/upload.js';
 import { PRODUCT_FROM, PRODUCT_SELECT } from './products.js';
 
 const router = Router();
@@ -29,6 +29,7 @@ router.get('/stats', async (_req, res) => {
       (SELECT COUNT(*) FROM reports WHERE status = 'open') AS open_reports,
       (SELECT COUNT(*) FROM products WHERE featured_until > now()) AS featured_products,
       (SELECT COUNT(*) FROM users WHERE is_verified) AS verified_users,
+      (SELECT COUNT(*) FROM upgrade_requests WHERE status = 'pending') AS pending_upgrades,
       (SELECT COALESCE(SUM(views), 0) FROM products) AS views`),
     query(`SELECT c.slug, c.name_ar, c.name_fr, c.name_en, COUNT(p.id) AS n
            FROM categories c LEFT JOIN products p ON p.category_id = c.id AND p.status = 'approved'
@@ -284,3 +285,92 @@ router.patch('/stores/:id', async (req, res) => {
 });
 
 export default router;
+
+// ---------- Verification & featuring requests ----------
+
+router.get('/upgrade-requests', async (req, res) => {
+  const { limit, offset, page } = pagination(req.query, { defaultLimit: 30 });
+  const status = ['pending', 'approved', 'rejected'].includes(req.query.status) ? req.query.status : 'pending';
+  const kind = ['verify', 'feature'].includes(req.query.kind) ? req.query.kind : '';
+  const params = [status, kind];
+  const where = `WHERE r.status = $1 AND ($2 = '' OR r.kind = $2)`;
+  const [items, total, counts] = await Promise.all([
+    query(
+      `SELECT r.id, r.kind, r.product_id, r.days, r.amount, r.payment_method, r.payment_ref, r.note, r.status,
+         r.admin_note, r.created_at, r.reviewed_at, (r.receipt_file_id IS NOT NULL) AS has_receipt,
+         u.id AS user_id, u.name AS user_name, u.phone AS user_phone, u.account_type, u.is_verified, u.avatar_url,
+         p.title AS product_title, p.status AS product_status, p.availability AS product_availability, p.featured_until,
+         (SELECT url FROM product_images i WHERE i.product_id = p.id ORDER BY sort_order, id LIMIT 1) AS product_image,
+         rv.name AS reviewed_by_name
+       FROM upgrade_requests r
+       JOIN users u ON u.id = r.user_id
+       LEFT JOIN products p ON p.id = r.product_id
+       LEFT JOIN users rv ON rv.id = r.reviewed_by
+       ${where} ORDER BY r.created_at ${status === 'pending' ? 'ASC' : 'DESC'} LIMIT ${limit} OFFSET ${offset}`,
+      params,
+    ),
+    query(`SELECT COUNT(*) AS n FROM upgrade_requests r ${where}`, params),
+    query(`SELECT status, COUNT(*) AS n FROM upgrade_requests GROUP BY status`),
+  ]);
+  res.json({
+    items: items.rows, total: total.rows[0].n, page, limit,
+    counts: Object.fromEntries(counts.rows.map((c) => [c.status, Number(c.n)])),
+  });
+});
+
+/** GET /admin/upgrade-requests/:id/receipt – the private receipt image (admins only). */
+router.get('/upgrade-requests/:id/receipt', async (req, res) => {
+  const { rows } = await query('SELECT receipt_file_id FROM upgrade_requests WHERE id = $1', [parseInt(req.params.id, 10) || 0]);
+  if (!rows[0]?.receipt_file_id) throw notFound();
+  return sendFile(res, rows[0].receipt_file_id, { isPrivate: true });
+});
+
+/**
+ * PATCH /admin/upgrade-requests/:id {status: 'approved'|'rejected', note}
+ * Approving a verification marks the account verified; approving a featuring
+ * request features the listing for the paid number of days (added to any time left).
+ */
+router.patch('/upgrade-requests/:id', async (req, res) => {
+  const data = parse(
+    z.object({ status: z.enum(['approved', 'rejected']), note: z.string().trim().max(500).optional() }),
+    req.body,
+  );
+  if (data.status === 'rejected' && !data.note) throw badRequest('validation_error', { note: 'required' });
+  const id = parseInt(req.params.id, 10) || 0;
+
+  const result = await tx(async (client) => {
+    const r = (await client.query('SELECT * FROM upgrade_requests WHERE id = $1 FOR UPDATE', [id])).rows[0];
+    if (!r) throw notFound('request_not_found');
+    if (r.status !== 'pending') throw conflict('request_already_reviewed');
+    let product = null;
+    if (data.status === 'approved') {
+      if (r.kind === 'verify') {
+        await client.query('UPDATE users SET is_verified = true, updated_at = now() WHERE id = $1', [r.user_id]);
+      } else {
+        const { rows } = await client.query(
+          `UPDATE products SET featured_until = GREATEST(COALESCE(featured_until, now()), now()) + make_interval(days => $1::int),
+             updated_at = now()
+           WHERE id = $2 AND status = 'approved' RETURNING id, title, featured_until`,
+          [r.days, r.product_id],
+        );
+        if (!rows[0]) throw badRequest('product_not_featurable');
+        product = rows[0];
+      }
+    }
+    await client.query(
+      `UPDATE upgrade_requests SET status = $1, admin_note = $2, reviewed_by = $3, reviewed_at = now() WHERE id = $4`,
+      [data.status, data.note || null, req.user.id, id],
+    );
+    if (r.kind === 'feature' && !product) {
+      product = (await client.query('SELECT id, title FROM products WHERE id = $1', [r.product_id])).rows[0] || null;
+    }
+    if (data.status === 'approved') {
+      if (r.kind === 'verify') await notify(r.user_id, 'account_verified', {}, `/users/${r.user_id}`, client);
+      else await notify(r.user_id, 'product_featured', { title: product.title, days: r.days }, `/products/${product.id}`, client);
+    } else {
+      await notify(r.user_id, `upgrade_rejected_${r.kind}`, { title: product?.title || null, reason: data.note }, '/dashboard', client);
+    }
+    return { ok: true, featuredUntil: product?.featured_until || null };
+  });
+  res.json(result);
+});

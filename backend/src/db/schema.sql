@@ -240,3 +240,32 @@ ALTER TABLE messages         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reviews          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reports          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications    ENABLE ROW LEVEL SECURITY;
+
+-- ---------- Verification & featuring requests (paid, reviewed by an admin) ----------
+-- Private files (payment receipts) are never served by the public /uploads route.
+ALTER TABLE files ADD COLUMN IF NOT EXISTS is_private BOOLEAN NOT NULL DEFAULT false;
+
+CREATE TABLE IF NOT EXISTS upgrade_requests (
+  id              SERIAL PRIMARY KEY,
+  user_id         INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind            TEXT NOT NULL CHECK (kind IN ('verify', 'feature')),
+  product_id      INT REFERENCES products(id) ON DELETE CASCADE,
+  days            INT CHECK (days IS NULL OR days > 0),
+  amount          INT NOT NULL CHECK (amount >= 0),
+  payment_method  TEXT NOT NULL,
+  payment_ref     TEXT,
+  note            TEXT,
+  receipt_file_id INT REFERENCES files(id) ON DELETE SET NULL,
+  status          TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  admin_note      TEXT,
+  reviewed_by     INT REFERENCES users(id) ON DELETE SET NULL,
+  reviewed_at     TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (kind = 'verify' OR (product_id IS NOT NULL AND days IS NOT NULL))
+);
+CREATE INDEX IF NOT EXISTS idx_upgrade_requests_status ON upgrade_requests(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_upgrade_requests_user ON upgrade_requests(user_id, created_at DESC);
+-- At most one pending request per account (verify) or per listing (feature).
+CREATE UNIQUE INDEX IF NOT EXISTS upgrade_requests_one_pending_verify ON upgrade_requests(user_id) WHERE status = 'pending' AND kind = 'verify';
+CREATE UNIQUE INDEX IF NOT EXISTS upgrade_requests_one_pending_feature ON upgrade_requests(product_id) WHERE status = 'pending' AND kind = 'feature';
+ALTER TABLE upgrade_requests ENABLE ROW LEVEL SECURITY;

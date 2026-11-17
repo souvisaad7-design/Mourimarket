@@ -22,3 +22,12 @@ export const CITY_KEYS = CITIES.map((c) => c.key);
 export const REPORT_REASONS = ['scam', 'prohibited', 'wrong_category', 'duplicate', 'offensive', 'other'];
 
 export const MAX_IMAGES = 8;
+
+// Paid upgrades, in MRU. A seller pays by mobile money, uploads the receipt, and an admin approves.
+export const VERIFY_PRICE = 500;
+export const FEATURE_PLANS = [
+  { days: 7, price: 200 },
+  { days: 15, price: 350 },
+  { days: 30, price: 600 },
+];
+export const PAYMENT_METHODS = ['bankily', 'masrvi', 'sedad', 'other'];

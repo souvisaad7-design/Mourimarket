@@ -7,6 +7,7 @@ import { api } from '../lib/api.js';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
 import BecomeSeller from '../components/BecomeSeller.jsx';
 import ProfileCard from '../components/ProfileCard.jsx';
+import { UpgradeModal, UpgradePanel, isFeaturable } from '../components/Upgrades.jsx';
 
 function SoldModal({ product, onClose, onDone }) {
   const { t } = useI18n();
@@ -39,11 +40,15 @@ function SellerDashboard() {
   const { t, price, number, date } = useI18n();
   const { user, notify } = useApp();
   const { data, loading, error, reload } = useApi('/products/mine');
+  const upgrades = useApi('/upgrade-requests');
+  const [upgrade, setUpgrade] = useState(null);
   const [soldProduct, setSoldProduct] = useState(null);
   const [filter, setFilter] = useState('all');
   useDocumentTitle(t('dashboard.title'));
 
   const items = data?.items || [];
+  const requests = upgrades.data?.items || [];
+  const pendingFeature = new Set(requests.filter((r) => r.kind === 'feature' && r.status === 'pending').map((r) => r.product_id));
   const stats = {
     totalListings: items.length,
     live: items.filter((p) => p.status === 'approved' && p.availability === 'available').length,
@@ -83,6 +88,8 @@ function SellerDashboard() {
         ))}
       </div>
 
+      <UpgradePanel user={user} requests={requests} hasFeaturable={items.some(isFeaturable)} onRequest={setUpgrade} />
+
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-bold">{t('dashboard.myListings')}</h2>
         <div className="flex gap-1 rounded-xl bg-surface p-1 ring-1 ring-slate-200">
@@ -109,6 +116,8 @@ function SellerDashboard() {
                   <div className="flex flex-wrap items-center gap-1.5">
                     <StatusBadge status={p.status} />
                     {p.availability === 'sold' && <span className="badge bg-ink text-white">{t('common.sold')}</span>}
+                    {p.is_featured && <span className="badge bg-gold-400 text-ink"><Icon name="star" filled className="me-1 h-3 w-3" />{t('upgrades.featuredUntil', { date: date(p.featured_until) })}</span>}
+                    {pendingFeature.has(p.id) && <span className="badge bg-amber-100 text-amber-800"><Icon name="clock" className="me-1 h-3 w-3" />{t('upgrades.pendingFeature')}</span>}
                   </div>
                   <p className="mt-1 truncate font-semibold">{p.title}</p>
                   <p className="text-sm font-bold text-brand-800 ltr-nums">{price(p.price)}</p>
@@ -124,6 +133,11 @@ function SellerDashboard() {
                 ) : (
                   <button className="btn-outline px-3 py-2 text-xs" onClick={() => relist(p)}>{t('dashboard.markAvailable')}</button>
                 ))}
+                {isFeaturable(p) && !pendingFeature.has(p.id) && (
+                  <button className="btn-outline border-gold-400 px-3 py-2 text-xs text-gold-600" onClick={() => setUpgrade({ kind: 'feature', product: p })}>
+                    <Icon name="star" filled className="h-4 w-4" />{t('upgrades.featureThis')}
+                  </button>
+                )}
                 <Link to={`/products/${p.id}/edit`} className="btn-outline px-3 py-2 text-xs"><Icon name="edit" className="h-4 w-4" />{t('common.edit')}</Link>
                 <button className="btn-ghost px-3 py-2 text-xs text-rose-600" onClick={() => remove(p)}><Icon name="trash" className="h-4 w-4" />{t('common.delete')}</button>
               </div>
@@ -132,6 +146,7 @@ function SellerDashboard() {
         </ul>
       )}
 
+      <UpgradeModal request={upgrade} products={items} onClose={() => setUpgrade(null)} onDone={() => { setUpgrade(null); upgrades.reload(); }} />
       <SoldModal product={soldProduct} onClose={() => setSoldProduct(null)} onDone={() => { setSoldProduct(null); reload(); }} />
     </div>
   );

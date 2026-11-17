@@ -384,3 +384,88 @@ describe('admin: latest activity', () => {
     assert.ok(recent.every((x) => ['listing', 'user'].includes(x.kind)));
   });
 });
+
+describe('verification & featuring requests', () => {
+  const receipt = () => new Blob([PNG], { type: 'image/png' });
+  const form = (fields, withReceipt = true) => {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries(fields)) fd.append(k, String(v));
+    if (withReceipt) fd.append('receipt', receipt(), 'r.png');
+    return fd;
+  };
+  let seller; let admin; let buyer; let productId; let verifyId; let featureId;
+
+  before(async () => {
+    seller = await login('mohamed@example.mr');
+    admin = await login('admin@maurimarket.mr', 'Admin12345');
+    buyer = await login('buyer@example.mr');
+    const mine = (await call('/api/products/mine', { token: seller })).data.items;
+    productId = mine.find((p) => p.status === 'approved' && p.availability === 'available').id;
+  });
+
+  it('exposes prices in /meta', async () => {
+    const m = (await call('/api/meta')).data.upgrades;
+    assert.ok(m.verifyPrice > 0 && m.featurePlans.length && m.paymentMethods.includes('bankily'));
+  });
+
+  it('validates requests: receipt required, buyers refused, plan checked', async () => {
+    assert.equal((await call('/api/upgrade-requests', { method: 'POST', token: seller, form: form({ kind: 'verify', paymentMethod: 'bankily' }, false) })).data.fields.receipt, 'required');
+    assert.equal((await call('/api/upgrade-requests', { method: 'POST', token: buyer, form: form({ kind: 'verify', paymentMethod: 'bankily' }) })).status, 403);
+    const bad = await call('/api/upgrade-requests', { method: 'POST', token: seller, form: form({ kind: 'feature', productId, days: 3, paymentMethod: 'bankily' }) });
+    assert.equal(bad.status, 400);
+    assert.equal(bad.data.fields.days, 'invalid');
+  });
+
+  it('creates one pending request per account / listing, with a server-set price', async () => {
+    const v = await call('/api/upgrade-requests', { method: 'POST', token: seller, form: form({ kind: 'verify', paymentMethod: 'bankily', paymentRef: 'TX-1', amount: 1 }) });
+    assert.equal(v.status, 201);
+    assert.equal(v.data.request.amount, 500);
+    verifyId = v.data.request.id;
+    const dup = await call('/api/upgrade-requests', { method: 'POST', token: seller, form: form({ kind: 'verify', paymentMethod: 'masrvi' }) });
+    assert.equal(dup.status, 409);
+    assert.equal(dup.data.error, 'request_pending');
+    const f = await call('/api/upgrade-requests', { method: 'POST', token: seller, form: form({ kind: 'feature', productId, days: 7, paymentMethod: 'sedad' }) });
+    assert.equal(f.status, 201);
+    assert.equal(f.data.request.amount, 200);
+    featureId = f.data.request.id;
+    const mine = (await call('/api/upgrade-requests', { token: seller })).data.items;
+    assert.ok(mine.some((x) => x.id === verifyId) && mine.some((x) => x.id === featureId));
+  });
+
+  it('keeps receipts private: admin only, never on the public route', async () => {
+    const list = (await call('/api/admin/upgrade-requests?status=pending', { token: admin })).data;
+    assert.ok(list.items.some((x) => x.id === verifyId && x.has_receipt));
+    assert.ok(list.counts.pending >= 2);
+    const stats = (await call('/api/admin/stats', { token: admin })).data.totals;
+    assert.ok(Number(stats.pending_upgrades) >= 2);
+    const ok = await fetch(`${base}/api/admin/upgrade-requests/${verifyId}/receipt`, { headers: { Authorization: `Bearer ${admin}` } });
+    assert.equal(ok.status, 200);
+    assert.equal(ok.headers.get('content-type'), 'image/png');
+    assert.equal((await fetch(`${base}/api/admin/upgrade-requests/${verifyId}/receipt`, { headers: { Authorization: `Bearer ${seller}` } })).status, 403);
+    const { rows } = await pool.query('SELECT receipt_file_id FROM upgrade_requests WHERE id = $1', [verifyId]);
+    assert.equal((await fetch(`${base}/uploads/f/${rows[0].receipt_file_id}`)).status, 404);
+  });
+
+  it('approves verification and featuring, rejects with a reason', async () => {
+    assert.equal((await call(`/api/admin/upgrade-requests/${verifyId}`, { method: 'PATCH', token: admin, body: { status: 'rejected' } })).status, 400);
+    assert.equal((await call(`/api/admin/upgrade-requests/${verifyId}`, { method: 'PATCH', token: admin, body: { status: 'approved' } })).status, 200);
+    assert.equal((await call(`/api/admin/upgrade-requests/${verifyId}`, { method: 'PATCH', token: admin, body: { status: 'approved' } })).status, 409);
+    const me = (await call('/api/auth/me', { token: seller })).data.user;
+    assert.equal(me.is_verified, true);
+    const again = await call('/api/upgrade-requests', { method: 'POST', token: seller, form: form({ kind: 'verify', paymentMethod: 'bankily' }) });
+    assert.equal(again.data.error, 'already_verified');
+
+    const prev = (await pool.query('SELECT GREATEST(featured_until, now()) AS t FROM products WHERE id = $1', [productId])).rows[0].t;
+    const f = await call(`/api/admin/upgrade-requests/${featureId}`, { method: 'PATCH', token: admin, body: { status: 'approved' } });
+    assert.equal(f.status, 200);
+    const days = (new Date(f.data.featuredUntil) - new Date(prev)) / 86400000;
+    assert.ok(days > 6.99 && days <= 7.01, `7 days added to any time left, got ${days}`);
+
+    const f2 = await call('/api/upgrade-requests', { method: 'POST', token: seller, form: form({ kind: 'feature', productId, days: 15, paymentMethod: 'other' }) });
+    const rej = await call(`/api/admin/upgrade-requests/${f2.data.request.id}`, { method: 'PATCH', token: admin, body: { status: 'rejected', note: 'الإيصال غير واضح' } });
+    assert.equal(rej.status, 200);
+    const notes = (await call('/api/notifications', { token: seller })).data.items;
+    assert.ok(notes.some((n) => n.type === 'upgrade_rejected_feature' && n.data.reason === 'الإيصال غير واضح'));
+    assert.ok(notes.some((n) => n.type === 'account_verified'));
+  });
+});

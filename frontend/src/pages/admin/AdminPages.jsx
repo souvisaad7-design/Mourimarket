@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { EmptyState, ErrorBox, Field, Icon, Modal, Pagination, Spinner, StatusBadge, VerifiedBadge, useFieldError } from '../../components/ui.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useI18n } from '../../i18n/index.jsx';
-import { api } from '../../lib/api.js';
+import { api, getToken } from '../../lib/api.js';
 import { formatPhone } from '../../components/ProfileCard.jsx';
 import { useApi } from '../../lib/hooks.js';
 
@@ -371,6 +371,154 @@ export function AdminCategories() {
             <Field label={t('admin.order')}><input className="input" type="number" value={form.sortOrder} onChange={set('sortOrder')} /></Field>
           </div>
           <button className="btn-primary w-full">{t('common.save')}</button>
+        </form>
+      </Modal>
+    </div>
+  );
+}
+
+// ---------- Verification & featuring requests ----------
+
+/** Load a private receipt with the admin's token and show it via a blob: URL. */
+function useReceipt(id, enabled) {
+  const [url, setUrl] = useState('');
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!enabled) return undefined;
+    let objectUrl = '';
+    let cancelled = false;
+    fetch(`/api/admin/upgrade-requests/${id}/receipt`, { headers: { Authorization: `Bearer ${getToken()}` } })
+      .then((res) => (res.ok ? res.blob() : Promise.reject(new Error('receipt'))))
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setUrl(objectUrl);
+      })
+      .catch(() => { if (!cancelled) setFailed(true); });
+    return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [id, enabled]);
+  return { url, failed };
+}
+
+function ReceiptThumb({ request, onOpen }) {
+  const { t } = useI18n();
+  const { url, failed } = useReceipt(request.id, request.has_receipt);
+  if (!request.has_receipt || failed) {
+    return <span className="flex h-28 w-24 shrink-0 items-center justify-center rounded-xl bg-slate-100 p-2 text-center text-[11px] text-slate-400">{t('admin.noReceipt')}</span>;
+  }
+  return (
+    <button type="button" onClick={() => url && onOpen(url)} aria-label={t('admin.viewReceipt')}
+      className="group relative h-28 w-24 shrink-0 overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600">
+      {url ? <img src={url} alt="" className="h-full w-full object-cover transition group-hover:scale-105" /> : <span className="absolute inset-0 animate-pulse bg-slate-200" />}
+      <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-ink/70 py-1 text-[10px] font-semibold text-white">
+        <Icon name="eye" className="h-3 w-3" />{t('admin.viewReceipt')}
+      </span>
+    </button>
+  );
+}
+
+const REQ_TONE = { pending: 'bg-amber-100 text-amber-800', approved: 'bg-emerald-100 text-emerald-800', rejected: 'bg-rose-100 text-rose-700' };
+
+export function AdminUpgrades() {
+  const { t, price, dateTime, ago, number } = useI18n();
+  const [params, setParams] = useSearchParams();
+  const status = ['pending', 'approved', 'rejected'].includes(params.get('status')) ? params.get('status') : 'pending';
+  const kind = ['verify', 'feature'].includes(params.get('kind')) ? params.get('kind') : '';
+  const [page, setPage] = useState(1);
+  const { data, loading, error, reload } = useApi(`/admin/upgrade-requests?status=${status}&kind=${kind}&page=${page}`);
+  const act = useAction(reload);
+  const [viewer, setViewer] = useState('');
+  const [rejecting, setRejecting] = useState(null);
+  const [reason, setReason] = useState('');
+  const set = (k, v) => { const n = new URLSearchParams(params); if (v) n.set(k, v); else n.delete(k); setParams(n, { replace: true }); setPage(1); };
+  const counts = data?.counts || {};
+  const label = (s) => `${t(`upgrades.status.${s}`)}${counts[s] ? ` (${number(counts[s])})` : ''}`;
+
+  const approve = (r) => {
+    const msg = r.kind === 'verify' ? t('admin.confirmApproveVerify') : t('admin.confirmApproveFeature', { days: r.days });
+    if (window.confirm(msg)) act(() => api(`/admin/upgrade-requests/${r.id}`, { method: 'PATCH', body: { status: 'approved' } }));
+  };
+  const reject = (e) => {
+    e.preventDefault();
+    const r = rejecting;
+    setRejecting(null);
+    act(() => api(`/admin/upgrade-requests/${r.id}`, { method: 'PATCH', body: { status: 'rejected', note: reason } }));
+  };
+
+  return (
+    <div>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <Tabs value={status} onChange={(v) => set('status', v === 'pending' ? '' : v)} options={['pending', 'approved', 'rejected'].map((s) => [s, label(s)])} />
+        <Tabs value={kind} onChange={(v) => set('kind', v)} options={[['', t('admin.allKinds')], ['verify', t('upgrades.kind.verify')], ['feature', t('upgrades.kind.feature')]]} />
+      </div>
+      <ErrorBox error={error} />
+      {loading ? <Spinner /> : !data?.items?.length ? <EmptyState icon="shield" title={t('common.empty')} /> : (
+        <ul className="space-y-3">
+          {data.items.map((r) => {
+            const productLive = r.product_status === 'approved' && r.product_availability === 'available';
+            return (
+              <li key={r.id} className="card flex flex-col gap-4 p-4 sm:flex-row">
+                <ReceiptThumb request={r} onOpen={setViewer} />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`badge ${r.kind === 'verify' ? 'bg-sky-100 text-sky-700' : 'bg-gold-400 text-ink'}`}>
+                      <Icon name={r.kind === 'verify' ? 'shield' : 'star'} filled={r.kind === 'feature'} className="me-1 h-3 w-3" />{t(`upgrades.kind.${r.kind}`)}
+                    </span>
+                    {status !== 'pending' && <span className={`badge ${REQ_TONE[r.status]}`}>{t(`upgrades.status.${r.status}`)}</span>}
+                    <span className="text-lg font-bold text-brand-800 ltr-nums">{price(r.amount)}</span>
+                    <span className="text-xs text-slate-500">{t('admin.paidVia', { method: t(`upgrades.methods.${r.payment_method}`) })}</span>
+                  </div>
+                  <p className="flex flex-wrap items-center gap-x-2 text-sm">
+                    <Link to={`/users/${r.user_id}`} className="font-semibold hover:underline">{r.user_name}</Link>
+                    {r.is_verified && <VerifiedBadge small />}
+                    <span className="badge bg-slate-100 text-slate-600">{t(`roles.${r.account_type}`)}</span>
+                    {r.user_phone && <bdi dir="ltr" className="text-xs text-slate-500">{formatPhone(r.user_phone)}</bdi>}
+                    {r.kind === 'verify' && r.is_verified && r.status === 'pending' && <span className="badge bg-emerald-100 text-emerald-800">{t('admin.alreadyVerified')}</span>}
+                  </p>
+                  {r.kind === 'feature' && (
+                    <Link to={`/products/${r.product_id}`} className="flex items-center gap-2 rounded-xl bg-slate-50 p-2 hover:bg-slate-100">
+                      {r.product_image ? <img src={r.product_image} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" /> : <span className="h-10 w-10 shrink-0 rounded-lg bg-slate-200" />}
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold">{r.product_title}</span>
+                        <span className="text-xs text-slate-500">
+                          {t('upgrades.planDays', { days: r.days })}
+                          {!productLive && <span className="ms-2 font-semibold text-rose-600">· {t('admin.listingNotLive')}</span>}
+                        </span>
+                      </span>
+                    </Link>
+                  )}
+                  {r.payment_ref && <p className="text-xs text-slate-600">{t('upgrades.ref')}: <bdi dir="ltr" className="font-mono font-semibold">{r.payment_ref}</bdi></p>}
+                  {r.note && <p className="text-sm text-slate-600">«{r.note}»</p>}
+                  <p className="text-xs text-slate-400"><time dateTime={r.created_at} title={dateTime(r.created_at)}>{ago(r.created_at)}</time>
+                    {r.reviewed_by_name && <> · {t('admin.reviewedBy', { name: r.reviewed_by_name })}</>}
+                  </p>
+                  {r.status === 'rejected' && r.admin_note && <p className="text-xs text-rose-600">{t('upgrades.reason', { reason: r.admin_note })}</p>}
+                </div>
+                {status === 'pending' && (
+                  <div className="flex shrink-0 gap-2 sm:flex-col">
+                    <button className="btn-primary flex-1 px-3 py-2 text-xs" disabled={r.kind === 'feature' && !productLive} onClick={() => approve(r)}>
+                      <Icon name="check" className="h-4 w-4" />{t('admin.approve')}
+                    </button>
+                    <button className="btn-outline flex-1 px-3 py-2 text-xs text-rose-600" onClick={() => { setReason(''); setRejecting(r); }}>
+                      <Icon name="x" className="h-4 w-4" />{t('admin.reject')}
+                    </button>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {data && <Pagination page={data.page} total={data.total} limit={data.limit} onPage={setPage} />}
+
+      <Modal open={Boolean(viewer)} onClose={() => setViewer('')} title={t('admin.receiptTitle')} size="lg">
+        <img src={viewer} alt={t('admin.receiptTitle')} className="mx-auto max-h-[70vh] rounded-xl object-contain" />
+        <a href={viewer} target="_blank" rel="noreferrer" className="btn-outline mt-4 w-full">{t('admin.openOriginal')}</a>
+      </Modal>
+      <Modal open={Boolean(rejecting)} onClose={() => setRejecting(null)} title={t('admin.rejectTitle')}>
+        <form onSubmit={reject} className="space-y-4">
+          <Field label={t('admin.rejectReason')}><textarea className="input" rows={3} required maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+          <button className="btn-danger w-full">{t('admin.reject')}</button>
         </form>
       </Modal>
     </div>

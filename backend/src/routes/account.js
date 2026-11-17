@@ -3,10 +3,11 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { query, tx } from '../db.js';
-import { REPORT_REASONS } from '../lib/constants.js';
+import { FEATURE_PLANS, PAYMENT_METHODS, REPORT_REASONS, VERIFY_PRICE } from '../lib/constants.js';
 import { badRequest, conflict, forbidden, notFound, pagination, parse } from '../lib/http.js';
 import { notify } from '../lib/notify.js';
 import { requireAuth } from '../middleware/auth.js';
+import { savePrivateFile, upload } from '../middleware/upload.js';
 import { PRODUCT_FROM, PRODUCT_SELECT } from './products.js';
 
 const router = Router();
@@ -240,3 +241,77 @@ router.post('/reports', writeLimiter, async (req, res) => {
 });
 
 export default router;
+
+// ---------- Verification & featuring requests ----------
+
+/** GET /api/upgrade-requests – the signed-in user's own requests. */
+router.get('/upgrade-requests', async (req, res) => {
+  const { rows } = await query(
+    `SELECT r.id, r.kind, r.product_id, p.title AS product_title, r.days, r.amount, r.payment_method,
+       r.status, r.admin_note, r.created_at, r.reviewed_at
+     FROM upgrade_requests r LEFT JOIN products p ON p.id = r.product_id
+     WHERE r.user_id = $1 ORDER BY r.created_at DESC LIMIT 50`,
+    [req.user.id],
+  );
+  res.json({ items: rows });
+});
+
+const upgradeSchema = z.object({
+  kind: z.enum(['verify', 'feature']),
+  productId: z.coerce.number().int().positive().optional(),
+  days: z.coerce.number().int().positive().optional(),
+  paymentMethod: z.enum(PAYMENT_METHODS),
+  paymentRef: z.string().trim().max(80).optional().transform((v) => v || null),
+  note: z.string().trim().max(500).optional().transform((v) => v || null),
+});
+
+/**
+ * POST /api/upgrade-requests (multipart, field "receipt") – ask to have the account
+ * verified or a listing featured, with a photo of the payment receipt.
+ * The price is set by the server, never by the client.
+ */
+router.post('/upgrade-requests', writeLimiter, upload.single('receipt'), async (req, res) => {
+  const data = parse(upgradeSchema, req.body);
+  if (!req.file) throw badRequest('validation_error', { receipt: 'required' });
+  const me = (await query('SELECT account_type, is_verified FROM users WHERE id = $1', [req.user.id])).rows[0];
+  if (!me || me.account_type === 'buyer') throw forbidden('sellers_only');
+
+  let amount;
+  let product = null;
+  if (data.kind === 'verify') {
+    if (me.is_verified) throw conflict('already_verified');
+    amount = VERIFY_PRICE;
+  } else {
+    const plan = FEATURE_PLANS.find((x) => x.days === data.days);
+    if (!plan) throw badRequest('validation_error', { days: 'invalid' });
+    if (!data.productId) throw badRequest('validation_error', { productId: 'required' });
+    product = (await query('SELECT id, title, seller_id, status, availability FROM products WHERE id = $1', [data.productId])).rows[0];
+    if (!product || product.seller_id !== req.user.id) throw notFound('product_not_found');
+    if (product.status !== 'approved' || product.availability !== 'available') throw badRequest('product_not_featurable');
+    amount = plan.price;
+  }
+
+  const request = await tx(async (client) => {
+    const fileId = await savePrivateFile(req.file, client);
+    try {
+      const { rows } = await client.query(
+        `INSERT INTO upgrade_requests (user_id, kind, product_id, days, amount, payment_method, payment_ref, note, receipt_file_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, kind, product_id, days, amount, status, created_at`,
+        [req.user.id, data.kind, product?.id ?? null, data.kind === 'feature' ? data.days : null, amount,
+          data.paymentMethod, data.paymentRef, data.note, fileId],
+      );
+      return rows[0];
+    } catch (err) {
+      if (err.code === '23505') throw conflict('request_pending');
+      throw err;
+    }
+  });
+
+  // Let the admins know there is something to review.
+  const admins = await query("SELECT id FROM users WHERE role = 'admin' AND is_active");
+  await Promise.all(admins.rows.map((a) => notify(a.id, `upgrade_request_${data.kind}`, {
+    name: req.user.name, title: product?.title || null,
+  }, '/admin/requests')));
+
+  res.status(201).json({ request });
+});

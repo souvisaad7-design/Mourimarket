@@ -723,6 +723,121 @@ deepMerge(ar, v14.ar);
 deepMerge(fr, v14.fr);
 deepMerge(en, v14.en);
 
+// ---------- v15: verification & featuring requests ----------
+const v15 = {
+  ar: {
+    upgrades: {
+      title: 'التوثيق والتمييز', subtitle: 'وثّق حسابك أو اجعل إعلاناتك في الواجهة، وادفع عبر الهاتف ثم أرسل صورة الإيصال.',
+      verifyTitle: 'توثيق الحساب', verifyText: 'علامة ✓ بجانب اسمك تزيد ثقة المشترين بك.', verifyCta: 'اطلب التوثيق',
+      verified: 'حسابك موثّق ✓', featureTitle: 'تمييز إعلان', featureText: 'يظهر إعلانك في أعلى النتائج وفي قسم «المميزة» بالرئيسية.',
+      featureCta: 'ميّز إعلاناً', featureThis: 'ميّز', chooseListing: 'اختر الإعلان', noFeaturable: 'لا توجد إعلانات منشورة ومتاحة لتمييزها.',
+      plan: 'المدة', planDays: '{days} يوماً', price: 'المبلغ', howToPay: 'طريقة الدفع',
+      payStep1: 'حوّل المبلغ {amount} إلى أحد الحسابات أدناه.', payStep2: 'التقط صورة واضحة للإيصال (لقطة شاشة من التطبيق).', payStep3: 'أرسل الطلب، وسيراجعه فريق الإدارة ويُفعَّل خلال 24 ساعة.',
+      accountName: 'باسم: {name}', askAdmin: 'اطلب الرقم من الإدارة',
+      method: 'وسيلة الدفع', methods: { bankily: 'بنكيلي', masrvi: 'مصرفي', sedad: 'السداد', other: 'أخرى' },
+      ref: 'رقم العملية', refHint: 'يظهر في رسالة التأكيد أو إيصال التطبيق', note: 'ملاحظة للإدارة',
+      receipt: 'صورة إيصال الدفع', receiptPick: 'اختر صورة الإيصال', receiptChange: 'تغيير الصورة', receiptHint: 'صورة واضحة يظهر فيها المبلغ والتاريخ. لا يراها إلا فريق الإدارة.',
+      submit: 'إرسال الطلب', sent: 'تم إرسال طلبك، سنراجعه قريباً.', pendingVerify: 'طلب التوثيق قيد المراجعة',
+      pendingFeature: 'طلب تمييز قيد المراجعة', myRequests: 'طلباتي', kind: { verify: 'توثيق الحساب', feature: 'تمييز إعلان' },
+      status: { pending: 'قيد المراجعة', approved: 'مقبول', rejected: 'مرفوض' }, reason: 'السبب: {reason}', featuredUntil: 'مميز حتى {date}',
+    },
+    admin: {
+      requests: 'طلبات التوثيق والتمييز', pendingUpgrades: 'طلبات توثيق وتمييز', activeListings: 'إجمالي الإعلانات النشطة',
+      activeListingsSub: 'منشورة ومتاحة للبيع · من أصل {total} إعلان', totalListings: 'كل الإعلانات',
+      allKinds: 'الكل', approve: 'قبول وتفعيل', reject: 'رفض', rejectTitle: 'رفض الطلب', rejectReason: 'سبب الرفض (يصل إلى البائع)',
+      viewReceipt: 'عرض الإيصال', receiptTitle: 'إيصال الدفع', openOriginal: 'فتح بالحجم الكامل', noReceipt: 'لا يوجد إيصال',
+      confirmApproveVerify: 'تأكيد: هل وصل المبلغ؟ سيتم توثيق الحساب فوراً.', confirmApproveFeature: 'تأكيد: هل وصل المبلغ؟ سيتم تمييز الإعلان {days} يوماً.',
+      reviewedBy: 'راجعه {name}', listingNotLive: 'الإعلان لم يعد منشوراً', alreadyVerified: 'موثّق مسبقاً', paidVia: 'عبر {method}',
+    },
+    notifications: { types: {
+      upgrade_request_verify: '{name} أرسل طلب توثيق حساب مع إيصال دفع',
+      upgrade_request_feature: '{name} طلب تمييز الإعلان «{title}»',
+      upgrade_rejected_verify: 'رُفض طلب توثيق حسابك. السبب: {reason}',
+      upgrade_rejected_feature: 'رُفض طلب تمييز «{title}». السبب: {reason}',
+    } },
+    errors: {
+      already_verified: 'حسابك موثّق بالفعل.', request_pending: 'لديك طلب مماثل قيد المراجعة.',
+      product_not_featurable: 'يمكن تمييز الإعلانات المنشورة والمتاحة فقط.', request_already_reviewed: 'تمت مراجعة هذا الطلب بالفعل.',
+    },
+  },
+  fr: {
+    upgrades: {
+      title: 'Vérification & mise en avant', subtitle: 'Faites vérifier votre compte ou mettez vos annonces à la une : payez par mobile, puis envoyez la photo du reçu.',
+      verifyTitle: 'Vérifier le compte', verifyText: 'Le badge ✓ à côté de votre nom rassure les acheteurs.', verifyCta: 'Demander la vérification',
+      verified: 'Compte vérifié ✓', featureTitle: 'Mettre une annonce à la une', featureText: 'Votre annonce apparaît en tête des résultats et dans « À la une ».',
+      featureCta: 'Mettre en avant', featureThis: 'À la une', chooseListing: 'Choisir l’annonce', noFeaturable: 'Aucune annonce publiée et disponible.',
+      plan: 'Durée', planDays: '{days} jours', price: 'Montant', howToPay: 'Comment payer',
+      payStep1: 'Transférez {amount} vers l’un des comptes ci-dessous.', payStep2: 'Prenez une photo nette du reçu (capture d’écran de l’application).', payStep3: 'Envoyez la demande : l’équipe la vérifie et l’active sous 24 h.',
+      accountName: 'Au nom de : {name}', askAdmin: 'Demandez le numéro à l’administration',
+      method: 'Moyen de paiement', methods: { bankily: 'Bankily', masrvi: 'Masrvi', sedad: 'Sedad', other: 'Autre' },
+      ref: 'N° de transaction', refHint: 'Indiqué dans le SMS de confirmation ou le reçu', note: 'Note pour l’administration',
+      receipt: 'Photo du reçu de paiement', receiptPick: 'Choisir la photo du reçu', receiptChange: 'Changer la photo', receiptHint: 'Montant et date lisibles. Seule l’administration la voit.',
+      submit: 'Envoyer la demande', sent: 'Demande envoyée, nous l’examinons bientôt.', pendingVerify: 'Vérification en cours d’examen',
+      pendingFeature: 'Mise en avant en cours d’examen', myRequests: 'Mes demandes', kind: { verify: 'Vérification', feature: 'Mise à la une' },
+      status: { pending: 'En attente', approved: 'Acceptée', rejected: 'Refusée' }, reason: 'Motif : {reason}', featuredUntil: 'À la une jusqu’au {date}',
+    },
+    admin: {
+      requests: 'Vérifications & mises en avant', pendingUpgrades: 'Demandes de vérification/mise en avant', activeListings: 'Total des annonces actives',
+      activeListingsSub: 'Publiées et disponibles · sur {total} annonces', totalListings: 'Toutes les annonces',
+      allKinds: 'Tout', approve: 'Accepter et activer', reject: 'Refuser', rejectTitle: 'Refuser la demande', rejectReason: 'Motif du refus (envoyé au vendeur)',
+      viewReceipt: 'Voir le reçu', receiptTitle: 'Reçu de paiement', openOriginal: 'Ouvrir en taille réelle', noReceipt: 'Aucun reçu',
+      confirmApproveVerify: 'Le paiement est-il bien reçu ? Le compte sera vérifié immédiatement.', confirmApproveFeature: 'Le paiement est-il bien reçu ? L’annonce sera à la une {days} jours.',
+      reviewedBy: 'Traitée par {name}', listingNotLive: 'L’annonce n’est plus en ligne', alreadyVerified: 'Déjà vérifié', paidVia: 'via {method}',
+    },
+    notifications: { types: {
+      upgrade_request_verify: '{name} a demandé la vérification de son compte (reçu joint)',
+      upgrade_request_feature: '{name} demande la mise en avant de « {title} »',
+      upgrade_rejected_verify: 'Votre demande de vérification a été refusée. Motif : {reason}',
+      upgrade_rejected_feature: 'La mise en avant de « {title} » a été refusée. Motif : {reason}',
+    } },
+    errors: {
+      already_verified: 'Votre compte est déjà vérifié.', request_pending: 'Une demande similaire est déjà en attente.',
+      product_not_featurable: 'Seules les annonces publiées et disponibles peuvent être mises en avant.', request_already_reviewed: 'Cette demande a déjà été traitée.',
+    },
+  },
+  en: {
+    upgrades: {
+      title: 'Verification & featuring', subtitle: 'Get your account verified or feature your listings: pay by mobile money, then send a photo of the receipt.',
+      verifyTitle: 'Verify your account', verifyText: 'A ✓ badge next to your name builds buyer trust.', verifyCta: 'Request verification',
+      verified: 'Your account is verified ✓', featureTitle: 'Feature a listing', featureText: 'Your listing shows at the top of results and in “Featured” on the home page.',
+      featureCta: 'Feature a listing', featureThis: 'Feature', chooseListing: 'Choose a listing', noFeaturable: 'No published, available listings to feature.',
+      plan: 'Duration', planDays: '{days} days', price: 'Amount', howToPay: 'How to pay',
+      payStep1: 'Transfer {amount} to one of the accounts below.', payStep2: 'Take a clear photo of the receipt (a screenshot from the app).', payStep3: 'Send the request; the team reviews and activates it within 24 hours.',
+      accountName: 'Account name: {name}', askAdmin: 'Ask the admin for the number',
+      method: 'Payment method', methods: { bankily: 'Bankily', masrvi: 'Masrvi', sedad: 'Sedad', other: 'Other' },
+      ref: 'Transaction number', refHint: 'Shown in the confirmation SMS or the app receipt', note: 'Note for the admin',
+      receipt: 'Payment receipt photo', receiptPick: 'Choose the receipt photo', receiptChange: 'Change photo', receiptHint: 'Amount and date must be readable. Only the admin team can see it.',
+      submit: 'Send request', sent: 'Request sent, we will review it soon.', pendingVerify: 'Verification request under review',
+      pendingFeature: 'Featuring request under review', myRequests: 'My requests', kind: { verify: 'Account verification', feature: 'Featured listing' },
+      status: { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' }, reason: 'Reason: {reason}', featuredUntil: 'Featured until {date}',
+    },
+    admin: {
+      requests: 'Verification & featuring', pendingUpgrades: 'Verification & featuring requests', activeListings: 'Total active listings',
+      activeListingsSub: 'Published and available · out of {total} listings', totalListings: 'All listings',
+      allKinds: 'All', approve: 'Approve & activate', reject: 'Reject', rejectTitle: 'Reject request', rejectReason: 'Reason (sent to the seller)',
+      viewReceipt: 'View receipt', receiptTitle: 'Payment receipt', openOriginal: 'Open full size', noReceipt: 'No receipt',
+      confirmApproveVerify: 'Has the payment arrived? The account will be verified right away.', confirmApproveFeature: 'Has the payment arrived? The listing will be featured for {days} days.',
+      reviewedBy: 'Reviewed by {name}', listingNotLive: 'Listing is no longer live', alreadyVerified: 'Already verified', paidVia: 'via {method}',
+    },
+    notifications: { types: {
+      upgrade_request_verify: '{name} requested account verification (receipt attached)',
+      upgrade_request_feature: '{name} wants to feature “{title}”',
+      upgrade_rejected_verify: 'Your verification request was rejected. Reason: {reason}',
+      upgrade_rejected_feature: 'Featuring “{title}” was rejected. Reason: {reason}',
+    } },
+    errors: {
+      already_verified: 'Your account is already verified.', request_pending: 'You already have a similar request under review.',
+      product_not_featurable: 'Only published, available listings can be featured.', request_already_reviewed: 'This request was already reviewed.',
+    },
+  },
+};
+deepMerge(ar, v15.ar);
+deepMerge(ar, { common: { copy: 'نسخ', copied: 'تم النسخ' } });
+deepMerge(fr, v15.fr);
+deepMerge(fr, { common: { copy: 'Copier', copied: 'Copié' } });
+deepMerge(en, v15.en);
+deepMerge(en, { common: { copy: 'Copy', copied: 'Copied' } });
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },

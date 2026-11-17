@@ -38,6 +38,30 @@ export async function saveFile(file, client = { query }) {
   return `/uploads/f/${rows[0].id}`;
 }
 
+/**
+ * Save a private upload (e.g. a payment receipt) and return its file id.
+ * Private files are never served by the public /uploads route.
+ */
+export async function savePrivateFile(file, client = { query }) {
+  const mime = sniff(file.buffer);
+  if (!mime) throw badRequest('invalid_image_type');
+  const { rows } = await client.query('INSERT INTO files (mime, data, is_private) VALUES ($1, $2, true) RETURNING id', [mime, file.buffer]);
+  return rows[0].id;
+}
+
+/** Send a stored file (public or private) with safe headers. */
+export async function sendFile(res, id, { isPrivate = false } = {}) {
+  const { rows } = await query('SELECT mime, data FROM files WHERE id = $1 AND is_private = $2', [id, isPrivate]);
+  if (!rows[0]) return res.status(404).end();
+  res.set({
+    'Content-Type': rows[0].mime,
+    'Cache-Control': isPrivate ? 'private, no-store' : 'public, max-age=31536000, s-maxage=31536000, immutable',
+    'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'",
+    'X-Content-Type-Options': 'nosniff',
+  });
+  return res.send(rows[0].data);
+}
+
 /** Store a non-user file such as seed artwork. */
 export async function saveRaw(buffer, mime, client = { query }) {
   const { rows } = await client.query('INSERT INTO files (mime, data) VALUES ($1, $2) RETURNING id', [mime, buffer]);
@@ -62,13 +86,5 @@ export function removeUploads(urls) {
 export async function serveFile(req, res) {
   const id = parseInt(req.params.id, 10);
   if (!id) return res.status(404).end();
-  const { rows } = await query('SELECT mime, data FROM files WHERE id = $1', [id]);
-  if (!rows[0]) return res.status(404).end();
-  res.set({
-    'Content-Type': rows[0].mime,
-    'Cache-Control': 'public, max-age=31536000, s-maxage=31536000, immutable',
-    'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'",
-    'X-Content-Type-Options': 'nosniff',
-  });
-  res.send(rows[0].data);
+  return sendFile(res, id);
 }
