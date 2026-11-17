@@ -6,54 +6,92 @@ import { config } from '../config.js';
 import { query } from '../db.js';
 import { CITY_KEYS } from '../lib/constants.js';
 import { badRequest, conflict, forbidden, parse, unauthorized } from '../lib/http.js';
+import { normalizePhone } from '../lib/phone.js';
 import { requireAuth, signToken } from '../middleware/auth.js';
 import { removeUploads, saveFile, upload } from '../middleware/upload.js';
 
 const router = Router();
 
-const USER_FIELDS = `id, name, email, phone, role, account_type, city, bio, avatar_url, created_at`;
+const USER_FIELDS = `id, name, email, phone, role, account_type, city, bio, avatar_url, is_verified, created_at`;
 
 // Text copied from RTL (Arabic) content often carries invisible direction marks
 // (U+200E, U+200F, U+202A–U+202E, U+2066–U+2069, zero-width chars). Strip them
-// from credentials so a pasted email/password still works.
-const INVISIBLE = /[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g;
+// from credentials so a pasted phone/password still works.
+const INVISIBLE = /[​-‏‪-‮⁦-⁩﻿]/g;
 const clean = (v) => (typeof v === 'string' ? v.replace(INVISIBLE, '') : v);
-const emailField = z.preprocess(clean, z.string().trim().toLowerCase().email('invalid_email'));
+const emptyToUndefined = (v) => (typeof v === 'string' && clean(v).trim() === '' ? undefined : v);
+const optionalEmail = z.preprocess(
+  (v) => emptyToUndefined(clean(v)),
+  z.string().trim().toLowerCase().email('invalid_email').max(160).optional(),
+);
 const password = z.preprocess(clean, z.string().min(8, 'min_8').max(100));
-const phone = z.string().trim().regex(/^\+?[0-9 ]{8,15}$/, 'invalid_phone');
+/** Mauritanian mobile number, normalised to +222XXXXXXXX. */
+const phoneField = z.preprocess(
+  (v) => (typeof v === 'string' ? (normalizePhone(v) ?? `invalid:${v}`) : v),
+  z.string({ required_error: 'required' }).regex(/^\+222[234]\d{7}$/, 'invalid_phone'),
+);
+
+export const ACCOUNT_TYPES = ['buyer', 'individual', 'merchant'];
 
 const registerSchema = z.object({
   name: z.string().trim().min(2, 'min_2').max(100),
-  email: emailField,
-  phone: phone.optional().or(z.literal('')),
+  phone: phoneField,
+  email: optionalEmail,
   password,
-  accountType: z.enum(['individual', 'merchant']).default('individual'),
+  accountType: z.enum(ACCOUNT_TYPES).default('buyer'),
   city: z.enum(CITY_KEYS).optional(),
 });
 
+/** Map unique-index violations to friendly error codes. */
+function uniqueConflict(err) {
+  if (err.code !== '23505') return err;
+  if (String(err.constraint || err.detail).includes('phone')) return conflict('phone_taken');
+  if (String(err.constraint || err.detail).includes('email')) return conflict('email_taken');
+  return err;
+}
+
 router.post('/register', async (req, res) => {
   const data = parse(registerSchema, req.body);
-  const exists = await query('SELECT 1 FROM users WHERE email = $1', [data.email]);
-  if (exists.rowCount) throw conflict('email_taken');
+  if ((await query('SELECT 1 FROM users WHERE phone = $1', [data.phone])).rowCount) throw conflict('phone_taken');
+  if (data.email && (await query('SELECT 1 FROM users WHERE email = $1', [data.email])).rowCount) throw conflict('email_taken');
   const hash = await bcrypt.hash(data.password, 12);
-  const { rows } = await query(
-    `INSERT INTO users (name, email, phone, password_hash, account_type, city)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING ${USER_FIELDS}`,
-    [data.name, data.email, data.phone || null, hash, data.accountType, data.city || null],
-  );
-  res.status(201).json({ user: rows[0], token: signToken(rows[0]) });
+  try {
+    const { rows } = await query(
+      `INSERT INTO users (name, email, phone, password_hash, account_type, city)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING ${USER_FIELDS}`,
+      [data.name, data.email ?? null, data.phone, hash, data.accountType, data.city || null],
+    );
+    res.status(201).json({ user: rows[0], token: signToken(rows[0]) });
+  } catch (err) {
+    throw uniqueConflict(err);
+  }
 });
 
 const DUMMY_HASH = bcrypt.hashSync('timing-equalizer', 12);
 
+/**
+ * Users log in with their phone number. An email still works for accounts
+ * that have one (e.g. the admin account created by the seed).
+ */
+function findByIdentifier(identifier) {
+  const id = clean(String(identifier || '')).trim();
+  if (id.includes('@')) {
+    return query(`SELECT ${USER_FIELDS}, password_hash, is_active FROM users WHERE email = $1`, [id.toLowerCase()]);
+  }
+  const phone = normalizePhone(id);
+  if (!phone) return { rows: [] };
+  return query(`SELECT ${USER_FIELDS}, password_hash, is_active FROM users WHERE phone = $1`, [phone]);
+}
+
 const loginSchema = z.object({
-  email: emailField,
-  password: z.preprocess(clean, z.string().min(1)),
+  identifier: z.preprocess(clean, z.string().trim().min(1, 'required').max(160)),
+  password: z.preprocess(clean, z.string().min(1, 'required')),
 });
 
 router.post('/login', async (req, res) => {
-  const { email, password: pw } = parse(loginSchema, req.body);
-  const { rows } = await query(`SELECT ${USER_FIELDS}, password_hash, is_active FROM users WHERE email = $1`, [email]);
+  const body = { ...req.body, identifier: req.body?.identifier ?? req.body?.phone ?? req.body?.email };
+  const { identifier, password: pw } = parse(loginSchema, body);
+  const { rows } = await findByIdentifier(identifier);
   const user = rows[0];
   // Compare even when the user is missing to keep timing similar.
   const ok = await bcrypt.compare(pw, user?.password_hash || DUMMY_HASH);
@@ -67,7 +105,12 @@ router.post('/login', async (req, res) => {
 router.get('/me', requireAuth, async (req, res) => {
   const { rows } = await query(
     `SELECT ${USER_FIELDS},
-       (SELECT row_to_json(s) FROM (SELECT id, name, slug FROM stores WHERE owner_id = users.id) s) AS store
+       (SELECT row_to_json(s) FROM (SELECT id, name, slug FROM stores WHERE owner_id = users.id) s) AS store,
+       (SELECT COUNT(*) FROM products p WHERE p.seller_id = users.id AND p.status = 'approved' AND p.availability = 'available') AS live_count,
+       (SELECT COUNT(*) FROM products p WHERE p.seller_id = users.id AND p.availability = 'sold') AS sold_count,
+       (SELECT COUNT(*) FROM favorites f WHERE f.user_id = users.id) AS favorites_count,
+       (SELECT ROUND(AVG(rating)::numeric, 1) FROM reviews r WHERE r.seller_id = users.id) AS rating,
+       (SELECT COUNT(*) FROM reviews r WHERE r.seller_id = users.id) AS reviews_count
      FROM users WHERE id = $1`,
     [req.user.id],
   );
@@ -76,24 +119,33 @@ router.get('/me', requireAuth, async (req, res) => {
 
 const profileSchema = z.object({
   name: z.string().trim().min(2, 'min_2').max(100),
-  phone: phone.optional().or(z.literal('')),
+  phone: z.preprocess(emptyToUndefined, phoneField.optional()),
+  email: optionalEmail,
   city: z.enum(CITY_KEYS).optional().or(z.literal('')),
   bio: z.string().trim().max(500).optional(),
-  accountType: z.enum(['individual', 'merchant']).optional(),
+  accountType: z.enum(ACCOUNT_TYPES).optional(),
 });
 
 router.put('/me', requireAuth, upload.single('avatar'), async (req, res) => {
   const data = parse(profileSchema, req.body);
-  const old = await query('SELECT avatar_url FROM users WHERE id = $1', [req.user.id]);
+  const old = (await query('SELECT avatar_url, phone, email FROM users WHERE id = $1', [req.user.id])).rows[0];
+  // Every account needs a way to log in: a phone number, or an email for older accounts.
+  if (!data.phone && !data.email) throw badRequest('validation_error', { phone: 'required' });
   const avatar = req.file ? await saveFile(req.file) : null;
-  const { rows } = await query(
-    `UPDATE users SET name = $1, phone = $2, city = $3, bio = $4,
-       account_type = COALESCE($5, account_type), avatar_url = COALESCE($6, avatar_url), updated_at = now()
-     WHERE id = $7 RETURNING ${USER_FIELDS}`,
-    [data.name, data.phone || null, data.city || null, data.bio || null, data.accountType || null, avatar, req.user.id],
-  );
-  if (avatar) removeUploads([old.rows[0]?.avatar_url]);
-  res.json({ user: rows[0] });
+  try {
+    const { rows } = await query(
+      `UPDATE users SET name = $1, phone = $2, email = $3, city = $4, bio = $5,
+         account_type = COALESCE($6, account_type), avatar_url = COALESCE($7, avatar_url), updated_at = now()
+       WHERE id = $8 RETURNING ${USER_FIELDS}`,
+      [data.name, data.phone ?? null, data.email ?? null, data.city || null, data.bio || null,
+        data.accountType || null, avatar, req.user.id],
+    );
+    if (avatar) removeUploads([old?.avatar_url]);
+    res.json({ user: rows[0] });
+  } catch (err) {
+    if (avatar) removeUploads([avatar]);
+    throw uniqueConflict(err);
+  }
 });
 
 router.put('/me/password', requireAuth, async (req, res) => {
@@ -111,22 +163,30 @@ router.put('/me/password', requireAuth, async (req, res) => {
 
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 
+/**
+ * Password reset by email link, for accounts that have an email.
+ * Phone-only accounts are reset by an admin (no SMS provider in this version).
+ */
 router.post('/forgot-password', async (req, res) => {
-  const { email } = parse(z.object({ email: emailField }), req.body);
-  const { rows } = await query('SELECT id FROM users WHERE email = $1 AND is_active', [email]);
+  const { identifier } = parse(
+    z.object({ identifier: z.preprocess(clean, z.string().trim().min(1, 'required').max(160)) }),
+    { identifier: req.body?.identifier ?? req.body?.email ?? req.body?.phone },
+  );
+  const { rows } = await findByIdentifier(identifier);
+  const user = rows[0];
   const response = { ok: true };
-  if (rows[0]) {
+  if (user?.is_active && user.email) {
     const token = crypto.randomBytes(32).toString('hex');
     await query(
       `INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES ($1, $2, now() + interval '1 hour')`,
-      [rows[0].id, sha256(token)],
+      [user.id, sha256(token)],
     );
     const link = `${config.corsOrigin}/reset-password?token=${token}`;
     // No mail provider is wired in v1: the link is logged. Plug an SMTP/SMS service in here.
-    console.log(`[password-reset] ${email}: ${link}`);
+    console.log(`[password-reset] user ${user.id}: ${link}`);
     if (!config.isProd) response.devResetLink = link;
   }
-  // Same answer whether or not the email exists, so accounts can't be enumerated.
+  // Same answer whether or not the account exists, so accounts can't be enumerated.
   res.json(response);
 });
 

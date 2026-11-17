@@ -4,6 +4,7 @@ import { EmptyState, ErrorBox, Field, Icon, Modal, Pagination, Spinner, StatusBa
 import { useApp } from '../../context/AppContext.jsx';
 import { useI18n } from '../../i18n/index.jsx';
 import { api } from '../../lib/api.js';
+import { formatPhone } from '../../components/ProfileCard.jsx';
 import { useApi } from '../../lib/hooks.js';
 
 function useAction(reload) {
@@ -200,6 +201,14 @@ export function AdminUsers() {
   const { data, loading, error, reload } = useApi(`/admin/users?q=${encodeURIComponent(q)}&page=${page}`);
   const act = useAction(reload);
   const patch = (id, body) => act(() => api(`/admin/users/${id}`, { method: 'PATCH', body }));
+  const [temp, setTemp] = useState(null);
+  const resetPassword = async (u) => {
+    if (!window.confirm(t('admin.resetConfirm', { name: u.name }))) return;
+    try {
+      const { password } = await api(`/admin/users/${u.id}/reset-password`, { method: 'POST' });
+      setTemp({ name: u.name, phone: u.phone, password });
+    } catch { /* ignore */ }
+  };
 
   return (
     <div>
@@ -220,11 +229,11 @@ export function AdminUsers() {
                 <tr key={u.id} className={u.is_active ? '' : 'bg-slate-50 text-slate-400'}>
                   <td className="p-3">
                     <Link to={`/users/${u.id}`} className="inline-flex items-center gap-1 font-semibold hover:underline">{u.name}{u.is_verified && <VerifiedBadge small />}</Link>
-                    <div className="text-xs text-slate-500" dir="ltr">{u.email}</div>
+                    <div className="text-xs text-slate-500" dir="ltr">{formatPhone(u.phone)}{u.phone && u.email ? ' · ' : ''}{u.email}</div>
                   </td>
                   <td className="p-3">
                     <select className="rounded-lg border border-slate-200 px-2 py-1 text-xs" value={u.account_type} onChange={(e) => patch(u.id, { accountType: e.target.value })}>
-                      <option value="individual">{t('auth.individual')}</option><option value="merchant">{t('auth.merchant')}</option>
+                      <option value="buyer">{t('roles.buyer')}</option><option value="individual">{t('roles.individual')}</option><option value="merchant">{t('roles.merchant')}</option>
                     </select>
                   </td>
                   <td className="p-3"><span className={`badge ${u.role === 'admin' ? 'bg-brand-100 text-brand-800' : 'bg-slate-100 text-slate-600'}`}>{u.role === 'admin' ? t('admin.adminRole') : t('admin.userRole')}</span></td>
@@ -239,6 +248,7 @@ export function AdminUsers() {
                         <button className={`btn px-2 py-1 text-xs ${u.is_verified ? 'text-slate-600 hover:bg-slate-100' : 'bg-sky-50 text-sky-700 hover:bg-sky-100'}`} onClick={() => patch(u.id, { isVerified: !u.is_verified })}>
                           {u.is_verified ? t('admin.unverify') : <><VerifiedBadge small />{t('admin.verify')}</>}
                         </button>
+                        <button className="btn-ghost px-2 py-1 text-xs" onClick={() => resetPassword(u)}>{t('admin.resetPassword')}</button>
                         <button className="btn-ghost px-2 py-1 text-xs" onClick={() => patch(u.id, { role: u.role === 'admin' ? 'user' : 'admin' })}>
                           {u.role === 'admin' ? t('admin.removeAdmin') : t('admin.makeAdmin')}
                         </button>
@@ -252,6 +262,15 @@ export function AdminUsers() {
         </div>
       )}
       {data && <Pagination page={data.page} total={data.total} limit={data.limit} onPage={setPage} />}
+      <Modal open={Boolean(temp)} onClose={() => setTemp(null)} title={t('admin.resetPassword')}>
+        {temp && (
+          <div className="space-y-3 text-sm">
+            <p>{t('admin.tempPasswordFor', { name: temp.name })} <bdi dir="ltr">{formatPhone(temp.phone)}</bdi></p>
+            <p className="select-all rounded-xl bg-slate-100 p-3 text-center font-mono text-lg font-bold tracking-wider" dir="ltr">{temp.password}</p>
+            <p className="text-xs text-slate-500">{t('admin.tempPasswordHelp')}</p>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

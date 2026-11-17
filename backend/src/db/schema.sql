@@ -179,6 +179,19 @@ CREATE INDEX IF NOT EXISTS idx_products_deals ON products(created_at DESC) WHERE
 -- Category icons closer to the new design.
 UPDATE categories SET icon = '💼' WHERE slug = 'services' AND icon = '🤝';
 
+-- v1.3: buyers vs sellers, phone-number login ----------------------------------
+-- account_type: 'buyer' (cannot post ads), 'individual' (seller), 'merchant' (seller with a store).
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_account_type_check;
+ALTER TABLE users ADD CONSTRAINT users_account_type_check CHECK (account_type IN ('buyer', 'individual', 'merchant'));
+ALTER TABLE users ALTER COLUMN account_type SET DEFAULT 'buyer';
+-- Log in with a phone number; email becomes optional.
+ALTER TABLE users ALTER COLUMN email DROP NOT NULL;
+-- Canonical phone format +222XXXXXXXX (only rewrites values that clearly are Mauritanian numbers).
+UPDATE users SET phone = '+222' || right(regexp_replace(phone, '[^0-9]', '', 'g'), 8)
+  WHERE phone IS NOT NULL AND phone !~ '^\+222[234][0-9]{7}$'
+    AND regexp_replace(phone, '[^0-9]', '', 'g') ~ '^(00222|222)?[234][0-9]{7}$';
+CREATE UNIQUE INDEX IF NOT EXISTS users_phone_unique ON users(phone) WHERE phone IS NOT NULL;
+
 -- Search normalisation: lower-case; unify Arabic letter variants (أ إ آ ٱ → ا, ة → ه,
 -- ى → ي, ؤ → و, ئ → ي); drop tashkeel/tatweel; strip French accents.
 CREATE OR REPLACE FUNCTION mm_normalize(t text) RETURNS text

@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+import bcrypt from 'bcryptjs';
 import { Router } from 'express';
 import { z } from 'zod';
 import { query } from '../db.js';
@@ -65,7 +67,7 @@ router.patch('/users/:id', async (req, res) => {
     z.object({
       isActive: z.boolean().optional(),
       role: z.enum(['user', 'admin']).optional(),
-      accountType: z.enum(['individual', 'merchant']).optional(),
+      accountType: z.enum(['buyer', 'individual', 'merchant']).optional(),
       isVerified: z.boolean().optional(),
     }),
     req.body,
@@ -83,6 +85,22 @@ router.patch('/users/:id', async (req, res) => {
     await notify(id, 'account_verified', {}, `/users/${id}`);
   }
   res.json({ user: rows[0] });
+});
+
+/**
+ * POST /admin/users/:id/reset-password – set a temporary password and return it once,
+ * so the admin can pass it to a user who logs in by phone (no SMS in this version).
+ */
+router.post('/users/:id/reset-password', async (req, res) => {
+  const id = parseInt(req.params.id, 10) || 0;
+  const alphabet = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = crypto.randomBytes(10);
+  const temp = Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('');
+  const { rowCount } = await query('UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2', [
+    await bcrypt.hash(temp, 12), id,
+  ]);
+  if (!rowCount) throw notFound('user_not_found');
+  res.json({ password: temp });
 });
 
 // ---------- Listings moderation ----------

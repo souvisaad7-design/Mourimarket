@@ -1,7 +1,9 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import BecomeSeller from './components/BecomeSeller.jsx';
 import Layout from './components/Layout.jsx';
 import { Spinner } from './components/ui.jsx';
 import { useApp } from './context/AppContext.jsx';
+import { useI18n } from './i18n/index.jsx';
 import { ForgotPassword, Login, Register, ResetPassword } from './pages/Auth.jsx';
 import Categories from './pages/Categories.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -27,6 +29,20 @@ function RequireAuth({ children, admin = false }) {
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
   if (admin && user.role !== 'admin') return <Navigate to="/" replace />;
   return children;
+}
+
+/** Only seller accounts can post listings; buyers are offered to switch. */
+function SellerOnly({ children }) {
+  const { user } = useApp();
+  const { t } = useI18n();
+  if (user.account_type !== 'buyer') return children;
+  return (
+    <div className="container-page max-w-3xl py-10">
+      <h1 className="mb-2 text-2xl font-bold">{t('form.newTitle')}</h1>
+      <p className="mb-6 text-slate-600">{t('seller.onlySellers')}</p>
+      <BecomeSeller />
+    </div>
+  );
 }
 
 function GuestOnly({ children }) {
@@ -64,7 +80,7 @@ export default function App() {
         <Route path="profile" element={<RequireAuth><Profile /></RequireAuth>} />
         <Route path="dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
         <Route path="dashboard/store" element={<RequireAuth><StoreSettings /></RequireAuth>} />
-        <Route path="sell" element={<RequireAuth><ProductForm /></RequireAuth>} />
+        <Route path="sell" element={<RequireAuth><SellerOnly><ProductForm /></SellerOnly></RequireAuth>} />
         <Route path="products/:id/edit" element={<RequireAuth><ProductForm /></RequireAuth>} />
         <Route path="favorites" element={<RequireAuth><Favorites /></RequireAuth>} />
         <Route path="messages" element={<RequireAuth><Messages /></RequireAuth>} />

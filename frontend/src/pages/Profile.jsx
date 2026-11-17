@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Avatar, CitySelect, ErrorBox, Field, PageHeader, useFieldError } from '../components/ui.jsx';
+import ProfileCard from '../components/ProfileCard.jsx';
+import { Avatar, CitySelect, ErrorBox, Field, PageHeader, PhoneInput, useFieldError } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
@@ -10,7 +11,7 @@ function ProfileForm() {
   const { t } = useI18n();
   const { user, meta, refreshUser, notify } = useApp();
   const [form, setForm] = useState({
-    name: user.name, phone: user.phone || '', city: user.city || '', bio: user.bio || '', accountType: user.account_type,
+    name: user.name, phone: (user.phone || '').replace(/^\+222/, ''), email: user.email || '', city: user.city || '', bio: user.bio || '', accountType: user.account_type,
   });
   const [avatar, setAvatar] = useState(null);
   const [error, setError] = useState(null);
@@ -41,25 +42,31 @@ function ProfileForm() {
         <Avatar name={user.name} url={avatar ? URL.createObjectURL(avatar) : user.avatar_url} size="h-16 w-16" />
         <label className="btn-outline cursor-pointer">
           {t('profile.avatar')}
-          <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => setAvatar(e.target.files[0] || null)} />
+          <input type="file" accept="image/*" className="sr-only" onChange={(e) => setAvatar(e.target.files[0] || null)} />
         </label>
       </div>
       <Field label={t('auth.name')} error={fieldError('name')}><input className="input" value={form.name} onChange={set('name')} required /></Field>
-      <Field label={t('auth.email')}><input className="input bg-slate-50" value={user.email} disabled dir="ltr" /></Field>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={t('auth.phone')} error={fieldError('phone')} optional><input className="input" type="tel" value={form.phone} onChange={set('phone')} dir="ltr" /></Field>
-        <Field label={t('form.city')} optional><CitySelect value={form.city} onChange={(v) => setForm({ ...form, city: v })} cities={meta.cities} placeholder="—" /></Field>
+        <Field label={t('auth.phone')} error={fieldError('phone')} hint={t('profile.phoneLogin')}><PhoneInput value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} /></Field>
+        <Field label={t('auth.email')} error={fieldError('email')} optional><input className="input" type="email" value={form.email} onChange={set('email')} dir="ltr" /></Field>
       </div>
+      <Field label={t('form.city')} optional><CitySelect value={form.city} onChange={(v) => setForm({ ...form, city: v })} cities={meta.cities} placeholder="—" /></Field>
       <Field label={t('profile.bio')} optional><textarea className="input" rows={3} maxLength={500} value={form.bio} onChange={set('bio')} /></Field>
-      <Field label={t('auth.accountType')}>
+      <Field label={t('auth.accountType')} hint={t(`roles.${form.accountType}Text`)}>
         <select className="input" value={form.accountType} onChange={set('accountType')}>
-          <option value="individual">{t('auth.individual')}</option>
-          <option value="merchant">{t('auth.merchant')}</option>
+          <option value="buyer">{t('roles.buyer')}</option>
+          <option value="individual">{t('roles.individual')}</option>
+          <option value="merchant">{t('roles.merchant')}</option>
         </select>
       </Field>
       <button className="btn-primary" disabled={busy}>{t('common.save')}</button>
     </form>
   );
+}
+
+function ProfileCardFromContext() {
+  const { user } = useApp();
+  return <ProfileCard user={user} />;
 }
 
 function PasswordForm() {
@@ -98,6 +105,7 @@ export default function Profile() {
   return (
     <div className="container-page max-w-3xl py-8">
       <PageHeader title={t('profile.title')} />
+      <div className="mb-6"><ProfileCardFromContext /></div>
       <div className="space-y-6">
         <ProfileForm />
         <PasswordForm />

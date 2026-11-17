@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
 import { ProductGrid } from '../components/ProductCard.jsx';
+import ProfileCard from '../components/ProfileCard.jsx';
 import { Avatar, EmptyState, ErrorBox, Icon, Spinner, Stars, VerifiedBadge, useCityName } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
@@ -38,23 +39,13 @@ export default function SellerProfile() {
 
   return (
     <div className="container-page py-8">
-      <div className="card mb-8 flex flex-col gap-4 p-6 sm:flex-row sm:items-center">
-        <Avatar name={u.name} url={u.avatar_url} size="h-20 w-20 text-2xl" />
-        <div className="flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold">{u.name}</h1>
-            {u.is_verified && <VerifiedBadge label />}
-            {u.account_type === 'merchant' && <span className="badge bg-gold-400 text-ink">{t('seller.merchant')}</span>}
-          </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
-            {u.reviews_count > 0 ? <span className="flex items-center gap-1"><Stars value={u.rating} /> {u.rating} ({t('product.reviews', { n: u.reviews_count })})</span> : <span>{t('product.noRating')}</span>}
-            {u.city && <span className="flex items-center gap-1"><Icon name="pin" className="h-4 w-4" />{cityName(meta.cities, u.city)}</span>}
-            <span>{t('common.since', { d: date(u.created_at) })}</span>
-            <span>{t('seller.sold', { n: u.sold_count })}</span>
-          </div>
-          {u.bio && <p className="mt-2 max-w-2xl text-sm text-slate-700">{u.bio}</p>}
+      <div className="mb-8 grid gap-6 lg:grid-cols-[minmax(0,560px)_1fr] lg:items-start">
+        <ProfileCard user={u} showPhone={u.account_type !== 'buyer'} actions={false} />
+        <div className="space-y-3">
+          {u.bio && <p className="card p-5 text-sm leading-relaxed text-slate-700">{u.bio}</p>}
+          {u.store && <Link to={`/stores/${u.store.slug}`} className="btn-outline rounded-full"><Icon name="store" className="h-4 w-4" />{t('product.visitStore')}</Link>}
+          {u.reviews_count > 0 && <p className="flex items-center gap-2 text-sm text-slate-600"><Stars value={u.rating} /> {u.rating} · {t('product.reviews', { n: u.reviews_count })}</p>}
         </div>
-        {u.store && <Link to={`/stores/${u.store.slug}`} className="btn-outline"><Icon name="store" className="h-4 w-4" />{t('product.visitStore')}</Link>}
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[1fr_340px]">

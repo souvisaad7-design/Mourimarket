@@ -158,6 +158,24 @@ export function Field({ label, error, hint, children, optional }) {
   );
 }
 
+/** Mauritanian phone number input: fixed +222 prefix, 8 digits. */
+export function PhoneInput({ value, onChange, id, autoComplete = 'tel-national', ...rest }) {
+  return (
+    <div dir="ltr" className="flex overflow-hidden rounded-xl border border-slate-300 bg-surface focus-within:border-brand-600 focus-within:ring-2 focus-within:ring-brand-600/20">
+      <span className="flex select-none items-center gap-1.5 border-e border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-600">
+        <svg viewBox="0 0 30 20" className="h-3.5 w-5 rounded-sm" aria-hidden="true">
+          <rect width="30" height="20" fill="#00a95c" /><rect width="30" height="3" fill="#d01c1f" /><rect y="17" width="30" height="3" fill="#d01c1f" />
+          <path d="M9 8a6 6 0 0 0 12 0 6.5 5 0 0 1-12 0z" fill="#ffd700" /><circle cx="15" cy="6" r="1.6" fill="#ffd700" />
+        </svg>
+        +222
+      </span>
+      <input id={id} type="tel" inputMode="tel" autoComplete={autoComplete} placeholder="36 00 00 00" maxLength={16}
+        className="w-full bg-transparent px-3 py-2.5 text-sm tracking-wide text-slate-900 placeholder:text-slate-400 focus:outline-none"
+        value={value} onChange={(e) => onChange(e.target.value)} {...rest} />
+    </div>
+  );
+}
+
 export function CitySelect({ value, onChange, cities, placeholder, ...rest }) {
   const { lang } = useI18n();
   return (

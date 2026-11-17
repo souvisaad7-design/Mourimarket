@@ -50,11 +50,13 @@ router.get('/users/:id', async (req, res) => {
        (SELECT ROUND(AVG(rating)::numeric, 1) FROM reviews WHERE seller_id = u.id) AS rating,
        (SELECT COUNT(*) FROM reviews WHERE seller_id = u.id) AS reviews_count,
        (SELECT COUNT(*) FROM products WHERE seller_id = u.id AND availability = 'sold') AS sold_count,
+       (SELECT COUNT(*) FROM products WHERE seller_id = u.id AND status = 'approved' AND availability = 'available') AS live_count,
        (SELECT row_to_json(s) FROM (SELECT id, name, slug, logo_url FROM stores WHERE owner_id = u.id AND is_active) s) AS store
      FROM users u WHERE u.id = $1 AND u.is_active`,
     [id || 0],
   );
   if (!rows[0]) throw notFound('user_not_found');
+  if (rows[0].account_type === 'buyer') rows[0].phone = null;
   const [products, reviews] = await Promise.all([
     query(
       `SELECT ${PRODUCT_SELECT} ${PRODUCT_FROM}

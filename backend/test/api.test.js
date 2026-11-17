@@ -31,16 +31,19 @@ after(async () => { server.close(); await pool.end(); });
 
 describe('MauriMarket API', () => {
   const email = `t${Date.now()}@test.mr`;
+  const sellerPhone = `3${String(Date.now()).slice(-7)}`;
   let token; let adminToken; let buyerToken; let productId; let conversationId; let categoryId;
 
   it('registers, rejects duplicate email and weak password', async () => {
-    const r = await call('/api/auth/register', { method: 'POST', body: { name: 'Test Seller', email, password: 'secret123', accountType: 'merchant', city: 'nouakchott' } });
+    const r = await call('/api/auth/register', { method: 'POST', body: { name: 'Test Seller', phone: sellerPhone, email, password: 'secret123', accountType: 'merchant', city: 'nouakchott' } });
     assert.equal(r.status, 201);
     assert.ok(r.data.token);
     assert.equal(r.data.user.password_hash, undefined);
     token = r.data.token;
-    assert.equal((await call('/api/auth/register', { method: 'POST', body: { name: 'Xy', email, password: 'secret123' } })).status, 409);
-    const weak = await call('/api/auth/register', { method: 'POST', body: { name: 'Ab', email: 'w@test.mr', password: '123' } });
+    const dup = await call('/api/auth/register', { method: 'POST', body: { name: 'Xy', phone: sellerPhone, password: 'secret123' } });
+    assert.equal(dup.status, 409);
+    assert.equal(dup.data.error, 'phone_taken');
+    const weak = await call('/api/auth/register', { method: 'POST', body: { name: 'Ab', phone: '36999998', password: '123' } });
     assert.equal(weak.status, 400);
     assert.equal(weak.data.fields.password, 'min_8');
   });
@@ -289,5 +292,78 @@ describe('v1.2: special offers', () => {
     fd.set('oldPrice', '1500');
     const ok = await call('/api/products', { method: 'POST', token, form: fd });
     assert.equal(ok.status, 201);
+  });
+});
+
+describe('v1.3: phone login, buyers vs sellers, admin password reset', () => {
+  const digits = `4${String(Date.now()).slice(-7)}`;
+  let buyerToken; let buyerId;
+
+  it('registers a buyer with only a phone number (formats are normalised)', async () => {
+    const r = await call('/api/auth/register', { method: 'POST', body: { name: 'مشتري تجريبي', phone: `+222 ${digits.slice(0, 2)} ${digits.slice(2, 4)} ${digits.slice(4)}`, password: 'buyer1234' } });
+    assert.equal(r.status, 201);
+    assert.equal(r.data.user.account_type, 'buyer', 'buyer is the default');
+    assert.equal(r.data.user.phone, `+222${digits}`);
+    assert.equal(r.data.user.email, null);
+    buyerToken = r.data.token; buyerId = r.data.user.id;
+  });
+
+  it('logs in with the phone number in any common format', async () => {
+    for (const id of [digits, `+222${digits}`, `00222${digits}`, `222 ${digits}`, '‏' + digits]) {
+      const r = await call('/api/auth/login', { method: 'POST', body: { identifier: id, password: 'buyer1234' } });
+      assert.equal(r.status, 200, `login with «${id}»`);
+    }
+    assert.equal((await call('/api/auth/login', { method: 'POST', body: { identifier: digits, password: 'wrong-pass' } })).status, 401);
+    const arabicDigits = [...digits].map((d) => '٠١٢٣٤٥٦٧٨٩'[d]).join('');
+    assert.equal((await call('/api/auth/login', { method: 'POST', body: { identifier: arabicDigits, password: 'buyer1234' } })).status, 200, 'Arabic-Indic digits');
+  });
+
+  it('rejects invalid Mauritanian numbers', async () => {
+    const r = await call('/api/auth/register', { method: 'POST', body: { name: 'Bad', phone: '12345678', password: 'secret123' } });
+    assert.equal(r.status, 400);
+    assert.equal(r.data.fields.phone, 'invalid_phone');
+  });
+
+  it('blocks buyers from posting listings, allows it after switching to seller', async () => {
+    const categoryId = (await call('/api/categories')).data.items[0].id;
+    const fd = () => {
+      const f = new FormData();
+      for (const [k, v] of Object.entries({ title: 'Buyer item', description: 'Trying to sell as a buyer', price: '100', categoryId, city: 'nouakchott' })) f.append(k, v);
+      f.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+      return f;
+    };
+    const blocked = await call('/api/products', { method: 'POST', token: buyerToken, form: fd() });
+    assert.equal(blocked.status, 403);
+    assert.equal(blocked.data.error, 'sellers_only');
+    const prof = new FormData();
+    prof.append('name', 'مشتري تجريبي'); prof.append('phone', digits); prof.append('accountType', 'individual');
+    const up = await call('/api/auth/me', { method: 'PUT', token: buyerToken, form: prof });
+    assert.equal(up.status, 200);
+    assert.equal(up.data.user.account_type, 'individual');
+    assert.equal((await call('/api/products', { method: 'POST', token: buyerToken, form: fd() })).status, 201);
+  });
+
+  it('hides a buyer phone number on the public profile', async () => {
+    const buyer = (await call('/api/auth/login', { method: 'POST', body: { identifier: '47000005', password: 'Password123' } })).data.user;
+    assert.equal(buyer.account_type, 'buyer');
+    assert.equal((await call(`/api/users/${buyer.id}`)).data.user.phone, null);
+    const seller = (await call('/api/auth/login', { method: 'POST', body: { identifier: '36000001', password: 'Password123' } })).data.user;
+    assert.equal((await call(`/api/users/${seller.id}`)).data.user.phone, '+22236000001');
+  });
+
+  it('returns profile-card stats on /auth/me', async () => {
+    const token = (await call('/api/auth/login', { method: 'POST', body: { identifier: '36000001', password: 'Password123' } })).data.token;
+    const me = (await call('/api/auth/me', { token })).data.user;
+    for (const k of ['live_count', 'sold_count', 'favorites_count', 'reviews_count', 'is_verified']) assert.ok(k in me, k);
+  });
+
+  it('lets an admin set a temporary password for a phone-only account', async () => {
+    const admin = await login('admin@maurimarket.mr', 'Admin12345');
+    const r = await call(`/api/admin/users/${buyerId}/reset-password`, { method: 'POST', token: admin });
+    assert.equal(r.status, 200);
+    assert.ok(r.data.password.length >= 10);
+    assert.equal((await call('/api/auth/login', { method: 'POST', body: { identifier: digits, password: r.data.password } })).status, 200);
+    const notAdmin = await call(`/api/admin/users/${buyerId}/reset-password`, { method: 'POST', token: buyerToken });
+    assert.equal(notAdmin.status, 403);
   });
 });

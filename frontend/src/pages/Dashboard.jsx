@@ -5,6 +5,8 @@ import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
+import BecomeSeller from '../components/BecomeSeller.jsx';
+import ProfileCard from '../components/ProfileCard.jsx';
 
 function SoldModal({ product, onClose, onDone }) {
   const { t } = useI18n();
@@ -33,7 +35,7 @@ function SoldModal({ product, onClose, onDone }) {
   );
 }
 
-export default function Dashboard() {
+function SellerDashboard() {
   const { t, price, number, date } = useI18n();
   const { user, notify } = useApp();
   const { data, loading, error, reload } = useApi('/products/mine');
@@ -66,6 +68,7 @@ export default function Dashboard() {
     <div className="container-page py-8">
       <PageHeader title={t('dashboard.welcome', { name: user.name })}>
         <div className="flex gap-2">
+          <Link to="/profile" className="btn-outline"><Icon name="user" className="h-4 w-4" />{t('card.title')}</Link>
           {user.account_type === 'merchant' && <Link to="/dashboard/store" className="btn-outline"><Icon name="store" className="h-4 w-4" />{t('nav.myStore')}</Link>}
           <Link to="/sell" className="btn-accent"><Icon name="plus" className="h-4 w-4" />{t('nav.post')}</Link>
         </div>
@@ -132,4 +135,42 @@ export default function Dashboard() {
       <SoldModal product={soldProduct} onClose={() => setSoldProduct(null)} onDone={() => { setSoldProduct(null); reload(); }} />
     </div>
   );
+}
+
+/** Buyers: member card, shortcuts, and the option to become a seller. */
+function BuyerDashboard() {
+  const { t } = useI18n();
+  const { user, counts } = useApp();
+  useDocumentTitle(t('nav.myAccount'));
+  const links = [
+    ['/favorites', 'heart', t('nav.favorites'), user.favorites_count],
+    ['/messages', 'chat', t('nav.messages'), counts.messages],
+    ['/notifications', 'bell', t('nav.notifications'), counts.notifications],
+    ['/profile', 'user', t('nav.profile'), null],
+  ];
+  return (
+    <div className="container-page max-w-4xl space-y-6 py-8">
+      <PageHeader title={t('dashboard.welcome', { name: user.name })} />
+      <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
+        <ProfileCard user={user} />
+        <div className="grid grid-cols-2 gap-3 self-start">
+          {links.map(([to, icon, label, n]) => (
+            <Link key={to} to={to} className="card flex flex-col items-center gap-2 p-5 text-center transition hover:-translate-y-0.5 hover:shadow-md">
+              <span className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
+                <Icon name={icon} />
+                {n > 0 && <span className="absolute -end-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[11px] font-bold text-white">{n}</span>}
+              </span>
+              <span className="text-sm font-semibold">{label}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+      <BecomeSeller />
+    </div>
+  );
+}
+
+export default function Dashboard() {
+  const { user } = useApp();
+  return user.account_type === 'buyer' ? <BuyerDashboard /> : <SellerDashboard />;
 }

@@ -219,6 +219,8 @@ async function assertCategory(id, client) {
 
 /** POST /api/products – create a listing (multipart, field "images"). */
 router.post('/', requireAuth, upload.array('images', MAX_IMAGES), async (req, res) => {
+  // Buyers browse and message; only seller accounts can post listings.
+  if (req.user.account_type === 'buyer') throw forbidden('sellers_only');
   const files = req.files || [];
   const data = parse(productSchema, req.body);
     checkOldPrice(data);

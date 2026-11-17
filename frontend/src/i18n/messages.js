@@ -626,6 +626,97 @@ deepMerge(ar, v13.ar);
 deepMerge(fr, v13.fr);
 deepMerge(en, v13.en);
 
+// ---- v1.4: buyers vs sellers, phone login, member card ----
+const v14 = {
+  ar: {
+    roles: {
+      buyer: 'مشتري', individual: 'بائع', merchant: 'تاجر',
+      buyerText: 'يتصفح ويراسل البائعين ويحفظ المفضلة', individualText: 'ينشر إعلانات عن كل ما يبيعه', merchantText: 'بائع مع متجر خاص وشعار',
+    },
+    nav: { myAccount: 'حسابي' },
+    auth: {
+      loginSubtitle: 'ادخل برقم هاتفك وكلمة المرور', phoneHint: 'رقمك الموريتاني (8 أرقام). ستدخل به إلى حسابك.',
+      useEmail: 'الدخول بالبريد الإلكتروني', usePhone: 'الدخول برقم الهاتف', phoneOrEmail: 'رقم الهاتف أو البريد الإلكتروني',
+      forgotText: 'أدخل رقم هاتفك أو بريدك الإلكتروني.', linkSent: 'إذا كان لحسابك بريد إلكتروني، فستصلك رسالة فيها رابط الاستعادة.',
+      phoneResetHelp: 'إذا سجّلت برقم الهاتف فقط، تواصل مع الإدارة لتعطيك كلمة مرور مؤقتة.',
+    },
+    profile: { phoneLogin: 'تدخل به إلى حسابك' },
+    card: {
+      title: 'بطاقة العضو', memberId: 'رقم العضوية', since: 'تاريخ الانضمام', scan: 'امسح لعرض الملف',
+      share: 'مشاركة بطاقتي', viewPublic: 'ملفي العام', shareText: 'ملف {name} على MauriMarket',
+      live: 'إعلانات نشطة', sold: 'مبيعات', rating: 'التقييم', favorites: 'في المفضلة',
+    },
+    seller: {
+      becomeTitle: 'هل تريد البيع على MauriMarket؟', becomeText: 'حسابك حالياً حساب مشتري: يمكنك التصفح والمراسلة والحفظ في المفضلة. حوّله إلى حساب بائع لتنشر إعلانات عن كل ما تبيعه.',
+      becomeAs: 'التحويل إلى {role}', switched: 'تم تحويل حسابك. يمكنك الآن نشر الإعلانات.', onlySellers: 'نشر الإعلانات متاح لحسابات البائعين والتجار فقط.',
+    },
+    admin: {
+      resetPassword: 'كلمة مرور مؤقتة', resetConfirm: 'إنشاء كلمة مرور مؤقتة لـ {name}؟ ستتوقف كلمة مروره الحالية عن العمل.',
+      tempPasswordFor: 'كلمة المرور المؤقتة لـ {name}', tempPasswordHelp: 'أعطها للمستخدم ليدخل بها، ثم يغيّرها من «الملف الشخصي». لن تظهر مرة أخرى.',
+    },
+    errors: { phone_taken: 'رقم الهاتف هذا مسجّل بالفعل.', sellers_only: 'نشر الإعلانات متاح للبائعين فقط. حوّل حسابك إلى بائع من الملف الشخصي.' },
+  },
+  fr: {
+    roles: {
+      buyer: 'Acheteur', individual: 'Vendeur', merchant: 'Commerçant',
+      buyerText: 'Parcourt, contacte les vendeurs, garde ses favoris', individualText: 'Publie des annonces pour tout ce qu’il vend', merchantText: 'Vendeur avec sa propre boutique',
+    },
+    nav: { myAccount: 'Mon compte' },
+    auth: {
+      loginSubtitle: 'Connectez-vous avec votre numéro et votre mot de passe', phoneHint: 'Votre numéro mauritanien (8 chiffres), utilisé pour vous connecter.',
+      useEmail: 'Se connecter avec un e-mail', usePhone: 'Se connecter avec un numéro', phoneOrEmail: 'Numéro de téléphone ou e-mail',
+      forgotText: 'Saisissez votre numéro ou votre e-mail.', linkSent: 'Si votre compte a un e-mail, vous recevrez un lien de réinitialisation.',
+      phoneResetHelp: 'Compte créé avec un numéro uniquement ? Contactez l’administration pour un mot de passe temporaire.',
+    },
+    profile: { phoneLogin: 'Sert à vous connecter' },
+    card: {
+      title: 'Carte de membre', memberId: 'N° de membre', since: 'Membre depuis', scan: 'Scannez pour voir le profil',
+      share: 'Partager ma carte', viewPublic: 'Mon profil public', shareText: 'Profil de {name} sur MauriMarket',
+      live: 'Annonces actives', sold: 'Ventes', rating: 'Note', favorites: 'Favoris',
+    },
+    seller: {
+      becomeTitle: 'Vous voulez vendre sur MauriMarket ?', becomeText: 'Votre compte est un compte acheteur : vous pouvez parcourir, contacter et enregistrer des favoris. Passez en vendeur pour publier des annonces.',
+      becomeAs: 'Devenir {role}', switched: 'Compte modifié. Vous pouvez publier des annonces.', onlySellers: 'La publication d’annonces est réservée aux vendeurs et commerçants.',
+    },
+    admin: {
+      resetPassword: 'Mot de passe temporaire', resetConfirm: 'Créer un mot de passe temporaire pour {name} ? L’ancien ne fonctionnera plus.',
+      tempPasswordFor: 'Mot de passe temporaire pour {name}', tempPasswordHelp: 'Transmettez-le à l’utilisateur ; il le changera dans son profil. Il ne sera plus affiché.',
+    },
+    errors: { phone_taken: 'Ce numéro est déjà utilisé.', sellers_only: 'Seuls les vendeurs peuvent publier. Passez en compte vendeur depuis votre profil.' },
+  },
+  en: {
+    roles: {
+      buyer: 'Buyer', individual: 'Seller', merchant: 'Merchant',
+      buyerText: 'Browses, messages sellers, saves favorites', individualText: 'Posts ads for everything they sell', merchantText: 'Seller with their own store',
+    },
+    nav: { myAccount: 'My account' },
+    auth: {
+      loginSubtitle: 'Log in with your phone number and password', phoneHint: 'Your Mauritanian number (8 digits), used to log in.',
+      useEmail: 'Log in with email', usePhone: 'Log in with phone number', phoneOrEmail: 'Phone number or email',
+      forgotText: 'Enter your phone number or email.', linkSent: 'If your account has an email, a reset link is on its way.',
+      phoneResetHelp: 'Signed up with a phone number only? Contact the admin for a temporary password.',
+    },
+    profile: { phoneLogin: 'Used to log in' },
+    card: {
+      title: 'Member card', memberId: 'Member ID', since: 'Member since', scan: 'Scan to view profile',
+      share: 'Share my card', viewPublic: 'My public profile', shareText: '{name}’s profile on MauriMarket',
+      live: 'Active ads', sold: 'Sales', rating: 'Rating', favorites: 'Favorites',
+    },
+    seller: {
+      becomeTitle: 'Want to sell on MauriMarket?', becomeText: 'Your account is a buyer account: you can browse, message and save favorites. Switch to a seller account to post ads for everything you sell.',
+      becomeAs: 'Become a {role}', switched: 'Account switched. You can post ads now.', onlySellers: 'Posting ads is only for seller and merchant accounts.',
+    },
+    admin: {
+      resetPassword: 'Temporary password', resetConfirm: 'Create a temporary password for {name}? Their current password will stop working.',
+      tempPasswordFor: 'Temporary password for {name}', tempPasswordHelp: 'Give it to the user; they change it in their profile. It will not be shown again.',
+    },
+    errors: { phone_taken: 'This phone number is already registered.', sellers_only: 'Only sellers can post ads. Switch to a seller account in your profile.' },
+  },
+};
+deepMerge(ar, v14.ar);
+deepMerge(fr, v14.fr);
+deepMerge(en, v14.en);
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },

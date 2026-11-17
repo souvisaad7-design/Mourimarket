@@ -98,12 +98,12 @@ async function main() {
     }
     const hash = await bcrypt.hash('Password123', 12);
     const users = [
-      ['مدير المنصة', adminEmail, '+222 22000000', adminHash, 'admin', 'individual', 'nouakchott'],
-      ['محمد ولد أحمد', 'mohamed@example.mr', '+222 36000001', hash, 'user', 'individual', 'nouakchott'],
-      ['Fatimetou Sidi', 'fatimetou@example.mr', '+222 46000002', hash, 'user', 'merchant', 'nouadhibou'],
-      ['سيدي محمد', 'sidi@example.mr', '+222 26000003', hash, 'user', 'individual', 'rosso'],
-      ['متجر الأمانة', 'amana@example.mr', '+222 37000004', hash, 'user', 'merchant', 'nouakchott'],
-      ['Aminetou Mint Ali', 'buyer@example.mr', '+222 47000005', hash, 'user', 'individual', 'nouakchott'],
+      ['مدير المنصة', adminEmail, '+22222000000', adminHash, 'admin', 'individual', 'nouakchott'],
+      ['محمد ولد أحمد', 'mohamed@example.mr', '+22236000001', hash, 'user', 'individual', 'nouakchott'],
+      ['Fatimetou Sidi', 'fatimetou@example.mr', '+22246000002', hash, 'user', 'merchant', 'nouadhibou'],
+      ['سيدي محمد', 'sidi@example.mr', '+22226000003', hash, 'user', 'individual', 'rosso'],
+      ['متجر الأمانة', 'amana@example.mr', '+22237000004', hash, 'user', 'merchant', 'nouakchott'],
+      ['Aminetou Mint Ali', 'buyer@example.mr', '+22247000005', hash, 'user', 'buyer', 'nouakchott'],
     ];
     const userIds = [];
     for (const u of users) {

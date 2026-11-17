@@ -69,7 +69,8 @@ function UserMenu() {
             <p className="truncate text-xs text-slate-500">{user.email}</p>
           </div>
           <div className="pt-1">
-            <Link className={item} to="/dashboard"><Icon name="grid" className="h-4 w-4" />{t('nav.dashboard')}</Link>
+            <Link className={item} to="/dashboard"><Icon name="grid" className="h-4 w-4" />{user.account_type === 'buyer' ? t('nav.myAccount') : t('nav.dashboard')}</Link>
+            <Link className={item} to="/profile"><Icon name="shield" className="h-4 w-4" />{t('card.title')}</Link>
             {user.account_type === 'merchant' && <Link className={item} to="/dashboard/store"><Icon name="store" className="h-4 w-4" />{t('nav.myStore')}</Link>}
             <Link className={item} to="/favorites"><Icon name="heart" className="h-4 w-4" />{t('nav.favorites')}</Link>
             <Link className={item} to="/profile"><Icon name="user" className="h-4 w-4" />{t('nav.profile')}</Link>
@@ -167,7 +168,7 @@ function Header() {
                   <Icon name="bell" /><Badge n={counts.notifications} />
                 </Link>
                 <UserMenu />
-                <Link to="/sell" className="btn-accent hidden rounded-full lg:inline-flex"><Icon name="plus" className="h-4 w-4" />{t('nav.post')}</Link>
+                {user.account_type !== 'buyer' && <Link to="/sell" className="btn-accent hidden rounded-full lg:inline-flex"><Icon name="plus" className="h-4 w-4" />{t('nav.post')}</Link>}
               </>
             ) : (
               <>

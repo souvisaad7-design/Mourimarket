@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { CitySelect, ErrorBox, Field, Logo, useFieldError } from '../components/ui.jsx';
+import { CitySelect, ErrorBox, Field, Icon, Logo, PhoneInput, useFieldError } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
@@ -27,7 +27,8 @@ export function Login() {
   const { login } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
-  const [form, setForm] = useState({ email: '', password: '' });
+  const [form, setForm] = useState({ identifier: '', password: '' });
+  const [useEmail, setUseEmail] = useState(false);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   useDocumentTitle(t('nav.login'));
@@ -48,13 +49,24 @@ export function Login() {
       footer={<>{t('auth.noAccount')} <Link to="/register" className="link">{t('nav.register')}</Link></>}>
       <form onSubmit={submit} className="space-y-4" noValidate>
         <ErrorBox error={error} />
-        <Field label={t('auth.email')}>
-          <input className="input" type="email" autoComplete="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} dir="ltr" />
-        </Field>
+        {useEmail ? (
+          <Field label={t('auth.email')}>
+            <input className="input" type="email" autoComplete="username" required value={form.identifier} onChange={(e) => setForm({ ...form, identifier: e.target.value })} dir="ltr" />
+          </Field>
+        ) : (
+          <Field label={t('auth.phone')}>
+            <PhoneInput autoComplete="username" required value={form.identifier} onChange={(v) => setForm({ ...form, identifier: v })} />
+          </Field>
+        )}
         <Field label={t('auth.password')}>
           <input className="input" type="password" autoComplete="current-password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} dir="ltr" />
         </Field>
-        <div className="text-end"><Link to="/forgot-password" className="link text-sm">{t('auth.forgot')}</Link></div>
+        <div className="flex items-center justify-between gap-3 text-sm">
+          <button type="button" className="text-slate-500 hover:text-brand-700" onClick={() => { setUseEmail(!useEmail); setForm({ ...form, identifier: '' }); }}>
+            {useEmail ? t('auth.usePhone') : t('auth.useEmail')}
+          </button>
+          <Link to="/forgot-password" className="link">{t('auth.forgot')}</Link>
+        </div>
         <button className="btn-primary w-full" disabled={busy}>{t('nav.login')}</button>
       </form>
     </AuthCard>
@@ -65,7 +77,7 @@ export function Register() {
   const { t } = useI18n();
   const { login, meta } = useApp();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', confirm: '', accountType: 'individual', city: '' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', confirm: '', accountType: 'buyer', city: '' });
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const fieldError = useFieldError(error);
@@ -81,10 +93,10 @@ export function Register() {
     setBusy(true);
     setError(null);
     try {
-      const { confirm, city, ...rest } = form;
-      const { token, user } = await api('/auth/register', { method: 'POST', body: { ...rest, city: city || undefined } });
+      const { confirm, city, email, ...rest } = form;
+      const { token, user } = await api('/auth/register', { method: 'POST', body: { ...rest, email: email || undefined, city: city || undefined } });
       login(token, user);
-      navigate(user.account_type === 'merchant' ? '/dashboard/store' : '/dashboard', { replace: true });
+      navigate(user.account_type === 'merchant' ? '/dashboard/store' : user.account_type === 'buyer' ? '/' : '/dashboard', { replace: true });
     } catch (err) { setError(err); } finally { setBusy(false); }
   };
 
@@ -95,12 +107,13 @@ export function Register() {
         <ErrorBox error={error} />
         <fieldset>
           <legend className="label">{t('auth.accountType')}</legend>
-          <div className="grid grid-cols-2 gap-2">
-            {['individual', 'merchant'].map((type) => (
-              <label key={type} className={`cursor-pointer rounded-xl border-2 p-3 text-sm transition ${form.accountType === type ? 'border-brand-600 bg-brand-50' : 'border-slate-200 hover:border-slate-300'}`}>
+          <div className="grid grid-cols-3 gap-2">
+            {[['buyer', 'heart'], ['individual', 'user'], ['merchant', 'store']].map(([type, icon]) => (
+              <label key={type} className={`cursor-pointer rounded-xl border-2 p-3 text-center text-sm transition ${form.accountType === type ? 'border-brand-600 bg-brand-50' : 'border-slate-200 hover:border-slate-300'}`}>
                 <input type="radio" name="accountType" value={type} checked={form.accountType === type} onChange={set('accountType')} className="sr-only" />
-                <span className="block font-semibold">{t(`auth.${type}`)}</span>
-                <span className="text-xs text-slate-500">{t(`auth.${type}Text`)}</span>
+                <Icon name={icon} className={`mx-auto mb-1 h-6 w-6 ${form.accountType === type ? 'text-brand-700' : 'text-slate-400'}`} />
+                <span className="block font-semibold">{t(`roles.${type}`)}</span>
+                <span className="text-[11px] leading-tight text-slate-500">{t(`roles.${type}Text`)}</span>
               </label>
             ))}
           </div>
@@ -108,15 +121,15 @@ export function Register() {
         <Field label={t('auth.name')} error={fieldError('name')}>
           <input className="input" autoComplete="name" required value={form.name} onChange={set('name')} />
         </Field>
-        <Field label={t('auth.email')} error={fieldError('email')}>
-          <input className="input" type="email" autoComplete="email" required value={form.email} onChange={set('email')} dir="ltr" />
+        <Field label={t('auth.phone')} error={fieldError('phone')} hint={t('auth.phoneHint')}>
+          <PhoneInput autoComplete="tel-national" required value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label={t('auth.phone')} error={fieldError('phone')} optional>
-            <input className="input" type="tel" autoComplete="tel" placeholder="+222 ..." value={form.phone} onChange={set('phone')} dir="ltr" />
-          </Field>
           <Field label={t('form.city')} optional>
             <CitySelect value={form.city} onChange={(v) => setForm({ ...form, city: v })} cities={meta.cities} placeholder="—" />
+          </Field>
+          <Field label={t('auth.email')} error={fieldError('email')} optional>
+            <input className="input" type="email" autoComplete="email" value={form.email} onChange={set('email')} dir="ltr" />
           </Field>
         </div>
         <Field label={t('auth.password')} error={fieldError('password')} hint={t('fields.min_8')}>
@@ -134,20 +147,21 @@ export function Register() {
 
 export function ForgotPassword() {
   const { t } = useI18n();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   useDocumentTitle(t('auth.forgotTitle'));
   const submit = async (e) => {
     e.preventDefault();
     setError(null);
-    try { setResult(await api('/auth/forgot-password', { method: 'POST', body: { email } })); } catch (err) { setError(err); }
+    try { setResult(await api('/auth/forgot-password', { method: 'POST', body: { identifier } })); } catch (err) { setError(err); }
   };
   return (
     <AuthCard title={t('auth.forgotTitle')} subtitle={t('auth.forgotText')} footer={<Link to="/login" className="link">{t('nav.login')}</Link>}>
       {result ? (
         <div className="space-y-3 text-sm">
           <p className="rounded-xl bg-emerald-50 p-3 text-emerald-800">{t('auth.linkSent')}</p>
+          <p className="rounded-xl bg-amber-50 p-3 text-amber-900">{t('auth.phoneResetHelp')} <Link to="/about#contact" className="link">{t('nav.contact')}</Link></p>
           {result.devResetLink && (
             <p className="break-all rounded-xl bg-slate-100 p-3 text-xs">
               {t('auth.devLink')} <a className="link" href={result.devResetLink.replace(/^https?:\/\/[^/]+/, '')}>{result.devResetLink}</a>
@@ -157,8 +171,8 @@ export function ForgotPassword() {
       ) : (
         <form onSubmit={submit} className="space-y-4">
           <ErrorBox error={error} />
-          <Field label={t('auth.email')}>
-            <input className="input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} dir="ltr" />
+          <Field label={t('auth.phoneOrEmail')}>
+            <input className="input" required value={identifier} onChange={(e) => setIdentifier(e.target.value)} dir="ltr" placeholder="36 00 00 00" />
           </Field>
           <button className="btn-primary w-full">{t('auth.sendLink')}</button>
         </form>
