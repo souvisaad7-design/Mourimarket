@@ -263,7 +263,7 @@ function MobileTabBar() {
   const { user, counts } = useApp();
   const cls = ({ isActive }) => `relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] ${isActive ? 'text-brand-700' : 'text-slate-500'}`;
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-surface sm:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-surface pb-[env(safe-area-inset-bottom)] sm:hidden">
       <NavLink to="/" end className={cls}><Icon name="grid" />{t('nav.home')}</NavLink>
       <NavLink to="/products" className={cls}><Icon name="search" />{t('common.search')}</NavLink>
       <NavLink to="/sell" className={cls}>
@@ -298,7 +298,7 @@ export default function Layout() {
     <div className="flex min-h-screen flex-col">
       <Header />
       <OfflineBanner />
-      <main className="flex-1"><Outlet /></main>
+      <main className={`flex-1 ${onListing ? '' : 'pb-[calc(90px+env(safe-area-inset-bottom))] sm:pb-0'}`}><Outlet /></main>
       <Footer />
       {!onListing && <MobileTabBar />}
       <Toast />

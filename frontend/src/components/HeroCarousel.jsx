@@ -143,20 +143,20 @@ export default function HeroCarousel() {
       onFocus={() => { paused.current = true; }} onBlur={() => { paused.current = false; }}
       onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
     >
-      <div className="grid min-h-[300px] md:min-h-[330px] md:grid-cols-[1.05fr_1fr]">
+      <div className="grid min-h-[230px] sm:min-h-[300px] md:min-h-[330px] md:grid-cols-[1.05fr_1fr]">
         {/* Text panel (first = right side in Arabic) */}
-        <div key={`t-${slide.key}`} className="relative flex animate-fade-in flex-col justify-center gap-3 overflow-hidden bg-gradient-to-bl from-brand-700 via-brand-800 to-brand-900 px-6 pb-12 pt-10 text-white sm:px-14 md:px-16">
+        <div key={`t-${slide.key}`} className="relative flex animate-fade-in flex-col justify-center gap-2 overflow-hidden bg-gradient-to-bl from-brand-700 via-brand-800 to-brand-900 px-6 pb-10 pt-6 text-white sm:gap-3 sm:px-14 sm:pb-12 sm:pt-10 md:px-16">
           <Skyline />
-          <p className="relative flex items-center gap-3 text-3xl font-bold sm:text-5xl" dir="ltr">
+          <p className="relative flex items-center gap-3 text-2xl font-bold sm:text-5xl" dir="ltr">
             <span><span className="text-white">Mauri</span><span className="text-brand-300">Market</span></span>
             <svg viewBox="0 0 24 24" className="h-9 w-9 text-gold-400 sm:h-12 sm:w-12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M3 4h2l2.4 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.8L20 7H6.2M9 19.5a1 1 0 1 0 0 .01M17 19.5a1 1 0 1 0 0 .01" />
             </svg>
           </p>
-          <h1 className="relative text-2xl font-bold leading-snug text-white sm:text-[1.7rem] xl:text-3xl">{t(`hero.s${slide.key}title`)}</h1>
-          <p className="relative text-base text-white/85 sm:text-lg">{t(`hero.s${slide.key}text`)}</p>
+          <h1 className="relative text-xl font-bold leading-snug text-white sm:text-[1.7rem] xl:text-3xl">{t(`hero.s${slide.key}title`)}</h1>
+          <p className="relative text-sm text-white/85 sm:text-lg">{t(`hero.s${slide.key}text`)}</p>
           <div className="relative mt-2">
-            <Link to={slide.to} className="btn-accent rounded-full px-7 py-3 text-base shadow-lg">
+            <Link to={slide.to} className="btn-accent rounded-full px-5 py-2.5 text-sm shadow-lg sm:px-7 sm:py-3 sm:text-base">
               {t(`hero.s${slide.key}cta`)}<Icon name="arrow" className="h-5 w-5 ltr:rotate-180" />
             </Link>
           </div>

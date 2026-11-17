@@ -12,8 +12,8 @@ export function CategoryTiles({ categories }) {
     <div className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-5 sm:overflow-visible sm:px-0 lg:grid-cols-9">
       {categories.map((c) => (
         <Link key={c.id} to={`/products?category=${c.slug}`}
-          className="group flex w-28 shrink-0 snap-start flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-100/70 px-2 py-4 text-center transition hover:-translate-y-1 hover:border-brand-300 hover:bg-surface hover:shadow-md sm:w-auto">
-          <span className="text-5xl drop-shadow-sm transition group-hover:scale-110" aria-hidden="true">{c.icon}</span>
+          className="group flex w-24 shrink-0 snap-start flex-col items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-slate-100/70 px-2 py-3 text-center sm:w-auto sm:gap-2 sm:py-4 transition hover:-translate-y-1 hover:border-brand-300 hover:bg-surface hover:shadow-md sm:w-auto">
+          <span className="text-4xl drop-shadow-sm transition group-hover:scale-110 sm:text-5xl" aria-hidden="true">{c.icon}</span>
           <span className="text-xs font-bold leading-tight text-slate-800">{tl(c)}</span>
         </Link>
       ))}
@@ -148,7 +148,7 @@ export default function Home() {
   const spotlightLoading = featured.loading || (!featured.data?.items?.length && latest.loading);
 
   return (
-    <div className="container-page space-y-10 py-5">
+    <div className="container-page space-y-7 py-4 sm:space-y-10 sm:py-5">
       <HeroCarousel />
 
       <section>
