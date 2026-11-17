@@ -367,3 +367,20 @@ describe('v1.3: phone login, buyers vs sellers, admin password reset', () => {
     assert.equal(notAdmin.status, 403);
   });
 });
+
+describe('admin: latest activity', () => {
+  it('returns the 5 newest listings or new users, newest first', async () => {
+    const admin = await login('admin@maurimarket.mr', 'Admin12345');
+    const before = (await call('/api/admin/stats', { token: admin })).data.recent;
+    assert.ok(Array.isArray(before) && before.length <= 5);
+    const r = await call('/api/auth/register', { method: 'POST', body: { name: 'نشاط جديد', phone: `2${String(Date.now()).slice(-7)}`, password: 'activity1' } });
+    assert.equal(r.status, 201);
+    const recent = (await call('/api/admin/stats', { token: admin })).data.recent;
+    assert.equal(recent.length, 5);
+    assert.equal(recent[0].kind, 'user');
+    assert.equal(recent[0].label, 'نشاط جديد');
+    const times = recent.map((x) => new Date(x.created_at).getTime());
+    assert.deepEqual(times, [...times].sort((a, b) => b - a), 'sorted newest first');
+    assert.ok(recent.every((x) => ['listing', 'user'].includes(x.kind)));
+  });
+});

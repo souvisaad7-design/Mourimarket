@@ -716,9 +716,9 @@ const v14 = {
 deepMerge(ar, { home: { noListingsYet: 'لا توجد إعلانات بعد. كن أول من ينشر إعلاناً على MauriMarket!' } });
 deepMerge(fr, { home: { noListingsYet: 'Pas encore d’annonces. Soyez le premier à publier sur MauriMarket !' } });
 deepMerge(en, { home: { noListingsYet: 'No listings yet. Be the first to post on MauriMarket!' } });
-deepMerge(ar, { admin: { reviewNow: 'مراجعة الآن' } });
-deepMerge(fr, { admin: { reviewNow: 'Examiner maintenant' } });
-deepMerge(en, { admin: { reviewNow: 'Review now' } });
+deepMerge(ar, { admin: { reviewNow: 'مراجعة الآن', recentActivity: 'آخر النشاطات', newListing: 'إعلان جديد', newUser: 'مستخدم جديد', by: 'بواسطة {name}', joinedThePlatform: 'انضم إلى المنصة', noActivity: 'لا توجد نشاطات بعد.' } });
+deepMerge(fr, { admin: { reviewNow: 'Examiner maintenant', recentActivity: 'Activité récente', newListing: 'Nouvelle annonce', newUser: 'Nouvel utilisateur', by: 'par {name}', joinedThePlatform: 'A rejoint la plateforme', noActivity: 'Aucune activité pour le moment.' } });
+deepMerge(en, { admin: { reviewNow: 'Review now', recentActivity: 'Latest activity', newListing: 'New listing', newUser: 'New user', by: 'by {name}', joinedThePlatform: 'Joined the platform', noActivity: 'No activity yet.' } });
 deepMerge(ar, v14.ar);
 deepMerge(fr, v14.fr);
 deepMerge(en, v14.en);

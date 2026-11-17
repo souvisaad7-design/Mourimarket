@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet } from 'react-router-dom';
-import { ErrorBox, Icon, Spinner, useCityName } from '../../components/ui.jsx';
+import { ErrorBox, Icon, Spinner, StatusBadge, useCityName } from '../../components/ui.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useI18n } from '../../i18n/index.jsx';
 import { useApi, useDocumentTitle } from '../../lib/hooks.js';
@@ -106,7 +106,7 @@ export function AdminOverview() {
   const { data, loading, error } = useApi('/admin/stats');
   if (loading) return <Spinner />;
   if (error) return <ErrorBox error={error} />;
-  const { totals, byCategory, byCity, daily } = data;
+  const { totals, byCategory, byCity, daily, recent = [] } = data;
   const cityName = (k) => getCityName(meta.cities, k);
 
   const tiles = [
@@ -133,6 +133,69 @@ export function AdminOverview() {
         <div className="card p-5"><h2 className="mb-4 font-bold">{t('admin.byCategory')}</h2><BarList rows={byCategory} label={(r) => tl(r)} value={(r) => r.n} /></div>
         <div className="card p-5"><h2 className="mb-4 font-bold">{t('admin.byCity')}</h2><BarList rows={byCity} label={(r) => cityName(r.city)} value={(r) => r.n} /></div>
       </div>
+      <RecentActivity items={recent} />
     </div>
+  );
+}
+
+/** "Latest activity": the 5 newest listings or newly registered users. */
+function RecentActivity({ items }) {
+  const { t, ago, dateTime, price } = useI18n();
+  return (
+    <section className="card p-5" aria-labelledby="recent-activity">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 id="recent-activity" className="flex items-center gap-2 font-bold"><Icon name="clock" className="h-5 w-5 text-brand-700" />{t('admin.recentActivity')}</h2>
+        <div className="flex gap-2 text-xs">
+          <Link to="/admin/listings?status=all" className="link">{t('admin.listings')}</Link>
+          <span className="text-slate-300">·</span>
+          <Link to="/admin/users" className="link">{t('admin.users')}</Link>
+        </div>
+      </div>
+      {items.length === 0 ? (
+        <p className="py-6 text-center text-sm text-slate-500">{t('admin.noActivity')}</p>
+      ) : (
+        <ol className="divide-y divide-slate-100">
+          {items.map((it) => {
+            const isListing = it.kind === 'listing';
+            const to = isListing ? `/products/${it.id}` : `/users/${it.id}`;
+            return (
+              <li key={`${it.kind}-${it.id}`}>
+                <Link to={to} className="-mx-2 flex items-center gap-3 rounded-xl px-2 py-3 transition hover:bg-slate-50">
+                  {it.image ? (
+                    <img src={it.image} alt="" className={`h-11 w-11 shrink-0 object-cover ${isListing ? 'rounded-lg' : 'rounded-full'}`} />
+                  ) : (
+                    <span className={`flex h-11 w-11 shrink-0 items-center justify-center ${isListing ? 'rounded-lg bg-slate-100 text-slate-400' : 'rounded-full bg-brand-100 font-bold text-brand-800'}`}>
+                      {isListing ? <Icon name="image" className="h-5 w-5" /> : (it.label || '?').trim().charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      <span className={`badge ${isListing ? 'bg-brand-50 text-brand-800' : 'bg-sky-100 text-sky-700'}`}>
+                        <Icon name={isListing ? 'plus' : 'userPlus'} className="me-1 h-3 w-3" />{isListing ? t('admin.newListing') : t('admin.newUser')}
+                      </span>
+                      {isListing ? <StatusBadge status={it.status} /> : <span className="badge bg-slate-100 text-slate-600">{t(`roles.${it.account_type}`)}</span>}
+                    </span>
+                    <span className="mt-1 block truncate text-sm font-semibold text-slate-900">{it.label}</span>
+                    <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500">
+                      {isListing ? (
+                        <>
+                          <span className="min-w-0 truncate">{t('admin.by', { name: it.actor })}</span>
+                          <span aria-hidden="true">·</span>
+                          <span className="whitespace-nowrap font-semibold text-slate-700 ltr-nums">{price(it.price)}</span>
+                        </>
+                      ) : t('admin.joinedThePlatform')}
+                    </span>
+                    {/* phones: time under the text, so nothing gets cut off */}
+                    <time dateTime={it.created_at} title={dateTime(it.created_at)} className="mt-0.5 block text-[11px] text-slate-400 sm:hidden">{ago(it.created_at)}</time>
+                  </span>
+                  <time dateTime={it.created_at} title={dateTime(it.created_at)} className="hidden shrink-0 text-xs text-slate-400 sm:block">{ago(it.created_at)}</time>
+                  <Icon name="chevron" className="h-4 w-4 shrink-0 text-slate-300 rtl:rotate-180" />
+                </Link>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </section>
   );
 }

@@ -15,7 +15,7 @@ router.use(requireAuth, requireAdmin);
 // ---------- Statistics ----------
 
 router.get('/stats', async (_req, res) => {
-  const [totals, byCategory, byCity, daily] = await Promise.all([
+  const [totals, byCategory, byCity, daily, recent] = await Promise.all([
     query(`SELECT
       (SELECT COUNT(*) FROM users) AS users,
       (SELECT COUNT(*) FROM users WHERE account_type = 'merchant') AS merchants,
@@ -38,8 +38,20 @@ router.get('/stats', async (_req, res) => {
              (SELECT COUNT(*) FROM products WHERE created_at::date = d) AS products,
              (SELECT COUNT(*) FROM users WHERE created_at::date = d) AS users
            FROM generate_series(current_date - 13, current_date, interval '1 day') AS d ORDER BY d`),
+    // Latest activity: the 5 most recent new listings or new accounts, newest first.
+    query(`(SELECT 'listing' AS kind, p.id, p.title AS label, p.status, p.price, u.id AS actor_id, u.name AS actor,
+              NULL AS account_type, p.created_at,
+              (SELECT url FROM product_images i WHERE i.product_id = p.id ORDER BY sort_order, id LIMIT 1) AS image
+            FROM products p JOIN users u ON u.id = p.seller_id
+            ORDER BY p.created_at DESC LIMIT 5)
+           UNION ALL
+           (SELECT 'user' AS kind, u.id, u.name AS label, NULL AS status, NULL AS price, u.id AS actor_id, u.name AS actor,
+              u.account_type, u.created_at, u.avatar_url AS image
+            FROM users u
+            ORDER BY u.created_at DESC LIMIT 5)
+           ORDER BY created_at DESC, kind LIMIT 5`),
   ]);
-  res.json({ totals: totals.rows[0], byCategory: byCategory.rows, byCity: byCity.rows, daily: daily.rows });
+  res.json({ totals: totals.rows[0], byCategory: byCategory.rows, byCity: byCity.rows, daily: daily.rows, recent: recent.rows });
 });
 
 // ---------- Users ----------
