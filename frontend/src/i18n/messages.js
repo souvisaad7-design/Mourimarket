@@ -716,6 +716,9 @@ const v14 = {
 deepMerge(ar, { home: { noListingsYet: 'لا توجد إعلانات بعد. كن أول من ينشر إعلاناً على MauriMarket!' } });
 deepMerge(fr, { home: { noListingsYet: 'Pas encore d’annonces. Soyez le premier à publier sur MauriMarket !' } });
 deepMerge(en, { home: { noListingsYet: 'No listings yet. Be the first to post on MauriMarket!' } });
+deepMerge(ar, { admin: { reviewNow: 'مراجعة الآن' } });
+deepMerge(fr, { admin: { reviewNow: 'Examiner maintenant' } });
+deepMerge(en, { admin: { reviewNow: 'Review now' } });
 deepMerge(ar, v14.ar);
 deepMerge(fr, v14.fr);
 deepMerge(en, v14.en);

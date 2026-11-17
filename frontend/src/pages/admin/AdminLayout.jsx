@@ -72,6 +72,33 @@ function DailyChart({ rows }) {
   );
 }
 
+const TONES = {
+  amber: { card: 'border-amber-300 bg-amber-50 hover:border-amber-400', label: 'text-amber-900', count: 'text-amber-700', go: 'bg-amber-100 text-amber-800 group-hover:bg-amber-200' },
+  rose: { card: 'border-rose-200 bg-rose-50 hover:border-rose-300', label: 'text-rose-900', count: 'text-rose-700', go: 'bg-rose-100 text-rose-700 group-hover:bg-rose-200' },
+};
+
+/** Clickable shortcut to a moderation queue, with an arrow showing where it leads. */
+function QueueCard({ to, label, count, tone }) {
+  const { t, number } = useI18n();
+  const c = TONES[tone];
+  return (
+    <Link to={to} aria-label={`${label}: ${count} — ${t('admin.reviewNow')}`}
+      className={`card group flex items-center justify-between gap-4 p-5 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 ${c.card}`}>
+      <span className="min-w-0">
+        <span className={`block font-semibold ${c.label}`}>{label}</span>
+        <span className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${c.go}`}>
+          {t('admin.reviewNow')}
+          <Icon name="arrow" className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-1 ltr:rotate-180 ltr:group-hover:translate-x-1" />
+        </span>
+      </span>
+      <span className="flex items-center gap-3">
+        <span className={`text-3xl font-bold ltr-nums ${c.count}`}>{number(count)}</span>
+        <Icon name="chevron" className={`h-6 w-6 transition-transform rtl:rotate-180 group-hover:-translate-x-1 ltr:group-hover:translate-x-1 ${c.count}`} />
+      </span>
+    </Link>
+  );
+}
+
 export function AdminOverview() {
   const { t, tl, number } = useI18n();
   const { meta } = useApp();
@@ -93,14 +120,8 @@ export function AdminOverview() {
   return (
     <div className="space-y-6">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Link to="/admin/listings?status=pending" className="card flex items-center justify-between border-amber-300 bg-amber-50 p-5 hover:shadow-md">
-          <span className="font-semibold text-amber-900">{t('admin.pendingQueue')}</span>
-          <span className="text-3xl font-bold text-amber-700 ltr-nums">{number(totals.pending_products)}</span>
-        </Link>
-        <Link to="/admin/reports" className="card flex items-center justify-between border-rose-200 bg-rose-50 p-5 hover:shadow-md">
-          <span className="font-semibold text-rose-900">{t('admin.openReports')}</span>
-          <span className="text-3xl font-bold text-rose-700 ltr-nums">{number(totals.open_reports)}</span>
-        </Link>
+        <QueueCard to="/admin/listings?status=pending" label={t('admin.pendingQueue')} count={totals.pending_products} tone="amber" />
+        <QueueCard to="/admin/reports" label={t('admin.openReports')} count={totals.open_reports} tone="rose" />
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {tiles.map(([k, label, v]) => (

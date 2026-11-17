@@ -146,6 +146,8 @@ function Header() {
     isActive ? 'text-brand-700 after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-brand-700' : 'text-slate-700 hover:text-brand-700'}`;
   const mobileCls = ({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium ${isActive ? 'bg-brand-50 text-brand-800' : 'text-slate-700 hover:bg-slate-100'}`;
   const offersActive = location.pathname === '/products' && new URLSearchParams(location.search).has('deals');
+  // The public "search listings" box is for shoppers; hide it inside the admin panel.
+  const inAdmin = location.pathname.startsWith('/admin');
 
   return (
     <>
@@ -156,7 +158,7 @@ function Header() {
             <Icon name={mobileOpen ? 'x' : 'menu'} />
           </button>
           <Logo size="lg" />
-          <div className="mx-auto hidden w-full max-w-xl md:block"><SearchBar compact /></div>
+          {!inAdmin && <div className="mx-auto hidden w-full max-w-xl md:block"><SearchBar compact /></div>}
           <div className="ms-auto flex items-center gap-1.5 sm:gap-2 md:ms-0">
             <div className="hidden sm:block"><ThemeToggle /></div>
             {user ? (
@@ -183,7 +185,7 @@ function Header() {
           </div>
         </div>
         {/* Phones: search under the logo row */}
-        <div className="container-page pb-3 md:hidden"><SearchBar compact /></div>
+        {!inAdmin && <div className="container-page pb-3 md:hidden"><SearchBar compact /></div>}
         {/* Desktop navigation */}
         <nav className="hidden border-t border-slate-100 lg:block">
           <div className="container-page flex items-center justify-center gap-2">
