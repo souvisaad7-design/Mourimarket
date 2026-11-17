@@ -38,9 +38,10 @@ function SoldModal({ product, onClose, onDone }) {
 
 function SellerDashboard() {
   const { t, price, number, date } = useI18n();
-  const { user, notify } = useApp();
+  const { user, notify, meta } = useApp();
   const { data, loading, error, reload } = useApi('/products/mine');
-  const upgrades = useApi('/upgrade-requests');
+  const paid = Boolean(meta.upgrades); // paid verification/featuring (off: the site is free)
+  const upgrades = useApi(paid ? '/upgrade-requests' : null);
   const [upgrade, setUpgrade] = useState(null);
   const [soldProduct, setSoldProduct] = useState(null);
   const [filter, setFilter] = useState('all');
@@ -88,7 +89,7 @@ function SellerDashboard() {
         ))}
       </div>
 
-      <UpgradePanel user={user} requests={requests} hasFeaturable={items.some(isFeaturable)} onRequest={setUpgrade} />
+      {paid && <UpgradePanel user={user} requests={requests} hasFeaturable={items.some(isFeaturable)} onRequest={setUpgrade} />}
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-bold">{t('dashboard.myListings')}</h2>
@@ -133,7 +134,7 @@ function SellerDashboard() {
                 ) : (
                   <button className="btn-outline px-3 py-2 text-xs" onClick={() => relist(p)}>{t('dashboard.markAvailable')}</button>
                 ))}
-                {isFeaturable(p) && !pendingFeature.has(p.id) && (
+                {paid && isFeaturable(p) && !pendingFeature.has(p.id) && (
                   <button className="btn-outline border-gold-400 px-3 py-2 text-xs text-gold-600" onClick={() => setUpgrade({ kind: 'feature', product: p })}>
                     <Icon name="star" filled className="h-4 w-4" />{t('upgrades.featureThis')}
                   </button>
@@ -146,7 +147,7 @@ function SellerDashboard() {
         </ul>
       )}
 
-      <UpgradeModal request={upgrade} products={items} onClose={() => setUpgrade(null)} onDone={() => { setUpgrade(null); upgrades.reload(); }} />
+      {paid && <UpgradeModal request={upgrade} products={items} onClose={() => setUpgrade(null)} onDone={() => { setUpgrade(null); upgrades.reload(); }} />}
       <SoldModal product={soldProduct} onClose={() => setSoldProduct(null)} onDone={() => { setSoldProduct(null); reload(); }} />
     </div>
   );

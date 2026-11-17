@@ -61,6 +61,8 @@ This meets the spec's requirement to tie reviews to documented sales and so limi
 
 ### Paid verification & featuring (`upgrade_requests`)
 
+> **Off by default — the site is free.** The feature is only active when the environment variable `PAID_UPGRADES=true` is set (Vercel → Settings → Environment Variables, then redeploy). When off, `/api/meta` returns `upgrades: null`, the request endpoints return 404, and the seller panel and admin tab are hidden. Admins can still verify accounts and feature listings for free from the Users and Listings tabs.
+
 1. A seller picks **verify account** (`VERIFY_PRICE`) or **feature a listing** for 7/15/30 days (`FEATURE_PLANS`, in `backend/src/lib/constants.js`), pays by mobile money (numbers in `frontend/src/siteConfig.js` → `SITE_PAYMENT`) and uploads the receipt photo.
 2. The amount is always set by the server. One pending request per account (verify) or per listing (feature), enforced by partial unique indexes.
 3. Receipts are stored in `files` with `is_private = true`: the public `/uploads/f/:id` route returns 404 for them; admins load them via `GET /admin/upgrade-requests/:id/receipt` (bearer token → blob URL).

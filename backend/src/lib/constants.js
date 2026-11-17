@@ -23,6 +23,10 @@ export const REPORT_REASONS = ['scam', 'prohibited', 'wrong_category', 'duplicat
 
 export const MAX_IMAGES = 8;
 
+// Paid verification / featuring requests. Off by default: the site is free.
+// Set PAID_UPGRADES=true in the environment to turn the feature back on.
+export const paidUpgradesEnabled = () => process.env.PAID_UPGRADES === 'true';
+
 // Paid upgrades, in MRU. A seller pays by mobile money, uploads the receipt, and an admin approves.
 export const VERIFY_PRICE = 500;
 export const FEATURE_PLANS = [

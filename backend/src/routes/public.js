@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { query } from '../db.js';
-import { CITIES, CITY_KEYS, REPORT_REASONS, FEATURE_PLANS, PAYMENT_METHODS, VERIFY_PRICE } from '../lib/constants.js';
+import { CITIES, CITY_KEYS, REPORT_REASONS, FEATURE_PLANS, PAYMENT_METHODS, VERIFY_PRICE, paidUpgradesEnabled } from '../lib/constants.js';
 import { conflict, forbidden, notFound, parse, slugify } from '../lib/http.js';
 import { requireAuth } from '../middleware/auth.js';
 import { removeUploads, saveFile, upload } from '../middleware/upload.js';
@@ -11,7 +11,7 @@ import { PRODUCT_FROM, PRODUCT_SELECT } from './products.js';
 const router = Router();
 
 router.get('/meta', (_req, res) => {
-  res.json({ cities: CITIES, reportReasons: REPORT_REASONS, currency: 'MRU', upgrades: { verifyPrice: VERIFY_PRICE, featurePlans: FEATURE_PLANS, paymentMethods: PAYMENT_METHODS } });
+  res.json({ cities: CITIES, reportReasons: REPORT_REASONS, currency: 'MRU', upgrades: paidUpgradesEnabled() ? { verifyPrice: VERIFY_PRICE, featurePlans: FEATURE_PLANS, paymentMethods: PAYMENT_METHODS } : null });
 });
 
 router.get('/categories', async (_req, res) => {

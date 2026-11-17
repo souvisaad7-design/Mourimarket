@@ -11,12 +11,14 @@ const TABS = [
 
 export default function AdminLayout() {
   const { t } = useI18n();
+  const { meta } = useApp();
+  const tabs = TABS.filter(([path]) => path !== 'requests' || meta.upgrades);
   useDocumentTitle(t('admin.title'));
   return (
     <div className="container-page py-6">
       <h1 className="mb-4 flex items-center gap-2 text-2xl font-bold"><Icon name="shield" className="h-6 w-6 text-brand-700" />{t('admin.title')}</h1>
       <nav className="mb-6 flex gap-1 overflow-x-auto rounded-xl bg-surface p-1 ring-1 ring-slate-200">
-        {TABS.map(([path, key, icon]) => (
+        {tabs.map(([path, key, icon]) => (
           <NavLink key={key} to={`/admin${path ? `/${path}` : ''}`} end={!path}
             className={({ isActive }) => `flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold ${isActive ? 'bg-brand-700 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
             <Icon name={icon} className="h-4 w-4" />{t(`admin.${key}`)}
@@ -147,9 +149,9 @@ export function AdminOverview() {
   return (
     <div className="space-y-6">
       <ActiveListingsCard live={totals.live_products} total={totals.products} />
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className={`grid gap-3 ${meta.upgrades ? 'md:grid-cols-3' : 'sm:grid-cols-2'}`}>
         <QueueCard to="/admin/listings?status=pending" label={t('admin.pendingQueue')} count={totals.pending_products} tone="amber" />
-        <QueueCard to="/admin/requests" label={t('admin.pendingUpgrades')} count={totals.pending_upgrades} tone="sky" />
+        {meta.upgrades && <QueueCard to="/admin/requests" label={t('admin.pendingUpgrades')} count={totals.pending_upgrades} tone="sky" />}
         <QueueCard to="/admin/reports" label={t('admin.openReports')} count={totals.open_reports} tone="rose" />
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

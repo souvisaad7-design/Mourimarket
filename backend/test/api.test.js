@@ -385,7 +385,20 @@ describe('admin: latest activity', () => {
   });
 });
 
-describe('verification & featuring requests', () => {
+describe('free mode (default): paid requests are off', () => {
+  it('hides prices and the request endpoints', async () => {
+    delete process.env.PAID_UPGRADES;
+    assert.equal((await call('/api/meta')).data.upgrades, null);
+    const seller = await login('mohamed@example.mr');
+    assert.equal((await call('/api/upgrade-requests', { token: seller })).status, 404);
+    const fd = new FormData(); fd.append('kind', 'verify'); fd.append('paymentMethod', 'bankily');
+    assert.equal((await call('/api/upgrade-requests', { method: 'POST', token: seller, form: fd })).status, 404);
+  });
+});
+
+describe('verification & featuring requests (PAID_UPGRADES=true)', () => {
+  before(() => { process.env.PAID_UPGRADES = 'true'; });
+  after(() => { delete process.env.PAID_UPGRADES; });
   const receipt = () => new Blob([PNG], { type: 'image/png' });
   const form = (fields, withReceipt = true) => {
     const fd = new FormData();

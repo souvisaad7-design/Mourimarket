@@ -3,7 +3,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { query, tx } from '../db.js';
-import { FEATURE_PLANS, PAYMENT_METHODS, REPORT_REASONS, VERIFY_PRICE } from '../lib/constants.js';
+import { FEATURE_PLANS, PAYMENT_METHODS, REPORT_REASONS, VERIFY_PRICE, paidUpgradesEnabled } from '../lib/constants.js';
 import { badRequest, conflict, forbidden, notFound, pagination, parse } from '../lib/http.js';
 import { notify } from '../lib/notify.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -243,6 +243,9 @@ router.post('/reports', writeLimiter, async (req, res) => {
 export default router;
 
 // ---------- Verification & featuring requests ----------
+
+// The site is free unless PAID_UPGRADES=true: the request endpoints then do not exist.
+router.use('/upgrade-requests', (_req, _res, next) => (paidUpgradesEnabled() ? next() : next(notFound())));
 
 /** GET /api/upgrade-requests – the signed-in user's own requests. */
 router.get('/upgrade-requests', async (req, res) => {
