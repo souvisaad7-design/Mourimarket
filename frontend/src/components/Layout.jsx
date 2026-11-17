@@ -272,7 +272,7 @@ function MobileTabBar() {
       <NavLink to={user ? '/messages' : '/login'} className={cls}>
         <span className="relative"><Icon name="chat" /><Badge n={counts.messages} /></span>{t('nav.messages')}
       </NavLink>
-      <NavLink to={user ? '/dashboard' : '/login'} className={cls}><Icon name="user" />{user ? t('nav.dashboard').split(' ')[0] : t('nav.login')}</NavLink>
+      <NavLink to={user ? '/dashboard' : '/login'} className={cls}><Icon name="user" />{user ? t('nav.myAccount') : t('nav.login')}</NavLink>
     </nav>
   );
 }
