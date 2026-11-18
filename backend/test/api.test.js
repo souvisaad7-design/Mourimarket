@@ -645,3 +645,74 @@ describe('admin: full control', () => {
     await call('/api/admin/account', { method: 'PUT', token: t2, body: { currentPassword: 'NewAdmin123', email: 'admin@maurimarket.mr', newPassword: 'Admin12345' } });
   });
 });
+
+describe('admin: add users, post for anyone, pages, banner and menus', () => {
+  let admin;
+  before(async () => { admin = await login('admin@maurimarket.mr', 'Admin12345'); });
+
+  it('creates users (merchants are approved straight away)', async () => {
+    const r = await call('/api/admin/users', { method: 'POST', token: admin, body: { name: 'تاجر من الإدارة', phone: '36778899', password: 'merchant9', accountType: 'merchant', city: 'nouakchott' } });
+    assert.equal(r.status, 201);
+    assert.equal(r.data.user.account_type, 'merchant');
+    assert.equal((await call('/api/admin/users', { method: 'POST', token: admin, body: { name: 'Dup', phone: '36778899', password: 'merchant9' } })).data.error, 'phone_taken');
+    const t = (await call('/api/auth/login', { method: 'POST', body: { identifier: '36778899', password: 'merchant9' } })).data.token;
+    assert.equal((await call('/api/auth/me', { token: t })).data.user.merchant_status, 'approved');
+    const pick = (await call('/api/admin/users/pick?q=تاجر من', { token: admin })).data.items;
+    assert.ok(pick.some((u) => u.id === r.data.user.id));
+  });
+
+  it('posts a listing in another user\'s name, live at once', async () => {
+    const seller = (await call('/api/admin/users/pick?q=Fatimetou', { token: admin })).data.items[0];
+    const fd = new FormData();
+    for (const [k, v] of Object.entries({ title: 'إعلان أضافته الإدارة', description: 'وصف إعلان أضافته الإدارة باسم بائع', price: '5000', city: 'nouakchott', condition: 'new', categoryId: '1', sellerId: String(seller.id) })) fd.append(k, v);
+    fd.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+    const r = await call('/api/products', { method: 'POST', token: admin, form: fd });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    assert.equal(r.data.product.status, 'approved');
+    assert.equal(r.data.product.seller_id, seller.id);
+    // a normal seller cannot post in someone else's name
+    const seller2 = await login('mohamed@example.mr');
+    const fd2 = new FormData();
+    for (const [k, v] of Object.entries({ title: 'محاولة باسم غيري', description: 'وصف إعلان للاختبار هنا وهناك', price: '100', city: 'nouakchott', condition: 'new', categoryId: '1', sellerId: String(seller.id) })) fd2.append(k, v);
+    fd2.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+    const r2 = await call('/api/products', { method: 'POST', token: seller2, form: fd2 });
+    assert.notEqual(r2.data.product.seller_id, seller.id);
+  });
+
+  it('uploads images and manages custom pages', async () => {
+    const fd = new FormData(); fd.append('file', new Blob([PNG], { type: 'image/png' }), 'b.png');
+    const up = await call('/api/admin/uploads', { method: 'POST', token: admin, form: fd });
+    assert.equal(up.status, 201);
+    assert.match(up.data.url, /^\/uploads\/f\/\d+$/);
+    const body = { slug: 'terms', title: { ar: 'شروط الاستخدام', fr: 'Conditions', en: 'Terms' }, body: { ar: '## مقدمة\nنص الصفحة', fr: '', en: '' }, coverUrl: up.data.url, isPublished: true };
+    const c = await call('/api/admin/pages', { method: 'POST', token: admin, body });
+    assert.equal(c.status, 201);
+    assert.equal((await call('/api/admin/pages', { method: 'POST', token: admin, body })).data.error, 'slug_taken');
+    assert.equal((await call('/api/admin/pages', { method: 'POST', token: admin, body: { ...body, slug: 'Bad Slug!' } })).status, 400);
+    const pub = await call('/api/pages/terms');
+    assert.equal(pub.data.page.title.ar, 'شروط الاستخدام');
+    assert.ok((await call('/api/pages')).data.items.some((p) => p.slug === 'terms'));
+    await call(`/api/admin/pages/${c.data.page.id}`, { method: 'PUT', token: admin, body: { ...body, isPublished: false } });
+    assert.equal((await call('/api/pages/terms')).status, 404, 'drafts are hidden');
+    assert.equal((await call(`/api/admin/pages/${c.data.page.id}`, { method: 'DELETE', token: admin })).status, 200);
+  });
+
+  it('saves banner slides and menus (validated)', async () => {
+    const slide = { enabled: true, title: { ar: 'عرض خاص', fr: '', en: '' }, text: { ar: 'نص', fr: '', en: '' }, cta: { ar: 'اكتشف', fr: '', en: '' }, link: '/products', image: '' };
+    const ok = await call('/api/admin/settings', { method: 'PUT', token: admin, body: {
+      hero: { slides: [slide] },
+      menu: { header: [{ type: 'builtin', key: 'home' }, { type: 'link', label: { ar: 'الشروط', fr: '', en: '' }, to: '/p/terms' }], footer: null,
+        home: { hero: true, categories: true, latest: true, promo: false, deals: true, cities: false, stores: true, features: true } },
+    } });
+    assert.equal(ok.status, 200, JSON.stringify(ok.data));
+    const s = (await call('/api/settings')).data.settings;
+    assert.equal(s.hero.slides[0].title.ar, 'عرض خاص');
+    assert.equal(s.menu.header[1].to, '/p/terms');
+    assert.equal(s.menu.home.cities, false);
+    const bad = await call('/api/admin/settings', { method: 'PUT', token: admin, body: { hero: { slides: [{ ...slide, link: 'javascript:alert(1)' }] } } });
+    assert.equal(bad.status, 400);
+    const bad2 = await call('/api/admin/settings', { method: 'PUT', token: admin, body: { menu: { header: [{ type: 'builtin', key: 'nope' }], footer: null, home: s.menu.home } } });
+    assert.equal(bad2.status, 400);
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { hero: { slides: [] }, menu: { header: null, footer: null, home: { ...s.menu.home, promo: true, cities: true } } } });
+  });
+});

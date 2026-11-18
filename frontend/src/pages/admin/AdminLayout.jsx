@@ -16,7 +16,10 @@ const NAV = [
     ['reports', 'reports', 'flag', 'open_reports'], ['requests', 'requests', 'star', 'pending_upgrades'],
   ]],
   ['manage', [['users', 'users', 'user'], ['stores', 'stores', 'store'], ['categories', 'categories', 'filter'], ['reviews', 'reviews', 'star'], ['files', 'files', 'image']]],
-  ['site', [['settings', 'siteSettings', 'globe'], ['texts', 'siteTexts', 'edit'], ['sitemap', 'sitemap.title', 'link']]],
+  ['site', [
+    ['settings', 'siteSettings', 'globe'], ['banner', 'banner', 'image'], ['menus', 'menus', 'menu'], ['pages', 'customPages', 'edit'],
+    ['texts', 'siteTexts', 'edit'], ['sitemap', 'sitemap.title', 'link'],
+  ]],
   ['account', [['account', 'adminAccount', 'shield']]],
 ];
 

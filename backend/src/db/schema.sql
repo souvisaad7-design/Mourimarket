@@ -292,3 +292,16 @@ CREATE TABLE IF NOT EXISTS site_settings (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE site_settings ENABLE ROW LEVEL SECURITY;
+
+-- ---------- Custom pages the admin creates (terms, privacy, offers…) ----------
+CREATE TABLE IF NOT EXISTS pages (
+  id            SERIAL PRIMARY KEY,
+  slug          VARCHAR(80) NOT NULL UNIQUE,
+  title         JSONB NOT NULL,           -- {ar, fr, en}
+  body          JSONB NOT NULL,           -- {ar, fr, en}, simple text formatting
+  cover_url     TEXT,
+  is_published  BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE pages ENABLE ROW LEVEL SECURITY;

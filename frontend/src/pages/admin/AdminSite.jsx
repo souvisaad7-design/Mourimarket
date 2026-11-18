@@ -1,6 +1,6 @@
 // Admin pages for the site itself: settings, texts, the admin's account,
 // reviews, uploaded files and a map of every page.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState, ErrorBox, Field, Icon, Modal, Pagination, Spinner, Stars, useFieldError } from '../../components/ui.jsx';
 import { useApp } from '../../context/AppContext.jsx';
@@ -8,7 +8,9 @@ import { useSettings } from '../../context/SettingsContext.jsx';
 import { useI18n } from '../../i18n/index.jsx';
 import { LANGS, messages } from '../../i18n/messages.js';
 import { api } from '../../lib/api.js';
+import { pickLang } from '../../lib/localized.js';
 import { useApi } from '../../lib/hooks.js';
+import { useImageUpload } from './AdminContent.jsx';
 
 function PageTitle({ icon, title, subtitle, children }) {
   return (
@@ -345,12 +347,24 @@ export function AdminFiles() {
     notify(t('common.saved'));
     reload();
   };
+  const fileRef = useRef(null);
+  const { upload, busy: uploading } = useImageUpload();
+  const uploadFiles = async (e) => {
+    const list = Array.from(e.target.files || []);
+    e.target.value = '';
+    for (const f of list) await upload(f);
+    if (list.length) { notify(t('common.saved')); setFilter(''); setPage(1); reload(); }
+  };
   const usageLink = (u) => (u.kind === 'listing' ? `/products/${u.id}` : u.kind === 'store' ? `/stores/${u.slug}` : `/users/${u.id}`);
 
   return (
     <div>
       <PageTitle icon="image" title={t('admin.files')} subtitle={t('admin.filesHint')}>
-        {data?.totals && <p className="rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-600">{t('admin.filesTotal', { n: number(data.totals.n), size: formatSize(Number(data.totals.bytes)) })}</p>}
+        <div className="flex flex-wrap items-center gap-2">
+          {data?.totals && <p className="rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-600">{t('admin.filesTotal', { n: number(data.totals.n), size: formatSize(Number(data.totals.bytes)) })}</p>}
+          <input ref={fileRef} type="file" accept="image/*" multiple className="sr-only" onChange={uploadFiles} tabIndex={-1} />
+          <button type="button" className="btn-primary" disabled={uploading} onClick={() => fileRef.current?.click()}><Icon name="image" className="h-4 w-4" />{uploading ? t('common.loading') : t('admin.uploadImages')}</button>
+        </div>
       </PageTitle>
       <div className="mb-4 flex gap-1 rounded-xl bg-surface p-1 ring-1 ring-slate-200 sm:inline-flex">
         {[['', t('common.all')], ['unused', t('admin.unusedFiles')]].map(([v, label]) => (
@@ -383,6 +397,7 @@ export function AdminFiles() {
             <p className="text-center text-xs text-slate-500" dir="ltr">{viewing.url} · {viewing.mime} · {formatSize(Number(viewing.size))}</p>
             <div className="flex flex-wrap justify-center gap-2">
               <a href={viewing.url} target="_blank" rel="noreferrer" className="btn-outline">{t('admin.openOriginal')}</a>
+              <button type="button" className="btn-outline" onClick={() => navigator.clipboard?.writeText(`${window.location.origin}${viewing.url}`).then(() => notify(t('common.copied')), () => {})}><Icon name="link" className="h-4 w-4" />{t('admin.copyLink')}</button>
               <button type="button" className="btn-danger" onClick={() => remove(viewing)}><Icon name="trash" className="h-4 w-4" />{t('common.delete')}</button>
             </div>
           </div>
@@ -397,9 +412,10 @@ export function AdminFiles() {
 const REPO_URL = 'https://github.com/souvisaad7-design/Mourimarket';
 
 export function AdminSitemap() {
-  const { t, tl } = useI18n();
+  const { t, tl, lang } = useI18n();
   const { categories } = useApp();
   const stores = useApi('/stores');
+  const pagesList = useApi('/pages');
   const groups = [
     ['sitemap.public', [
       ['/', t('nav.home')], ['/products', t('nav.products')], ['/categories', t('nav.categories')], ['/products?deals=1', t('nav.offers')],
@@ -414,9 +430,12 @@ export function AdminSitemap() {
     ['sitemap.admin', [
       ['/admin', t('admin.overview')], ['/admin/listings', t('admin.listings')], ['/admin/merchants', t('admin.merchantsTab')], ['/admin/reports', t('admin.reports')],
       ['/admin/users', t('admin.users')], ['/admin/stores', t('admin.stores')], ['/admin/categories', t('admin.categories')], ['/admin/reviews', t('admin.reviews')],
-      ['/admin/files', t('admin.files')], ['/admin/settings', t('admin.siteSettings')], ['/admin/texts', t('admin.siteTexts')], ['/admin/account', t('admin.adminAccount')],
+      ['/admin/files', t('admin.files')], ['/admin/settings', t('admin.siteSettings')], ['/admin/texts', t('admin.siteTexts')],
+      ['/admin/banner', t('admin.banner')], ['/admin/menus', t('admin.menus')], ['/admin/pages', t('admin.customPages')],
+      ['/admin/listings/new', t('admin.addListing')], ['/admin/users?new=1', t('admin.addUser')], ['/admin/account', t('admin.adminAccount')],
       ['/admin/login', t('admin.loginTitle')],
     ]],
+    ['customPages', (pagesList.data?.items || []).map((p) => [`/p/${p.slug}`, pickLang(p.title, lang)])],
     ['sitemap.categories', categories.map((c) => [`/products?category=${c.slug}`, tl(c)])],
     ['sitemap.stores', (stores.data?.items || []).map((s) => [`/stores/${s.slug}`, s.name])],
   ];

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useSettings } from '../context/SettingsContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
+import { pickLang } from '../lib/localized.js';
 import { Icon } from './ui.jsx';
 
 function Palm({ x, y, s = 1, flip = false }) {
@@ -103,10 +105,16 @@ const SLIDES = [
 ];
 
 export default function HeroCarousel() {
-  const { t, dir } = useI18n();
+  const { t, dir, lang } = useI18n();
+  // Slides the admin made (Admin → Banner) replace the built-in ones.
+  const custom = (useSettings().settings.hero?.slides || []).filter((s) => s.enabled);
+  const slides = custom.length
+    ? custom.map((s, i) => ({ key: `c${i}`, to: s.link || '/products', image: s.image, title: pickLang(s.title, lang), text: pickLang(s.text, lang), cta: pickLang(s.cta, lang) }))
+    : SLIDES.map((s) => ({ ...s, title: t(`hero.s${s.key}title`), text: t(`hero.s${s.key}text`), cta: t(`hero.s${s.key}cta`) }));
   const [index, setIndex] = useState(0);
   const paused = useRef(false);
-  const count = SLIDES.length;
+  const count = slides.length;
+  useEffect(() => { if (index >= count) setIndex(0); }, [count, index]);
   const go = useCallback((i) => setIndex((i + count) % count), [count]);
 
   useEffect(() => {
@@ -130,7 +138,8 @@ export default function HeroCarousel() {
     go(index + (forward ? 1 : -1));
   };
 
-  const slide = SLIDES[index];
+  const slide = slides[index] || slides[0];
+  const external = /^https?:/i.test(slide.to);
   // In RTL the "next" arrow sits on the left.
   const prevSide = dir === 'rtl' ? 'right-3' : 'left-3';
   const nextSide = dir === 'rtl' ? 'left-3' : 'right-3';
@@ -146,18 +155,28 @@ export default function HeroCarousel() {
       <div className="grid min-h-[180px] sm:min-h-[230px] md:min-h-[260px] md:grid-cols-[1.05fr_1fr]">
         {/* Text panel (first = right side in Arabic) */}
         <div key={`t-${slide.key}`} className="relative flex animate-fade-in flex-col justify-center gap-2 overflow-hidden bg-gradient-to-bl from-brand-700 via-brand-800 to-brand-900 px-6 pb-9 pt-5 text-white sm:gap-3 sm:px-14 sm:pb-11 sm:pt-8 md:px-16">
+          {/* phones: the slide photo behind the text */}
+          {slide.image && <img src={slide.image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30 md:hidden" />}
           <Skyline />
-          <h1 className="relative text-xl font-bold leading-snug text-white sm:text-[1.75rem] xl:text-[2rem]">{t(`hero.s${slide.key}title`)}</h1>
-          <p className="relative text-sm text-white/85 sm:text-lg">{t(`hero.s${slide.key}text`)}</p>
-          <div className="relative mt-2">
-            <Link to={slide.to} className="btn-accent rounded-full px-5 py-2.5 text-sm shadow-lg sm:px-7 sm:py-3 sm:text-base">
-              {t(`hero.s${slide.key}cta`)}<Icon name="arrow" className="h-5 w-5 ltr:rotate-180" />
-            </Link>
-          </div>
+          {slide.title && <h1 className="relative text-xl font-bold leading-snug text-white sm:text-[1.75rem] xl:text-[2rem]">{slide.title}</h1>}
+          {slide.text && <p className="relative text-sm text-white/85 sm:text-lg">{slide.text}</p>}
+          {slide.cta && (
+            <div className="relative mt-2">
+              {external ? (
+                <a href={slide.to} target="_blank" rel="noreferrer" className="btn-accent rounded-full px-5 py-2.5 text-sm shadow-lg sm:px-7 sm:py-3 sm:text-base">{slide.cta}<Icon name="arrow" className="h-5 w-5 ltr:rotate-180" /></a>
+              ) : (
+                <Link to={slide.to} className="btn-accent rounded-full px-5 py-2.5 text-sm shadow-lg sm:px-7 sm:py-3 sm:text-base">
+                  {slide.cta}<Icon name="arrow" className="h-5 w-5 ltr:rotate-180" />
+                </Link>
+              )}
+            </div>
+          )}
         </div>
         {/* Illustration (left side in Arabic) */}
         <div className="relative hidden md:block">
-          <div key={`i-${slide.key}`} className="absolute inset-0 animate-fade-in"><CityScene accent={slide.accent} /></div>
+          <div key={`i-${slide.key}`} className="absolute inset-0 animate-fade-in">
+            {slide.image ? <img src={slide.image} alt="" className="h-full w-full object-cover" /> : <CityScene accent={slide.accent} />}
+          </div>
           {/* gold + white curved divider between the panels */}
           <svg viewBox="0 0 60 330" preserveAspectRatio="none" className="absolute inset-y-0 start-0 h-full w-14 ltr:-scale-x-100" aria-hidden="true">
             <path d="M60 0H0v330h60C18 250 18 80 60 0z" fill="#0d5532" />
@@ -170,6 +189,7 @@ export default function HeroCarousel() {
         </div>
       </div>
 
+      {count > 1 && <>
       <button type="button" onClick={() => go(index - 1)} aria-label={t('common.previous')}
         className={`absolute top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white p-2 text-ink shadow-md transition hover:scale-105 sm:block ${prevSide}`}>
         <Icon name={dir === 'rtl' ? 'chevron' : 'chevronLeft'} className="h-5 w-5" />
@@ -179,11 +199,12 @@ export default function HeroCarousel() {
         <Icon name={dir === 'rtl' ? 'chevronLeft' : 'chevron'} className="h-5 w-5" />
       </button>
       <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-2" dir="ltr">
-        {SLIDES.map((s, i) => (
+        {slides.map((s, i) => (
           <button key={s.key} type="button" onClick={() => go(i)} aria-label={`${i + 1} / ${count}`} aria-current={i === index}
             className={`h-2.5 rounded-full transition-all ${i === index ? 'w-7 bg-white' : 'w-2.5 bg-white/50 hover:bg-white/80'}`} />
         ))}
       </div>
+      </>}
     </section>
   );
 }

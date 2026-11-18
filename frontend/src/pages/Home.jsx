@@ -4,6 +4,7 @@ import { ProductGrid, ProductGridSkeleton } from '../components/ProductCard.jsx'
 import { EmptyState, Icon, VerifiedBadge, useCityName } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
+import { useSettings } from '../context/SettingsContext.jsx';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
 
 export function CategoryTiles({ categories }) {
@@ -144,27 +145,29 @@ export default function Home() {
   const cities = useApi('/stats/cities');
 
   const hasFeatured = featured.data?.items?.length > 0;
+  // Sections the admin switched off (Admin → Menus & links → Home page sections).
+  const show = { hero: true, categories: true, latest: true, promo: true, deals: true, cities: true, stores: true, features: true, ...useSettings().settings.menu?.home };
 
   return (
     <div className="container-page space-y-7 py-4 sm:space-y-10 sm:py-5">
-      <HeroCarousel />
+      {show.hero && <HeroCarousel />}
 
-      <section>
+      {show.categories && <section>
         <SectionTitle action={<PillLink to="/categories">{t('home.allCategories')}</PillLink>}>{t('home.browseCategories')}</SectionTitle>
         <CategoryTiles categories={categories} />
-      </section>
+      </section>}
 
-      <section>
+      {show.latest && <section>
         <SectionTitle action={<PillLink to="/products">{t('common.viewAll')}</PillLink>}>{t('home.latest')}</SectionTitle>
         {latest.loading ? <ProductGridSkeleton /> : latest.data?.items?.length ? <ProductGrid items={latest.data.items} /> : (
           <EmptyState icon="plus" title={t('home.noListingsYet')}>
             <Link to="/sell" className="btn-accent rounded-full"><Icon name="plus" className="h-4 w-4" />{t('home.promoCta')}</Link>
           </EmptyState>
         )}
-      </section>
+      </section>}
 
       {/* Why · Featured (only when an admin has featured listings) · Post an ad */}
-      <section className={`grid gap-4 ${hasFeatured ? 'lg:grid-cols-[250px_1fr_250px]' : 'sm:grid-cols-2'}`}>
+      {show.promo && <section className={`grid gap-4 ${hasFeatured ? 'lg:grid-cols-[250px_1fr_250px]' : 'sm:grid-cols-2'}`}>
         <div className="order-3 lg:order-none"><WhyCard /></div>
         {hasFeatured && (
           <div className="order-1 min-w-0 lg:order-none">
@@ -178,16 +181,16 @@ export default function Home() {
           </div>
         )}
         <div className="order-2 lg:order-none"><PromoCard /></div>
-      </section>
+      </section>}
 
-      {deals.data?.items?.length > 0 && (
+      {show.deals && deals.data?.items?.length > 0 && (
         <section>
           <SectionTitle action={<PillLink to="/products?deals=1">{t('common.viewAll')}</PillLink>}><span aria-hidden="true">🔥 </span>{t('nav.offers')}</SectionTitle>
           <ProductGrid items={deals.data.items} />
         </section>
       )}
 
-      {cities.data?.items?.length > 0 && (
+      {show.cities && cities.data?.items?.length > 0 && (
         <section>
           <SectionTitle>{t('home.popularCities')}</SectionTitle>
           <div className="flex flex-wrap gap-2">
@@ -202,7 +205,7 @@ export default function Home() {
         </section>
       )}
 
-      {stores.data?.items?.length > 0 && (
+      {show.stores && stores.data?.items?.length > 0 && (
         <section>
           <SectionTitle action={<PillLink to="/stores">{t('common.viewAll')}</PillLink>}>{t('home.featuredStores')}</SectionTitle>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -221,7 +224,7 @@ export default function Home() {
         </section>
       )}
 
-      <FeatureStrip />
+      {show.features && <FeatureStrip />}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { useSettings } from '../context/SettingsContext.jsx';
+import { DEFAULT_FOOTER, DEFAULT_HEADER, resolveLink } from '../lib/menus.js';
 import { useI18n } from '../i18n/index.jsx';
 import { LANGS } from '../i18n/messages.js';
 import { InstallPrompt, OfflineBanner, ThemeToggle } from './AppChrome.jsx';
@@ -180,6 +181,24 @@ function Header() {
   const offersActive = location.pathname === '/products' && new URLSearchParams(location.search).has('deals');
   // The public "search listings" box is for shoppers; hide it inside the admin panel.
   const inAdmin = location.pathname.startsWith('/admin');
+  // Top menu: the admin's list (Admin → Menus) or the built-in one.
+  const { lang } = useI18n();
+  const custom = useSettings().settings.menu?.header;
+  const items = (custom || DEFAULT_HEADER).map((it) => resolveLink(it, t, lang)).filter(Boolean);
+  const mobileItems = custom ? items : [...items, resolveLink({ type: 'builtin', key: 'help' }, t, lang)];
+  const here = location.pathname + location.search;
+  const isActiveLink = (l) => {
+    if (l.key === 'offers') return offersActive;
+    if (l.key === 'products') return location.pathname === '/products' && !offersActive && !location.search.includes('category=');
+    if (l.end) return location.pathname === l.to;
+    return l.to.includes('?') ? here === l.to : location.pathname === l.to || location.pathname.startsWith(`${l.to}/`);
+  };
+  const renderLink = (l, cls, mobile = false) => {
+    if (l.dropdown && !mobile) return <CategoriesMenu key={l.key} navCls={cls} />;
+    const content = <>{l.emoji ? <span aria-hidden="true">{l.emoji}</span> : l.icon ? <Icon name={l.icon} className="h-4 w-4" /> : null}{l.label}</>;
+    if (l.external) return <a key={l.key} href={l.to} target="_blank" rel="noreferrer" className={cls({ isActive: false })}>{content}</a>;
+    return <Link key={l.key} to={l.to} className={cls({ isActive: isActiveLink(l) })} aria-current={isActiveLink(l) ? 'page' : undefined}>{content}</Link>;
+  };
 
   return (
     <>
@@ -221,26 +240,13 @@ function Header() {
         {/* Desktop navigation */}
         <nav className="hidden border-t border-slate-100 lg:block">
           <div className="container-page flex items-center justify-center gap-2">
-            <NavLink to="/" end className={navCls}><Icon name="home" className="h-4 w-4" />{t('nav.home')}</NavLink>
-            <NavLink to="/products" end className={({ isActive }) => navCls({ isActive: isActive && !offersActive && !location.search.includes('category=') })}>
-              <Icon name="grid" className="h-4 w-4" />{t('nav.allProducts')}
-            </NavLink>
-            <CategoriesMenu navCls={navCls} />
-            <NavLink to="/stores" className={navCls}><Icon name="store" className="h-4 w-4" />{t('nav.stores')}</NavLink>
-            <Link to="/products?deals=1" className={navCls({ isActive: offersActive })}><span aria-hidden="true">🔥</span>{t('nav.offers')}</Link>
-            <NavLink to="/about" className={navCls}><Icon name="info" className="h-4 w-4" />{t('nav.about')}</NavLink>
+            {items.map((l) => renderLink(l, navCls))}
           </div>
         </nav>
         {mobileOpen && (
           <div className="border-t border-slate-200 bg-surface lg:hidden">
             <nav className="container-page flex flex-col gap-1 py-3">
-              <NavLink to="/" end className={mobileCls}><Icon name="home" className="h-4 w-4" />{t('nav.home')}</NavLink>
-              <NavLink to="/products" end className={mobileCls}><Icon name="grid" className="h-4 w-4" />{t('nav.allProducts')}</NavLink>
-              <NavLink to="/categories" className={mobileCls}><Icon name="grid" className="h-4 w-4" />{t('nav.categories')}</NavLink>
-              <NavLink to="/stores" className={mobileCls}><Icon name="store" className="h-4 w-4" />{t('nav.stores')}</NavLink>
-              <Link to="/products?deals=1" className={mobileCls({ isActive: offersActive })}><span aria-hidden="true">🔥</span>{t('nav.offers')}</Link>
-              <NavLink to="/about" className={mobileCls}><Icon name="info" className="h-4 w-4" />{t('nav.about')}</NavLink>
-              <NavLink to="/help" className={mobileCls}><Icon name="help" className="h-4 w-4" />{t('nav.help')}</NavLink>
+              {mobileItems.map((l) => renderLink(l, mobileCls, true))}
               {!user && <NavLink to="/login" className={mobileCls}><Icon name="user" className="h-4 w-4" />{t('nav.login')}</NavLink>}
               <div className="flex items-center gap-2 pt-2"><div className="flex-1"><LangSwitcher compact /></div><ThemeToggle withLabel /></div>
             </nav>
@@ -252,9 +258,10 @@ function Header() {
 }
 
 function Footer() {
-  const { t } = useI18n();
+  const { t, tl, lang } = useI18n();
   const { categories } = useApp();
-  const { tl } = useI18n();
+  const custom = useSettings().settings.menu?.footer;
+  const links = (custom || DEFAULT_FOOTER).map((it) => resolveLink(it, t, lang)).filter(Boolean);
   return (
     <footer className="mt-16 border-t border-slate-200 bg-surface pb-20 sm:pb-0">
       <div className="container-page grid gap-8 py-10 sm:grid-cols-2 lg:grid-cols-4">
@@ -275,13 +282,13 @@ function Footer() {
         <div>
           <h3 className="mb-3 text-sm font-bold">{t('footer.links')}</h3>
           <ul className="space-y-2 text-sm text-slate-600">
-            <li><Link className="hover:text-brand-700" to="/products">{t('nav.products')}</Link></li>
-            <li><Link className="hover:text-brand-700" to="/stores">{t('nav.stores')}</Link></li>
-            <li><Link className="hover:text-brand-700" to="/sell">{t('nav.post')}</Link></li>
-            <li><Link className="hover:text-brand-700" to="/products?deals=1">{t('nav.offers')}</Link></li>
-            <li><Link className="hover:text-brand-700" to="/about">{t('nav.about')}</Link></li>
-            <li><Link className="hover:text-brand-700" to="/help">{t('nav.help')}</Link></li>
-            <li><Link className="hover:text-brand-700" to="/safety">{t('footer.safety')}</Link></li>
+            {links.map((l) => (
+              <li key={l.key}>
+                {l.external
+                  ? <a className="hover:text-brand-700" href={l.to} target="_blank" rel="noreferrer">{l.label}</a>
+                  : <Link className="hover:text-brand-700" to={l.to}>{l.key === 'products' ? t('nav.products') : l.label}</Link>}
+              </li>
+            ))}
           </ul>
         </div>
       </div>

@@ -9,7 +9,7 @@ import { normalizePhone } from '../lib/phone.js';
 import { getSettings, saveSettings } from '../lib/settings.js';
 import { CITY_KEYS } from '../lib/constants.js';
 import { requireAdmin, requireAuth } from '../middleware/auth.js';
-import { removeUploads, sendFile } from '../middleware/upload.js';
+import { removeUploads, saveFile, sendFile, upload } from '../middleware/upload.js';
 import { PRODUCT_FROM, PRODUCT_SELECT } from './products.js';
 
 const router = Router();
@@ -614,5 +614,100 @@ router.delete('/files/:id', async (req, res) => {
     const { rowCount } = await client.query('DELETE FROM files WHERE id = $1 AND NOT is_private', [id]);
     if (!rowCount) throw notFound();
   });
+  res.json({ ok: true });
+});
+
+// ---------- Add a user ----------
+
+router.post('/users', async (req, res) => {
+  const data = parse(
+    z.object({
+      name: z.string().trim().min(2, 'min_2').max(100),
+      phone: z.string().trim().max(30).optional().or(z.literal('')),
+      email: z.string().trim().toLowerCase().email('invalid_email').max(160).optional().or(z.literal('')),
+      password: z.string().min(8, 'min_8').max(128),
+      accountType: z.enum(['buyer', 'individual', 'merchant']).default('individual'),
+      role: z.enum(['user', 'admin']).default('user'),
+      city: z.enum(CITY_KEYS).optional().or(z.literal('')),
+      isVerified: z.boolean().optional(),
+    }),
+    req.body,
+  );
+  const phone = data.phone ? normalizePhone(data.phone) : null;
+  if (data.phone && !phone) throw badRequest('validation_error', { phone: 'invalid_phone' });
+  if (!phone && !data.email) throw badRequest('validation_error', { phone: 'required' });
+  try {
+    const { rows } = await query(
+      `INSERT INTO users (name, phone, email, password_hash, account_type, role, city, is_verified, merchant_status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, name, phone, email, account_type, role`,
+      [data.name, phone, data.email || null, await bcrypt.hash(data.password, 12), data.accountType, data.role,
+        data.city || null, Boolean(data.isVerified), data.accountType === 'merchant' ? 'approved' : null],
+    );
+    res.status(201).json({ user: rows[0] });
+  } catch (err) {
+    if (err.code === '23505') throw conflict(String(err.constraint || err.detail).includes('phone') ? 'phone_taken' : 'email_taken');
+    throw err;
+  }
+});
+
+/** GET /admin/users/pick?q= – small list to choose a seller when posting for someone. */
+router.get('/users/pick', async (req, res) => {
+  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  const { rows } = await query(
+    `SELECT id, name, phone, account_type FROM users
+     WHERE is_active AND ($1 = '' OR name ILIKE '%' || $1 || '%' OR phone LIKE '%' || $1 || '%')
+     ORDER BY (account_type = 'buyer'), name LIMIT 20`,
+    [q],
+  );
+  res.json({ items: rows });
+});
+
+// ---------- Upload an image (banner, pages) ----------
+
+router.post('/uploads', upload.single('file'), async (req, res) => {
+  if (!req.file) throw badRequest('validation_error', { file: 'required' });
+  res.status(201).json({ url: await saveFile(req.file) });
+});
+
+// ---------- Custom pages ----------
+
+const L = (max) => z.object({ ar: z.string().trim().max(max), fr: z.string().trim().max(max).default(''), en: z.string().trim().max(max).default('') });
+const pageSchema = z.object({
+  slug: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'slug').max(80),
+  title: L(150).refine((v) => v.ar.length >= 2, { message: 'required', path: ['ar'] }),
+  body: L(30000),
+  coverUrl: z.string().trim().max(300).refine((v) => v === '' || /^\/uploads\/f\/\d+$/.test(v) || /^https:\/\//i.test(v), 'image').optional(),
+  isPublished: z.boolean().default(true),
+});
+
+router.get('/pages', async (_req, res) => {
+  const { rows } = await query('SELECT id, slug, title, body, cover_url, is_published, created_at, updated_at FROM pages ORDER BY id DESC');
+  res.json({ items: rows });
+});
+
+async function savePage(req, res, id) {
+  const data = parse(pageSchema, req.body);
+  try {
+    const { rows } = id
+      ? await query(
+        `UPDATE pages SET slug = $1, title = $2, body = $3, cover_url = $4, is_published = $5, updated_at = now() WHERE id = $6 RETURNING *`,
+        [data.slug, data.title, data.body, data.coverUrl || null, data.isPublished, id],
+      )
+      : await query(
+        'INSERT INTO pages (slug, title, body, cover_url, is_published) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+        [data.slug, data.title, data.body, data.coverUrl || null, data.isPublished],
+      );
+    if (!rows[0]) throw notFound('page_not_found');
+    res.status(id ? 200 : 201).json({ page: rows[0] });
+  } catch (err) {
+    if (err.code === '23505') throw conflict('slug_taken');
+    throw err;
+  }
+}
+router.post('/pages', (req, res) => savePage(req, res, null));
+router.put('/pages/:id', (req, res) => savePage(req, res, parseInt(req.params.id, 10) || 0));
+router.delete('/pages/:id', async (req, res) => {
+  const { rowCount } = await query('DELETE FROM pages WHERE id = $1', [parseInt(req.params.id, 10) || 0]);
+  if (!rowCount) throw notFound('page_not_found');
   res.json({ ok: true });
 });

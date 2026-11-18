@@ -10,7 +10,26 @@ const url = z.string().trim().max(300).refine((v) => v === '' || /^https:\/\/[^\
 const langTexts = z.record(z.string().regex(/^[a-zA-Z0-9_.]{1,80}$/), z.string().max(2000))
   .refine((o) => Object.keys(o).length <= 600, 'too_many');
 
+const L = (max = 200) => z.object({ ar: text(max), fr: text(max), en: text(max) });
+// A link inside the site ("/products?deals=1") or to another site (https://…).
+const href = z.string().trim().max(300).refine((v) => v === '' || v.startsWith('/') || /^https:\/\//i.test(v), 'link');
+const imageUrl = z.string().trim().max(300).refine((v) => v === '' || /^\/uploads\/f\/\d+$/.test(v) || /^https:\/\//i.test(v), 'image');
+const BUILTIN_LINKS = ['home', 'products', 'categories', 'stores', 'offers', 'about', 'help', 'safety', 'sell'];
+const menuItem = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('builtin'), key: z.enum(BUILTIN_LINKS) }),
+  z.object({ type: z.literal('link'), label: L(60), to: href.refine((v) => v !== '', 'required') }),
+]);
+const HOME_SECTIONS = ['hero', 'categories', 'latest', 'promo', 'deals', 'cities', 'stores', 'features'];
+
 export const SECTIONS = {
+  hero: z.object({
+    slides: z.array(z.object({ enabled: z.boolean(), title: L(120), text: L(200), cta: L(40), link: href, image: imageUrl })).max(8),
+  }),
+  menu: z.object({
+    header: z.array(menuItem).max(12).nullable(),
+    footer: z.array(menuItem).max(15).nullable(),
+    home: z.object(Object.fromEntries(HOME_SECTIONS.map((k) => [k, z.boolean()]))),
+  }),
   contact: z.object({ email: z.union([z.literal(''), z.string().trim().email().max(120)]), whatsapp: text(40), phone: text(40), address: text(200) }),
   social: z.object({ facebook: url, instagram: url, tiktok: url, x: url, youtube: url }),
   announcement: z.object({
@@ -24,6 +43,9 @@ export const SECTIONS = {
 };
 
 export const DEFAULTS = {
+  // Empty slides / null menus mean "use the built-in ones".
+  hero: { slides: [] },
+  menu: { header: null, footer: null, home: Object.fromEntries(HOME_SECTIONS.map((k) => [k, true])) },
   contact: { email: '', whatsapp: '', phone: '', address: '' },
   social: { facebook: '', instagram: '', tiktok: '', x: '', youtube: '' },
   announcement: { enabled: false, tone: 'gold', link: '' },

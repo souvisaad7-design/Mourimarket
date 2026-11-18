@@ -9,8 +9,11 @@ import { useDocumentTitle } from '../lib/hooks.js';
 
 const MAX_IMAGES = 8;
 
-/** Create (/sell) or edit (/products/:id/edit) a listing. */
-export default function ProductForm() {
+/**
+ * Create (/sell) or edit (/products/:id/edit) a listing.
+ * In the admin area it posts for another user: `sellerId`, then `onCreated`.
+ */
+export default function ProductForm({ sellerId, onCreated } = {}) {
   const { id } = useParams();
   const editing = Boolean(id);
   const { t, tl } = useI18n();
@@ -78,6 +81,7 @@ export default function ProductForm() {
     try {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
+      if (sellerId) fd.append('sellerId', String(sellerId));
       removeIds.forEach((rid) => fd.append('removeImageIds', rid));
       for (const item of ready) fd.append('images', item.file);
       if (editing) {
@@ -87,7 +91,7 @@ export default function ProductForm() {
       } else {
         const { product } = await api('/products', { method: 'POST', body: fd });
         notify(product.status === 'approved' ? t('form.createdLive') : t('form.created'));
-        navigate('/dashboard');
+        if (onCreated) onCreated(product); else navigate('/dashboard');
       }
     } catch (err) {
       setError(err);
@@ -199,7 +203,8 @@ export default function ProductForm() {
           </Field>
         </section>
 
-        <p className="text-sm text-slate-500">{t('form.reviewNote')}</p>
+        {/* Listings an admin posts go live at once, so the review note does not apply. */}
+        {user.role !== 'admin' && <p className="text-sm text-slate-500">{t('form.reviewNote')}</p>}
         <button className="btn-primary w-full py-3 text-base sm:w-auto sm:px-10" disabled={busy || processing}>
           {busy ? t('common.loading') : processing ? t('form.compressing') : editing ? t('form.update') : t('form.publish')}
         </button>

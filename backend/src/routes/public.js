@@ -21,6 +21,18 @@ router.get('/settings', async (_req, res) => {
   res.json({ settings: await getSettings() });
 });
 
+/** GET /api/pages – published custom pages (for menus and the footer). */
+router.get('/pages', async (_req, res) => {
+  const { rows } = await query('SELECT id, slug, title FROM pages WHERE is_published ORDER BY id');
+  res.json({ items: rows });
+});
+
+router.get('/pages/:slug', async (req, res) => {
+  const { rows } = await query('SELECT id, slug, title, body, cover_url, updated_at FROM pages WHERE slug = $1 AND is_published', [req.params.slug]);
+  if (!rows[0]) throw notFound('page_not_found');
+  res.json({ page: rows[0] });
+});
+
 router.get('/categories', async (_req, res) => {
   const { rows } = await query(
     `SELECT c.*, (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id

@@ -77,6 +77,13 @@ The admin area is a separate part of the app at `/admin`, with its own sign-in p
 
 Endpoints: `GET/PUT /admin/settings` · `PUT /admin/account {currentPassword, name?, email?, newPassword?}` · `PUT /admin/users/:id/profile` · `DELETE /admin/users/:id` (not yourself, not an admin) · `PUT/DELETE /admin/stores/:id` · `GET /admin/reviews` · `DELETE /admin/reviews/:id` · `GET /admin/files?filter=unused` · `DELETE /admin/files/:id` (also detaches it from the listing / avatar / logo).
 
+**Shaping the public site** (all from the panel, no deploy):
+- **Banner** (`/admin/banner`, settings `hero.slides`): up to 8 slides, each with an uploaded image, title/text/button in AR/FR/EN, link and on/off. No slides = the built-in four.
+- **Menus & links** (`/admin/menus`, settings `menu`): ordered top-menu and footer lists of built-in links (`frontend/src/lib/menus.js`) or custom links (to a page, a path or an https site); `null` = the built-in lists. `menu.home` shows/hides each home-page section.
+- **Pages** (`/admin/pages`, table `pages`): pages at `/p/:slug` with a cover image and a body in AR/FR/EN, written in a tiny safe format (`## heading`, `- list`, `**bold**`, `[text](/link)`, `![](/uploads/f/N)` image) rendered by `components/RichText.jsx` without injecting HTML. Drafts are hidden. Public: `GET /api/pages`, `GET /api/pages/:slug`; admin: `GET/POST/PUT/DELETE /admin/pages`.
+- **Images**: `POST /admin/uploads` (field `file`) stores a public image and returns its URL; the Files page uploads with it too.
+- **Adding**: `POST /admin/users` creates any account (merchants are approved at once); `POST /api/products` with `sellerId` lets an admin post a listing in another user's name, live immediately (`/admin/listings/new`, user picker `GET /admin/users/pick?q=`).
+
 The source code itself is not editable from the browser: the site runs on Vercel, where code is fixed at build time. Code changes go through the GitHub repository.
 
 ### Merchant accounts are approved by an admin

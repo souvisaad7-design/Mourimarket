@@ -64,7 +64,10 @@ export function AdminListings() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <Tabs value={status} onChange={(v) => setParam('status', v || 'all')}
           options={[['pending', t('dashboard.status.pending')], ['approved', t('dashboard.status.approved')], ['featured', t('admin.featuredTab')], ['rejected', t('dashboard.status.rejected')], ['all', t('common.all')]]} />
-        <SearchBox value={q} onSearch={(v) => setParam('q', v)} />
+        <div className="flex flex-wrap gap-2">
+          <SearchBox value={q} onSearch={(v) => setParam('q', v)} />
+          <Link to="/admin/listings/new" className="btn-accent"><Icon name="plus" className="h-4 w-4" />{t('admin.addListing')}</Link>
+        </div>
       </div>
       <ErrorBox error={error} />
       {loading ? <Spinner /> : !data?.items?.length ? <EmptyState title={t('common.empty')} /> : (
@@ -204,6 +207,9 @@ export function AdminUsers() {
   const patch = (id, body) => act(() => api(`/admin/users/${id}`, { method: 'PATCH', body }));
   const [temp, setTemp] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [params, setParams] = useSearchParams();
+  const adding = params.get('new') === '1';
+  const setAdding = (v) => setParams(v ? { new: '1' } : {}, { replace: true });
   const remove = (u) => {
     if (window.prompt(t('admin.deleteUserConfirm', { name: u.name })) !== u.name) return;
     act(() => api(`/admin/users/${u.id}`, { method: 'DELETE' }));
@@ -218,7 +224,10 @@ export function AdminUsers() {
 
   return (
     <div>
-      <div className="mb-4 flex justify-end"><SearchBox value={q} onSearch={(v) => { setQ(v); setPage(1); }} /></div>
+      <div className="mb-4 flex flex-wrap justify-end gap-2">
+        <SearchBox value={q} onSearch={(v) => { setQ(v); setPage(1); }} />
+        <button type="button" className="btn-accent" onClick={() => setAdding(true)}><Icon name="userPlus" className="h-4 w-4" />{t('admin.addUser')}</button>
+      </div>
       <ErrorBox error={error} />
       {loading ? <Spinner /> : (
         <div className="card overflow-x-auto">
@@ -271,6 +280,7 @@ export function AdminUsers() {
       )}
       {data && <Pagination page={data.page} total={data.total} limit={data.limit} onPage={setPage} />}
       <UserEditModal user={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />
+      {adding && <UserCreateModal onClose={() => setAdding(false)} onSaved={() => { setAdding(false); reload(); }} />}
       <Modal open={Boolean(temp)} onClose={() => setTemp(null)} title={t('admin.resetPassword')}>
         {temp && (
           <div className="space-y-3 text-sm">
@@ -700,6 +710,50 @@ function StoreEditModal({ store, onClose, onSaved }) {
         <Field label={t('auth.email')} optional><input className="input" type="email" dir="ltr" value={f.form.email} onChange={f.set('email')} /></Field>
         <Field label={t('form.city')} optional><CitySelect value={f.form.city} onChange={(v) => f.setForm({ ...f.form, city: v })} cities={meta.cities} placeholder="—" /></Field>
         <button className="btn-primary w-full" disabled={f.busy}>{t('common.save')}</button>
+      </form>
+    </Modal>
+  );
+}
+
+function UserCreateModal({ onClose, onSaved }) {
+  const { t } = useI18n();
+  const { meta, notify } = useApp();
+  const f = useEditForm({ name: '', phone: '', email: '', password: '', accountType: 'individual', role: 'user', city: '', isVerified: false }, []);
+  const fieldError = useFieldError(f.error);
+  const submit = async (e) => {
+    e.preventDefault();
+    f.setBusy(true);
+    try {
+      await api('/admin/users', { method: 'POST', body: f.form });
+      notify(t('admin.userCreated', { name: f.form.name }));
+      onSaved();
+    } catch (err) { f.setError(err); } finally { f.setBusy(false); }
+  };
+  return (
+    <Modal open onClose={onClose} title={t('admin.addUser')}>
+      <form onSubmit={submit} className="space-y-3" noValidate>
+        <ErrorBox error={f.error && !f.error.fields ? f.error : null} />
+        <Field label={t('auth.name')} error={fieldError('name')}><input className="input" required value={f.form.name} onChange={f.set('name')} /></Field>
+        <Field label={t('auth.phone')} error={fieldError('phone')} hint={t('admin.addUserPhoneHint')}><PhoneInput value={f.form.phone} onChange={(v) => f.setForm({ ...f.form, phone: v })} /></Field>
+        <Field label={t('auth.email')} error={fieldError('email')} optional><input className="input" type="email" dir="ltr" value={f.form.email} onChange={f.set('email')} /></Field>
+        <Field label={t('auth.password')} error={fieldError('password')} hint={t('admin.addUserPasswordHint')}>
+          <input className="input" type="text" dir="ltr" autoComplete="new-password" required value={f.form.password} onChange={f.set('password')} />
+        </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label={t('auth.accountType')}>
+            <select className="input" value={f.form.accountType} onChange={f.set('accountType')}>
+              {['buyer', 'individual', 'merchant'].map((v) => <option key={v} value={v}>{t(`roles.${v}`)}</option>)}
+            </select>
+          </Field>
+          <Field label={t('admin.role')}>
+            <select className="input" value={f.form.role} onChange={f.set('role')}>
+              <option value="user">{t('admin.userRole')}</option><option value="admin">{t('admin.adminRole')}</option>
+            </select>
+          </Field>
+        </div>
+        <Field label={t('form.city')} optional><CitySelect value={f.form.city} onChange={(v) => f.setForm({ ...f.form, city: v })} cities={meta.cities} placeholder="—" /></Field>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.form.isVerified} onChange={(e) => f.setForm({ ...f.form, isVerified: e.target.checked })} />{t('admin.verify')} ✓</label>
+        <button className="btn-primary w-full" disabled={f.busy}>{f.busy ? t('common.loading') : t('admin.addUser')}</button>
       </form>
     </Modal>
   );

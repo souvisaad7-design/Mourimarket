@@ -221,19 +221,26 @@ async function assertCategory(id, client) {
 /** POST /api/products – create a listing (multipart, field "images"). */
 router.post('/', requireAuth, upload.array('images', MAX_IMAGES), async (req, res) => {
   // Buyers browse and message; only seller accounts can post listings.
-  if (req.user.account_type === 'buyer') throw forbidden('sellers_only');
+  // An admin can post for anyone (sellerId) and the listing goes live at once.
+  const isAdmin = req.user.role === 'admin';
+  if (req.user.account_type === 'buyer' && !isAdmin) throw forbidden('sellers_only');
+  let sellerId = req.user.id;
+  if (isAdmin && req.body.sellerId) {
+    sellerId = parseInt(req.body.sellerId, 10) || 0;
+    if (!(await query('SELECT 1 FROM users WHERE id = $1', [sellerId])).rowCount) throw badRequest('validation_error', { sellerId: 'not_found' });
+  }
   const files = req.files || [];
   const data = parse(productSchema, req.body);
     checkOldPrice(data);
   if (!files.length) throw badRequest('validation_error', { images: 'image_required' });
-  const status = (await getSettings()).features.autoApprove ? 'approved' : 'pending';
+  const status = isAdmin || (await getSettings()).features.autoApprove ? 'approved' : 'pending';
   const product = await tx(async (client) => {
     await assertCategory(data.categoryId, client);
-    const storeId = await storeIdFor(req.user.id, client);
+    const storeId = await storeIdFor(sellerId, client);
     const { rows } = await client.query(
       `INSERT INTO products (seller_id, category_id, store_id, title, description, price, old_price, city, condition, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, status`,
-      [req.user.id, data.categoryId, storeId, data.title, data.description, data.price, data.oldPrice ?? null, data.city, data.condition, status],
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, status, seller_id`,
+      [sellerId, data.categoryId, storeId, data.title, data.description, data.price, data.oldPrice ?? null, data.city, data.condition, status],
     );
     for (const [i, file] of files.entries()) {
       await client.query('INSERT INTO product_images (product_id, url, sort_order) VALUES ($1, $2, $3)', [

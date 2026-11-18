@@ -12,6 +12,7 @@ import Favorites from './pages/Favorites.jsx';
 import Home from './pages/Home.jsx';
 import Messages from './pages/Messages.jsx';
 import { About, Help, NotFound, Safety } from './pages/Static.jsx';
+import CustomPage from './pages/CustomPage.jsx';
 import Notifications from './pages/Notifications.jsx';
 import ProductDetail from './pages/ProductDetail.jsx';
 import ProductForm from './pages/ProductForm.jsx';
@@ -25,6 +26,9 @@ const lazyNamed = (load, name) => lazy(() => load().then((m) => ({ default: m[na
 const adminLayout = () => import('./pages/admin/AdminLayout.jsx');
 const adminPages = () => import('./pages/admin/AdminPages.jsx');
 const adminSite = () => import('./pages/admin/AdminSite.jsx');
+const adminContent = () => import('./pages/admin/AdminContent.jsx');
+const [AdminBanner, AdminMenus, AdminCustomPages, AdminNewListing] =
+  ['AdminBanner', 'AdminMenus', 'AdminCustomPages', 'AdminNewListing'].map((n) => lazyNamed(adminContent, n));
 const AdminLayout = lazy(adminLayout);
 const AdminLogin = lazyNamed(adminLayout, 'AdminLogin');
 const AdminOverview = lazyNamed(adminLayout, 'AdminOverview');
@@ -81,6 +85,7 @@ export default function App() {
         <Route path="safety" element={<Safety />} />
         <Route path="about" element={<About />} />
         <Route path="help" element={<Help />} />
+        <Route path="p/:slug" element={<CustomPage />} />
 
         {/* Auth */}
         <Route path="login" element={<GuestOnly><Login /></GuestOnly>} />
@@ -117,6 +122,10 @@ export default function App() {
         <Route path="settings" element={<AdminSettings />} />
         <Route path="texts" element={<AdminTexts />} />
         <Route path="sitemap" element={<AdminSitemap />} />
+        <Route path="banner" element={<AdminBanner />} />
+        <Route path="menus" element={<AdminMenus />} />
+        <Route path="pages" element={<AdminCustomPages />} />
+        <Route path="listings/new" element={<AdminNewListing />} />
         <Route path="account" element={<AdminAccount />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
         <Route path="stores" element={<AdminStores />} />
