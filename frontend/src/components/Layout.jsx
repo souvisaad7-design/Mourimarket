@@ -7,7 +7,7 @@ import { useI18n } from '../i18n/index.jsx';
 import { LANGS } from '../i18n/messages.js';
 import { InstallPrompt, OfflineBanner, ThemeToggle } from './AppChrome.jsx';
 import { SearchBar } from './SearchBar.jsx';
-import { Avatar, Icon, Logo } from './ui.jsx';
+import { Avatar, Icon, Logo, SiteMark } from './ui.jsx';
 
 function Badge({ n }) {
   if (!n) return null;
@@ -96,8 +96,15 @@ function AnnouncementBar() {
   const { announcement } = useSettings().settings;
   const text = t('announcement.text');
   if (!announcement?.enabled || !text || text === 'announcement.text') return null;
-  const body = <span className="font-semibold">{text}{announcement.link && <span aria-hidden="true"> ←</span>}</span>;
-  const cls = `block px-4 py-2 text-center text-sm ${ANNOUNCE_TONES[announcement.tone] || ANNOUNCE_TONES.gold}`;
+  const marquee = announcement.style === 'marquee';
+  const label = <span className="font-semibold">{text}{announcement.link && <span aria-hidden="true"> ←</span>}</span>;
+  // Scrolling text: the sentence repeats across the bar; it stays still for people who ask for less motion.
+  const body = marquee ? (
+    <span className="mm-marquee" aria-label={text}>
+      <span className="mm-marquee-track" aria-hidden="true">{[0, 1, 2, 3].map((i) => <span key={i} className="px-10">{label}</span>)}</span>
+    </span>
+  ) : label;
+  const cls = `block overflow-hidden px-4 py-2 text-center text-sm ${ANNOUNCE_TONES[announcement.tone] || ANNOUNCE_TONES.gold}`;
   if (!announcement.link) return <div className={cls} role="note">{body}</div>;
   return /^https?:/.test(announcement.link)
     ? <a href={announcement.link} target="_blank" rel="noreferrer" className={`${cls} hover:brightness-95`}>{body}</a>
@@ -260,7 +267,9 @@ function Header() {
 function Footer() {
   const { t, tl, lang } = useI18n();
   const { categories } = useApp();
-  const custom = useSettings().settings.menu?.footer;
+  const { menu, appearance } = useSettings().settings;
+  const custom = menu?.footer;
+  const siteName = appearance?.siteName;
   const links = (custom || DEFAULT_FOOTER).map((it) => resolveLink(it, t, lang)).filter(Boolean);
   return (
     <footer className="mt-16 border-t border-slate-200 bg-surface pb-20 sm:pb-0">
@@ -293,7 +302,7 @@ function Footer() {
         </div>
       </div>
       <div className="border-t border-slate-100 py-4 text-center text-xs text-slate-500">
-        © {new Date().getFullYear()} MauriMarket — {t('footer.rights')}
+        © {new Date().getFullYear()} {siteName || 'MauriMarket'} — {t('footer.rights')}
       </div>
     </footer>
   );
@@ -331,13 +340,36 @@ export function Toast() {
   );
 }
 
+/** Shown to visitors while the admin has the site in maintenance mode. */
+function MaintenanceScreen() {
+  const { t, lang } = useI18n();
+  const { maintenance, appearance } = useSettings().settings;
+  const message = maintenance.message?.[lang] || maintenance.message?.ar || t('maintenance.text');
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-5 bg-gradient-to-br from-brand-900 via-brand-800 to-brand-700 p-6 text-center text-white">
+      <SiteMark className="h-20 w-20" />
+      <p className="text-2xl font-bold">{appearance?.siteName || 'MauriMarket'}</p>
+      <div className="max-w-md rounded-3xl bg-white/10 p-6 backdrop-blur">
+        <p className="mb-2 flex items-center justify-center gap-2 text-lg font-bold"><Icon name="clock" className="h-5 w-5" />{t('maintenance.title')}</p>
+        <p className="whitespace-pre-line leading-relaxed text-white/90">{message}</p>
+      </div>
+      <div className="flex items-center gap-3"><LangSwitcher compact dark /><Link to="/admin/login" className="text-xs text-white/60 hover:text-white">{t('maintenance.adminLink')}</Link></div>
+    </div>
+  );
+}
+
 export default function Layout() {
   const { pathname } = useLocation();
+  const { user } = useApp();
+  const { t } = useI18n();
+  const { maintenance } = useSettings().settings;
   // Listing pages have their own bottom action bar on phones.
   const onListing = /^\/products\/\d+$/.test(pathname);
   useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  if (maintenance?.enabled && user?.role !== 'admin') return <MaintenanceScreen />;
   return (
     <div className="flex min-h-screen flex-col">
+      {maintenance?.enabled && <p className="bg-rose-600 px-4 py-1.5 text-center text-xs font-semibold text-white">{t('maintenance.adminNotice')} <Link to="/admin/appearance" className="underline">{t('maintenance.turnOff')}</Link></p>}
       <AnnouncementBar />
       <Header />
       <OfflineBanner />

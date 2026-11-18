@@ -2,7 +2,7 @@
 // reviews, uploaded files and a map of every page.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { EmptyState, ErrorBox, Field, Icon, Modal, Pagination, Spinner, Stars, useFieldError } from '../../components/ui.jsx';
+import { EmptyState, ErrorBox, Field, Icon, LogoMark, Modal, Pagination, Spinner, Stars, useFieldError } from '../../components/ui.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useSettings } from '../../context/SettingsContext.jsx';
 import { useI18n } from '../../i18n/index.jsx';
@@ -34,7 +34,9 @@ function Section({ title, hint, children, onSave, busy, error }) {
       </div>
       <ErrorBox error={error} />
       {children}
-      <div className="flex justify-end"><button className="btn-primary" disabled={busy}>{busy ? t('common.loading') : t('common.save')}</button></div>
+      <div className="flex justify-end border-t border-slate-100 pt-4">
+        <button className="btn-primary w-full sm:w-auto" disabled={busy}><Icon name="check" className="h-4 w-4" />{busy ? t('common.loading') : t('common.saveChanges')}</button>
+      </div>
     </form>
   );
 }
@@ -65,7 +67,7 @@ function useSaveSettings() {
     try {
       const { settings } = await api('/admin/settings', { method: 'PUT', body });
       setSettings(settings);
-      notify(t('common.saved'));
+      notify(t('common.changesSaved'));
       return settings;
     } catch (err) {
       setErrors((e) => ({ ...e, [key]: err }));
@@ -75,67 +77,190 @@ function useSaveSettings() {
   return { save, busy, errors };
 }
 
-// ---------- Site settings ----------
+// ---------- Settings pages (all saved in site_settings) ----------
 
-export function AdminSettings() {
-  const { t } = useI18n();
-  const { meta } = useApp();
+/** Load /admin/settings into an editable copy. */
+function useSettingsDraft() {
   const { data, loading, error } = useApi('/admin/settings');
-  const { save, busy, errors } = useSaveSettings();
   const [s, setS] = useState(null);
   useEffect(() => { if (data?.settings) setS(structuredClone(data.settings)); }, [data]);
-  if (loading || !s) return error ? <ErrorBox error={error} /> : <Spinner />;
-  const set = (section, key) => (e) => setS({ ...s, [section]: { ...s[section], [key]: e.target.value } });
-  const setTxt = (lang, value) => setS({ ...s, texts: { ...s.texts, [lang]: { ...s.texts[lang], 'announcement.text': value } } });
-  const fieldErr = (key) => (errors[key]?.fields ? Object.entries(errors[key].fields).map(([f, m]) => `${f}: ${m}`).join(' · ') : null);
+  const set = (section, key) => (e) => setS((prev) => ({ ...prev, [section]: { ...prev[section], [key]: e.target.value } }));
+  const put = (section, patch) => setS((prev) => ({ ...prev, [section]: { ...prev[section], ...patch } }));
+  return { s, setS, set, put, loading, error, updated: data?.updated };
+}
 
+const fieldErr = (err) => (err?.fields ? Object.entries(err.fields).map(([f, m]) => `${f}: ${m}`).join(' · ') : null);
+
+/** General: sign-ups and automatic publishing. */
+export function AdminSettings() {
+  const { t } = useI18n();
+  const { s, put, loading, error, updated } = useSettingsDraft();
+  const { save, busy, errors } = useSaveSettings();
+  if (loading || !s) return error ? <ErrorBox error={error} /> : <Spinner />;
   return (
     <div className="max-w-3xl space-y-6">
-      <PageTitle icon="globe" title={t('admin.siteSettings')} subtitle={t('admin.siteSettingsHint')} />
-
+      <PageTitle icon="globe" title={t('admin.siteSettings')} subtitle={t('admin.generalHint')} />
       <Section title={t('admin.set.features')} onSave={() => save('features', { features: s.features })} busy={busy === 'features'} error={errors.features}>
-        <Toggle checked={s.features.registration} onChange={(v) => setS({ ...s, features: { ...s.features, registration: v } })} label={t('admin.set.registration')} hint={t('admin.set.registrationHint')} />
-        <Toggle checked={s.features.autoApprove} onChange={(v) => setS({ ...s, features: { ...s.features, autoApprove: v } })} label={t('admin.set.autoApprove')} hint={t('admin.set.autoApproveHint')} />
+        <Toggle checked={s.features.registration} onChange={(v) => put('features', { registration: v })} label={t('admin.set.registration')} hint={t('admin.set.registrationHint')} />
+        <Toggle checked={s.features.autoApprove} onChange={(v) => put('features', { autoApprove: v })} label={t('admin.set.autoApprove')} hint={t('admin.set.autoApproveHint')} />
+      </Section>
+      {updated?.length > 0 && <p className="text-xs text-slate-400">{t('admin.set.lastChange', { name: updated[0].updated_by_name || '—' })}</p>}
+    </div>
+  );
+}
+
+/** Identity & appearance: name, logo, colours, maintenance mode. */
+export function AdminAppearance() {
+  const { t } = useI18n();
+  const { s, set, put, loading, error } = useSettingsDraft();
+  const { save, busy, errors } = useSaveSettings();
+  const fileRef = useRef(null);
+  const { upload, busy: uploading } = useImageUpload();
+  if (loading || !s) return error ? <ErrorBox error={error} /> : <Spinner />;
+  const a = s.appearance;
+  const pickLogo = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    const url = await upload(f, 512);
+    if (url) put('appearance', { logoUrl: url });
+  };
+  const colour = (key, fallback, label) => (
+    <Field label={label} hint={t('admin.colorHint')}>
+      <div className="flex items-center gap-2">
+        <input type="color" className="h-11 w-14 cursor-pointer rounded-lg border border-slate-300 bg-surface p-1" value={a[key] || fallback} onChange={(e) => put('appearance', { [key]: e.target.value })} aria-label={label} />
+        <input className="input w-32 font-mono" dir="ltr" maxLength={7} placeholder={fallback} value={a[key]} onChange={set('appearance', key)} />
+        {a[key] && <button type="button" className="btn-ghost px-2 text-xs" onClick={() => put('appearance', { [key]: '' })}>{t('admin.resetColor')}</button>}
+      </div>
+    </Field>
+  );
+  return (
+    <div className="max-w-3xl space-y-6">
+      <PageTitle icon="star" title={t('admin.appearance')} subtitle={t('admin.appearanceHint')} />
+      <Section title={t('admin.identity')} onSave={() => save('appearance', { appearance: s.appearance })} busy={busy === 'appearance'} error={errors.appearance}>
+        <Field label={t('admin.siteName')} hint={t('admin.siteNameHint')} optional>
+          <input className="input" maxLength={40} placeholder="MauriMarket" value={a.siteName} onChange={set('appearance', 'siteName')} />
+        </Field>
+        <Field label={t('admin.logo')} hint={t('admin.logoHint')} optional>
+          <input ref={fileRef} type="file" accept="image/*" className="sr-only" onChange={pickLogo} tabIndex={-1} />
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 p-1.5">
+              {a.logoUrl ? <img src={a.logoUrl} alt="" className="h-full w-full object-contain" /> : <LogoMark className="h-full w-full" />}
+            </span>
+            <button type="button" className="btn-outline" disabled={uploading} onClick={() => fileRef.current?.click()}><Icon name="image" className="h-4 w-4" />{uploading ? t('common.loading') : a.logoUrl ? t('admin.changeImage') : t('admin.uploadImage')}</button>
+            {a.logoUrl && <button type="button" className="btn-ghost text-rose-600" onClick={() => put('appearance', { logoUrl: '' })}>{t('admin.useDefaultLogo')}</button>}
+          </div>
+        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {colour('primaryColor', '#0f6a3d', t('admin.primaryColor'))}
+          {colour('secondaryColor', '#fbc531', t('admin.secondaryColor'))}
+        </div>
+        <div className="rounded-2xl border border-slate-200 p-4" aria-label={t('admin.preview')}>
+          <p className="mb-3 text-xs font-semibold text-slate-500">{t('admin.preview')}</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="rounded-xl px-4 py-2.5 text-sm font-semibold text-white" style={{ background: a.primaryColor || '#0f6a3d' }}>{t('nav.products')}</span>
+            <span className="rounded-xl px-4 py-2.5 text-sm font-semibold text-ink" style={{ background: a.secondaryColor || '#fbc531' }}>{t('nav.post')}</span>
+            <span className="font-bold" style={{ color: a.primaryColor || '#0f6a3d' }}>{a.siteName || 'MauriMarket'}</span>
+          </div>
+          <p className="mt-2 text-[11px] text-slate-400">{t('admin.colorsApplyHint')}</p>
+        </div>
+        {fieldErr(errors.appearance) && <p className="text-xs text-rose-600">{fieldErr(errors.appearance)}</p>}
       </Section>
 
-      <Section title={t('admin.set.announcement')} hint={t('admin.set.announcementHint')} busy={busy === 'announcement'} error={errors.announcement}
+      <Section title={t('admin.maintenance')} hint={t('admin.maintenanceHint')} onSave={() => save('maintenance', { maintenance: s.maintenance })} busy={busy === 'maintenance'} error={errors.maintenance}>
+        <Toggle checked={s.maintenance.enabled} onChange={(v) => put('maintenance', { enabled: v })} label={t('admin.maintenanceOn')} hint={t('admin.maintenanceOnHint')} />
+        {LANGS.map((l) => (
+          <Field key={l.code} label={`${t('admin.maintenanceMessage')} (${l.label})`} optional={l.code !== 'ar'}>
+            <textarea className="input" rows={2} dir={l.dir} maxLength={500} placeholder={t('maintenance.text')} value={s.maintenance.message?.[l.code] || ''}
+              onChange={(e) => put('maintenance', { message: { ...s.maintenance.message, [l.code]: e.target.value } })} />
+          </Field>
+        ))}
+      </Section>
+    </div>
+  );
+}
+
+/** Alert bar on top of every page: on/off, text, colour, still or scrolling, link. */
+export function AdminAlerts() {
+  const { t } = useI18n();
+  const { s, setS, set, put, loading, error } = useSettingsDraft();
+  const { save, busy, errors } = useSaveSettings();
+  if (loading || !s) return error ? <ErrorBox error={error} /> : <Spinner />;
+  const setTxt = (lang, value) => setS({ ...s, texts: { ...s.texts, [lang]: { ...s.texts[lang], 'announcement.text': value } } });
+  return (
+    <div className="max-w-3xl space-y-6">
+      <PageTitle icon="bell" title={t('admin.alerts')} subtitle={t('admin.set.announcementHint')} />
+      <Section title={t('admin.set.announcement')} busy={busy === 'announcement'} error={errors.announcement}
         onSave={() => save('announcement', { announcement: s.announcement, texts: s.texts })}>
-        <Toggle checked={s.announcement.enabled} onChange={(v) => setS({ ...s, announcement: { ...s.announcement, enabled: v } })} label={t('admin.set.showAnnouncement')} />
+        <Toggle checked={s.announcement.enabled} onChange={(v) => put('announcement', { enabled: v })} label={t('admin.set.showAnnouncement')} />
         {LANGS.map((l) => (
           <Field key={l.code} label={`${t('admin.set.announcementText')} (${l.label})`} optional={l.code !== 'ar'}>
             <input className="input" dir={l.dir} maxLength={300} value={s.texts[l.code]?.['announcement.text'] || ''} onChange={(e) => setTxt(l.code, e.target.value)} />
           </Field>
         ))}
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           <Field label={t('admin.set.tone')}>
             <select className="input" value={s.announcement.tone} onChange={set('announcement', 'tone')}>
               {['gold', 'brand', 'rose'].map((v) => <option key={v} value={v}>{t(`admin.set.tones.${v}`)}</option>)}
             </select>
           </Field>
-          <Field label={t('admin.set.link')} hint={t('admin.set.linkHint')} optional error={fieldErr('announcement')}>
+          <Field label={t('admin.alertStyle')}>
+            <select className="input" value={s.announcement.style} onChange={set('announcement', 'style')}>
+              <option value="static">{t('admin.alertStatic')}</option>
+              <option value="marquee">{t('admin.alertMarquee')}</option>
+            </select>
+          </Field>
+          <Field label={t('admin.set.link')} hint={t('admin.set.linkHint')} optional error={fieldErr(errors.announcement)}>
             <input className="input" dir="ltr" placeholder="/products?deals=1" value={s.announcement.link} onChange={set('announcement', 'link')} />
           </Field>
         </div>
       </Section>
+    </div>
+  );
+}
 
-      <Section title={t('admin.set.contact')} hint={t('admin.set.contactHint')} onSave={() => save('contact', { contact: s.contact })} busy={busy === 'contact'} error={errors.contact}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label={t('auth.email')} optional><input className="input" type="email" dir="ltr" value={s.contact.email} onChange={set('contact', 'email')} /></Field>
-          <Field label={t('store.whatsapp')} optional><input className="input" dir="ltr" placeholder="+222 ..." value={s.contact.whatsapp} onChange={set('contact', 'whatsapp')} /></Field>
-          <Field label={t('auth.phone')} optional><input className="input" dir="ltr" value={s.contact.phone} onChange={set('contact', 'phone')} /></Field>
-          <Field label={t('admin.set.address')} optional><input className="input" value={s.contact.address} onChange={set('contact', 'address')} /></Field>
-        </div>
+/** Payments, VIP prices, payment numbers, support WhatsApp and social links. */
+export function AdminPayments() {
+  const { t, price } = useI18n();
+  const { reloadMeta } = useApp();
+  const { s, set, put, loading, error } = useSettingsDraft();
+  const { save, busy, errors } = useSaveSettings();
+  if (loading || !s) return error ? <ErrorBox error={error} /> : <Spinner />;
+  const plans = s.pricing.featurePlans;
+  const setPlan = (i, key, v) => put('pricing', { featurePlans: plans.map((p, j) => (j === i ? { ...p, [key]: Math.max(0, parseInt(v, 10) || 0) } : p)) });
+  const saveAndRefresh = async (key, body) => { if (await save(key, body)) reloadMeta(); };
+  return (
+    <div className="max-w-3xl space-y-6">
+      <PageTitle icon="star" title={t('admin.payments')} subtitle={t('admin.paymentsHint')} />
+
+      <Section title={t('admin.pricing')} hint={t('admin.pricingHint')} busy={busy === 'pricing'} error={errors.pricing}
+        onSave={() => saveAndRefresh('pricing', { pricing: s.pricing, features: s.features })}>
+        <Toggle checked={s.features.paidUpgrades} onChange={(v) => put('features', { paidUpgrades: v })} label={t('admin.paidOn')} hint={t('admin.paidOnHint')} />
+        <Field label={t('admin.verifyPrice')}>
+          <input className="input w-40" type="number" min="0" dir="ltr" value={s.pricing.verifyPrice} onChange={(e) => put('pricing', { verifyPrice: Math.max(0, parseInt(e.target.value, 10) || 0) })} />
+        </Field>
+        <fieldset>
+          <legend className="label">{t('admin.vipPlans')}</legend>
+          <ul className="space-y-2">
+            {plans.map((p, i) => (
+              <li key={i} className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 p-2.5">
+                <label className="flex items-center gap-1.5 text-sm">{t('upgrades.plan')}
+                  <input className="input w-20 py-2" type="number" min="1" max="365" dir="ltr" value={p.days} onChange={(e) => setPlan(i, 'days', e.target.value)} />{t('admin.daysUnit')}
+                </label>
+                <label className="flex items-center gap-1.5 text-sm">{t('upgrades.price')}
+                  <input className="input w-28 py-2" type="number" min="0" dir="ltr" value={p.price} onChange={(e) => setPlan(i, 'price', e.target.value)} />MRU
+                </label>
+                <span className="text-xs text-slate-400 ltr-nums">{price(p.price)} / {t('upgrades.planDays', { days: p.days })}</span>
+                <button type="button" className="btn-ghost ms-auto p-1.5 text-rose-600" disabled={plans.length <= 1} onClick={() => put('pricing', { featurePlans: plans.filter((_, j) => j !== i) })} aria-label={t('common.delete')}><Icon name="trash" className="h-4 w-4" /></button>
+              </li>
+            ))}
+          </ul>
+          <button type="button" className="btn-outline mt-2" disabled={plans.length >= 6} onClick={() => put('pricing', { featurePlans: [...plans, { days: 7, price: 200 }] })}><Icon name="plus" className="h-4 w-4" />{t('admin.addPlan')}</button>
+        </fieldset>
+        {fieldErr(errors.pricing) && <p className="text-xs text-rose-600">{fieldErr(errors.pricing)}</p>}
       </Section>
 
-      <Section title={t('admin.set.social')} hint={t('admin.set.socialHint')} onSave={() => save('social', { social: s.social })} busy={busy === 'social'} error={errors.social}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {[['facebook', 'Facebook'], ['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['x', 'X (Twitter)'], ['youtube', 'YouTube']].map(([k, label]) => (
-            <Field key={k} label={label} optional><input className="input" dir="ltr" placeholder="https://" value={s.social[k]} onChange={set('social', k)} /></Field>
-          ))}
-        </div>
-      </Section>
-
-      <Section title={t('admin.set.payment')} hint={meta.upgrades ? t('admin.set.paymentHint') : t('admin.set.paymentOff')} onSave={() => save('payment', { payment: s.payment })} busy={busy === 'payment'} error={errors.payment}>
+      <Section title={t('admin.set.payment')} hint={t('admin.set.paymentHint')} onSave={() => save('payment', { payment: s.payment })} busy={busy === 'payment'} error={errors.payment}>
         <div className="grid gap-3 sm:grid-cols-2">
           {['bankily', 'masrvi', 'sedad'].map((k) => (
             <Field key={k} label={t(`upgrades.methods.${k}`)} optional><input className="input" dir="ltr" value={s.payment[k]} onChange={set('payment', k)} /></Field>
@@ -144,9 +269,24 @@ export function AdminSettings() {
         </div>
       </Section>
 
-      {data.updated?.length > 0 && (
-        <p className="text-xs text-slate-400">{t('admin.set.lastChange', { name: data.updated[0].updated_by_name || '—' })}</p>
-      )}
+      <Section title={t('admin.set.contact')} hint={t('admin.contactHint2')} onSave={() => save('contact', { contact: s.contact })} busy={busy === 'contact'} error={errors.contact}>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label={t('admin.supportWhatsapp')} optional><input className="input" dir="ltr" placeholder="+222 ..." value={s.contact.whatsapp} onChange={set('contact', 'whatsapp')} /></Field>
+          <Field label={t('auth.email')} optional><input className="input" type="email" dir="ltr" value={s.contact.email} onChange={set('contact', 'email')} /></Field>
+          <Field label={t('auth.phone')} optional><input className="input" dir="ltr" value={s.contact.phone} onChange={set('contact', 'phone')} /></Field>
+          <Field label={t('admin.set.address')} optional><input className="input" value={s.contact.address} onChange={set('contact', 'address')} /></Field>
+        </div>
+        {fieldErr(errors.contact) && <p className="text-xs text-rose-600">{fieldErr(errors.contact)}</p>}
+      </Section>
+
+      <Section title={t('admin.set.social')} hint={t('admin.set.socialHint')} onSave={() => save('social', { social: s.social })} busy={busy === 'social'} error={errors.social}>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[['facebook', 'Facebook'], ['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['x', 'X (Twitter)'], ['youtube', 'YouTube']].map(([k, label]) => (
+            <Field key={k} label={label} optional><input className="input" dir="ltr" placeholder="https://" value={s.social[k]} onChange={set('social', k)} /></Field>
+          ))}
+        </div>
+        {fieldErr(errors.social) && <p className="text-xs text-rose-600">{fieldErr(errors.social)}</p>}
+      </Section>
     </div>
   );
 }
@@ -285,7 +425,7 @@ export function AdminAccount() {
         <Field label={t('admin.currentPassword')} error={fieldError('currentPassword')} hint={t('admin.currentPasswordHint')}>
           <input className="input" type="password" autoComplete="current-password" dir="ltr" required value={form.currentPassword} onChange={set('currentPassword')} />
         </Field>
-        <button className="btn-primary w-full" disabled={busy || !form.currentPassword}>{busy ? t('common.loading') : t('common.save')}</button>
+        <button className="btn-primary w-full" disabled={busy || !form.currentPassword}>{busy ? t('common.loading') : t('common.saveChanges')}</button>
       </form>
     </div>
   );
@@ -301,7 +441,7 @@ export function AdminReviews() {
   const remove = async (r) => {
     if (!window.confirm(t('admin.deleteReviewConfirm'))) return;
     await api(`/admin/reviews/${r.id}`, { method: 'DELETE' });
-    notify(t('common.saved'));
+    notify(t('common.changesSaved'));
     reload();
   };
   return (
@@ -344,7 +484,7 @@ export function AdminFiles() {
     if (!window.confirm(f.used_by ? t('admin.deleteUsedFileConfirm', { label: f.used_by.label }) : t('admin.deleteFileConfirm'))) return;
     await api(`/admin/files/${f.id}`, { method: 'DELETE' });
     setViewing(null);
-    notify(t('common.saved'));
+    notify(t('common.changesSaved'));
     reload();
   };
   const fileRef = useRef(null);
@@ -353,7 +493,7 @@ export function AdminFiles() {
     const list = Array.from(e.target.files || []);
     e.target.value = '';
     for (const f of list) await upload(f);
-    if (list.length) { notify(t('common.saved')); setFilter(''); setPage(1); reload(); }
+    if (list.length) { notify(t('common.changesSaved')); setFilter(''); setPage(1); reload(); }
   };
   const usageLink = (u) => (u.kind === 'listing' ? `/products/${u.id}` : u.kind === 'store' ? `/stores/${u.slug}` : `/users/${u.id}`);
 
@@ -431,6 +571,7 @@ export function AdminSitemap() {
       ['/admin', t('admin.overview')], ['/admin/listings', t('admin.listings')], ['/admin/merchants', t('admin.merchantsTab')], ['/admin/reports', t('admin.reports')],
       ['/admin/users', t('admin.users')], ['/admin/stores', t('admin.stores')], ['/admin/categories', t('admin.categories')], ['/admin/reviews', t('admin.reviews')],
       ['/admin/files', t('admin.files')], ['/admin/settings', t('admin.siteSettings')], ['/admin/texts', t('admin.siteTexts')],
+      ['/admin/appearance', t('admin.appearance')], ['/admin/alerts', t('admin.alerts')], ['/admin/payments', t('admin.payments')], ['/admin/cities', t('admin.cities')],
       ['/admin/banner', t('admin.banner')], ['/admin/menus', t('admin.menus')], ['/admin/pages', t('admin.customPages')],
       ['/admin/listings/new', t('admin.addListing')], ['/admin/users?new=1', t('admin.addUser')], ['/admin/account', t('admin.adminAccount')],
       ['/admin/login', t('admin.loginTitle')],

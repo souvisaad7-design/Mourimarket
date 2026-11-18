@@ -305,3 +305,77 @@ CREATE TABLE IF NOT EXISTS pages (
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE pages ENABLE ROW LEVEL SECURITY;
+
+-- ---------- Banners (home page slider), edited in Admin → Banners ----------
+CREATE TABLE IF NOT EXISTS banners (
+  id          SERIAL PRIMARY KEY,
+  title       JSONB NOT NULL DEFAULT '{}',   -- {ar, fr, en}
+  subtitle    JSONB NOT NULL DEFAULT '{}',
+  cta         JSONB NOT NULL DEFAULT '{}',
+  link        TEXT NOT NULL DEFAULT '/products',
+  image_url   TEXT,
+  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+  sort_order  INTEGER NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- Slides saved earlier in site_settings move to the table once.
+INSERT INTO banners (title, subtitle, cta, link, image_url, is_active, sort_order)
+SELECT COALESCE(s->'title', '{}'), COALESCE(s->'text', '{}'), COALESCE(s->'cta', '{}'), COALESCE(NULLIF(s->>'link', ''), '/products'),
+       NULLIF(s->>'image', ''), COALESCE((s->>'enabled')::boolean, true), (ord * 10)::int
+FROM site_settings st, jsonb_array_elements(st.value->'slides') WITH ORDINALITY AS t(s, ord)
+WHERE st.key = 'hero' AND NOT EXISTS (SELECT 1 FROM banners);
+DELETE FROM site_settings WHERE key = 'hero';
+
+-- ---------- Cities / wilayas shown in filters and forms, edited in Admin → Cities ----------
+CREATE TABLE IF NOT EXISTS cities (
+  id          SERIAL PRIMARY KEY,
+  key         VARCHAR(40) NOT NULL UNIQUE,   -- stored on listings, users and stores
+  name_ar     VARCHAR(80) NOT NULL,
+  name_fr     VARCHAR(80) NOT NULL,
+  name_en     VARCHAR(80) NOT NULL,
+  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+  sort_order  INTEGER NOT NULL DEFAULT 0
+);
+-- First run only (so cities the admin deletes are not brought back).
+INSERT INTO cities (key, name_ar, name_fr, name_en, sort_order)
+SELECT * FROM (VALUES
+  ('nouakchott', 'نواكشوط', 'Nouakchott', 'Nouakchott', 10),
+  ('nouadhibou', 'نواذيبو', 'Nouadhibou', 'Nouadhibou', 20),
+  ('rosso', 'روصو', 'Rosso', 'Rosso', 30),
+  ('kaedi', 'كيهيدي', 'Kaédi', 'Kaedi', 40),
+  ('kiffa', 'كيفة', 'Kiffa', 'Kiffa', 50),
+  ('zouerate', 'ازويرات', 'Zouérate', 'Zouerate', 60),
+  ('atar', 'أطار', 'Atar', 'Atar', 70),
+  ('selibaby', 'سيلبابي', 'Sélibaby', 'Selibaby', 80),
+  ('nema', 'النعمة', 'Néma', 'Nema', 90),
+  ('aioun', 'العيون', 'Aïoun', 'Aioun', 100),
+  ('aleg', 'ألاك', 'Aleg', 'Aleg', 110),
+  ('akjoujt', 'أكجوجت', 'Akjoujt', 'Akjoujt', 120),
+  ('tidjikja', 'تجكجة', 'Tidjikja', 'Tidjikja', 130),
+  ('boutilimit', 'بوتلميت', 'Boutilimit', 'Boutilimit', 140),
+  ('other', 'مدينة أخرى', 'Autre ville', 'Other city', 150)
+) AS v(key, name_ar, name_fr, name_en, sort_order)
+WHERE NOT EXISTS (SELECT 1 FROM cities);
+
+-- ---------- Row-level security ----------
+-- The app server connects as the table owner and checks the admin role itself, so it is the
+-- only writer. Through Supabase's public API (roles anon / authenticated) these tables are
+-- read-only: there is a SELECT policy and no INSERT / UPDATE / DELETE policy.
+ALTER TABLE banners ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cities  ENABLE ROW LEVEL SECURITY;
+DO $rls$
+DECLARE t text;
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') AND EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    FOREACH t IN ARRAY ARRAY['site_settings', 'banners', 'categories', 'cities'] LOOP
+      EXECUTE format('DROP POLICY IF EXISTS public_read ON %I', t);
+      EXECUTE format('CREATE POLICY public_read ON %I FOR SELECT TO anon, authenticated USING (true)', t);
+      EXECUTE format('GRANT SELECT ON %I TO anon, authenticated', t);
+    END LOOP;
+    DROP POLICY IF EXISTS public_read ON pages;
+    CREATE POLICY public_read ON pages FOR SELECT TO anon, authenticated USING (is_published);
+    GRANT SELECT ON pages TO anon, authenticated;
+  END IF;
+END
+$rls$;

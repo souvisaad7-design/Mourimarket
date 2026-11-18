@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { config } from '../config.js';
 import { query, tx } from '../db.js';
-import { CITY_KEYS, MAX_IMAGES } from '../lib/constants.js';
+import { MAX_IMAGES } from '../lib/constants.js';
+import { assertCity, cityKey } from '../lib/cities.js';
 import { badRequest, forbidden, notFound, pagination, parse } from '../lib/http.js';
 import { notify } from '../lib/notify.js';
 import { optionalAuth, requireAuth } from '../middleware/auth.js';
@@ -30,7 +31,7 @@ export const PRODUCT_FROM = `
 const listSchema = z.object({
   q: z.string().trim().max(100).optional(),
   category: z.string().trim().max(60).optional(),
-  city: z.enum(CITY_KEYS).optional().or(z.literal('')),
+  city: cityKey.optional().or(z.literal('')),
   minPrice: z.coerce.number().min(0).optional(),
   maxPrice: z.coerce.number().min(0).optional(),
   condition: z.enum(['new', 'used']).optional().or(z.literal('')),
@@ -194,7 +195,7 @@ const productSchema = z.object({
     z.coerce.number({ invalid_type_error: 'invalid_number' }).min(0, 'min_0').max(1e12).optional(),
   ),
   categoryId: z.coerce.number().int().positive('required'),
-  city: z.enum(CITY_KEYS, { errorMap: () => ({ message: 'required' }) }),
+  city: cityKey,
   condition: z.enum(['new', 'used']).default('used'),
 });
 
@@ -231,6 +232,7 @@ router.post('/', requireAuth, upload.array('images', MAX_IMAGES), async (req, re
   }
   const files = req.files || [];
   const data = parse(productSchema, req.body);
+  await assertCity(data.city);
     checkOldPrice(data);
   if (!files.length) throw badRequest('validation_error', { images: 'image_required' });
   const status = isAdmin || (await getSettings()).features.autoApprove ? 'approved' : 'pending';
@@ -258,6 +260,7 @@ router.put('/:id', requireAuth, upload.array('images', MAX_IMAGES), async (req, 
   const product = await loadProduct(req.params.id);
   assertOwner(product, req.user);
   const data = parse(productSchema, req.body);
+  await assertCity(data.city);
     checkOldPrice(data);
   const removeIds = []
     .concat(req.body.removeImageIds || [])

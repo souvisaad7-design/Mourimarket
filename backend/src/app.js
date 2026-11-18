@@ -13,6 +13,8 @@ import accountRoutes from './routes/account.js';
 import adminRoutes from './routes/admin.js';
 import authRoutes from './routes/auth.js';
 import productRoutes from './routes/products.js';
+import { getSettings } from './lib/settings.js';
+import { optionalAuth } from './middleware/auth.js';
 import publicRoutes from './routes/public.js';
 
 export function createApp() {
@@ -46,6 +48,16 @@ export function createApp() {
   });
 
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
+  // Maintenance mode (Admin → Identity & appearance): visitors can read, only admins can change things.
+  app.use('/api', async (req, res, next) => {
+    try {
+      if (req.method === 'GET' || req.path.startsWith('/auth/login') || req.path.startsWith('/admin')) return next();
+      if (!(await getSettings()).maintenance.enabled) return next();
+      await new Promise((resolve) => optionalAuth(req, res, resolve));
+      if (req.user?.role === 'admin') return next();
+      return res.status(503).json({ error: 'maintenance' });
+    } catch (err) { return next(err); }
+  });
   app.use('/api/auth/login', authLimiter);
   app.use('/api/auth/register', authLimiter);
   app.use('/api/auth/forgot-password', authLimiter);

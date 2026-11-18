@@ -1,3 +1,4 @@
+import { getSiteName } from '../context/SettingsContext.jsx';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from './api.js';
 
@@ -24,6 +25,7 @@ export function useApi(path, options, deps = []) {
 
 export function useDocumentTitle(title) {
   useEffect(() => {
-    document.title = title ? `${title} · MauriMarket` : 'MauriMarket';
+    const name = getSiteName();
+    document.title = title ? `${title} · ${name}` : name;
   }, [title]);
 }

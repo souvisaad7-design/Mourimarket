@@ -77,8 +77,24 @@ The admin area is a separate part of the app at `/admin`, with its own sign-in p
 
 Endpoints: `GET/PUT /admin/settings` · `PUT /admin/account {currentPassword, name?, email?, newPassword?}` · `PUT /admin/users/:id/profile` · `DELETE /admin/users/:id` (not yourself, not an admin) · `PUT/DELETE /admin/stores/:id` · `GET /admin/reviews` · `DELETE /admin/reviews/:id` · `GET /admin/files?filter=unused` · `DELETE /admin/files/:id` (also detaches it from the listing / avatar / logo).
 
+**Dynamic data (database, read by the whole site)**
+
+| Table | What | Edited in |
+|---|---|---|
+| `site_settings` | One JSON row per section: `appearance` (site name, logo, primary/secondary colour), `maintenance` (on/off + message), `pricing` (verification price, VIP plans), `features` (sign-ups, auto-approve, **paid services on/off**), `payment` (Bankily / Masrvi / Sedad numbers), `contact` (support WhatsApp, email, phone, address), `social`, `announcement` (on/off, colour, **still or scrolling**, link), `menu`, `texts` | Admin → Identity & appearance · Alert bar · Payments · General settings · Menus · Texts |
+| `banners` | Home-page slider (title/subtitle/button in 3 languages, background image, link, visible, order) | Admin → Banners |
+| `categories` | Categories (names, emoji icon, order) | Admin → Categories |
+| `cities` | Cities / wilayas used by filters and forms (seeded once from `CITIES`; hide instead of delete when in use) | Admin → Cities |
+| `pages` | Custom pages | Admin → Pages |
+
+The browser loads `GET /api/settings` (settings + visible banners) and `GET /api/meta` (active cities, prices) at start-up and again whenever the visitor returns to the tab, so a change saved in `/admin` reaches visitors without a deploy. Colours are CSS variables (`--brand-*`, `--gold-*`, see `index.css` and `lib/theme.js`): the admin's colours generate the whole shade range at runtime.
+
+**Maintenance mode**: visitors see the maintenance page; the API keeps answering reads but refuses changes (`503 maintenance`) except for admins and sign-in.
+
+**Row-level security**: RLS is on for every table. On Supabase, `site_settings`, `banners`, `categories`, `cities` and published `pages` have a `public_read` SELECT policy for the `anon` / `authenticated` roles and no write policy, so Supabase's public API can read them but never change them. All writes go through this app's API, which connects as the table owner and requires an admin token (`requireAdmin`) for every `/api/admin/*` route.
+
 **Shaping the public site** (all from the panel, no deploy):
-- **Banner** (`/admin/banner`, settings `hero.slides`): up to 8 slides, each with an uploaded image, title/text/button in AR/FR/EN, link and on/off. No slides = the built-in four.
+- **Banners** (`/admin/banner`, table `banners`, `GET/PUT /admin/banners`): up to 10 slides, each with an uploaded image, title/text/button in AR/FR/EN, link and on/off. No slides = the built-in four.
 - **Menus & links** (`/admin/menus`, settings `menu`): ordered top-menu and footer lists of built-in links (`frontend/src/lib/menus.js`) or custom links (to a page, a path or an https site); `null` = the built-in lists. `menu.home` shows/hides each home-page section.
 - **Pages** (`/admin/pages`, table `pages`): pages at `/p/:slug` with a cover image and a body in AR/FR/EN, written in a tiny safe format (`## heading`, `- list`, `**bold**`, `[text](/link)`, `![](/uploads/f/N)` image) rendered by `components/RichText.jsx` without injecting HTML. Drafts are hidden. Public: `GET /api/pages`, `GET /api/pages/:slug`; admin: `GET/POST/PUT/DELETE /admin/pages`.
 - **Images**: `POST /admin/uploads` (field `file`) stores a public image and returns its URL; the Files page uploads with it too.

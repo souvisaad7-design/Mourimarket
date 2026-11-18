@@ -3,7 +3,8 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { query, tx } from '../db.js';
-import { FEATURE_PLANS, PAYMENT_METHODS, REPORT_REASONS, VERIFY_PRICE, paidUpgradesEnabled } from '../lib/constants.js';
+import { PAYMENT_METHODS, REPORT_REASONS } from '../lib/constants.js';
+import { getSettings, paidUpgradesEnabled } from '../lib/settings.js';
 import { badRequest, conflict, forbidden, notFound, pagination, parse } from '../lib/http.js';
 import { notify } from '../lib/notify.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -245,7 +246,7 @@ export default router;
 // ---------- Verification & featuring requests ----------
 
 // The site is free unless PAID_UPGRADES=true: the request endpoints then do not exist.
-router.use('/upgrade-requests', (_req, _res, next) => (paidUpgradesEnabled() ? next() : next(notFound())));
+router.use('/upgrade-requests', async (_req, _res, next) => ((await paidUpgradesEnabled()) ? next() : next(notFound())));
 
 /** GET /api/upgrade-requests – the signed-in user's own requests. */
 router.get('/upgrade-requests', async (req, res) => {
@@ -283,9 +284,9 @@ router.post('/upgrade-requests', writeLimiter, upload.single('receipt'), async (
   let product = null;
   if (data.kind === 'verify') {
     if (me.is_verified) throw conflict('already_verified');
-    amount = VERIFY_PRICE;
+    amount = (await getSettings()).pricing.verifyPrice;
   } else {
-    const plan = FEATURE_PLANS.find((x) => x.days === data.days);
+    const plan = (await getSettings()).pricing.featurePlans.find((x) => x.days === data.days);
     if (!plan) throw badRequest('validation_error', { days: 'invalid' });
     if (!data.productId) throw badRequest('validation_error', { productId: 'required' });
     product = (await query('SELECT id, title, seller_id, status, availability FROM products WHERE id = $1', [data.productId])).rows[0];

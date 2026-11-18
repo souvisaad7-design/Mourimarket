@@ -27,15 +27,15 @@ const adminLayout = () => import('./pages/admin/AdminLayout.jsx');
 const adminPages = () => import('./pages/admin/AdminPages.jsx');
 const adminSite = () => import('./pages/admin/AdminSite.jsx');
 const adminContent = () => import('./pages/admin/AdminContent.jsx');
-const [AdminBanner, AdminMenus, AdminCustomPages, AdminNewListing] =
-  ['AdminBanner', 'AdminMenus', 'AdminCustomPages', 'AdminNewListing'].map((n) => lazyNamed(adminContent, n));
+const [AdminBanner, AdminMenus, AdminCustomPages, AdminNewListing, AdminCities] =
+  ['AdminBanner', 'AdminMenus', 'AdminCustomPages', 'AdminNewListing', 'AdminCities'].map((n) => lazyNamed(adminContent, n));
 const AdminLayout = lazy(adminLayout);
 const AdminLogin = lazyNamed(adminLayout, 'AdminLogin');
 const AdminOverview = lazyNamed(adminLayout, 'AdminOverview');
 const [AdminCategories, AdminListings, AdminMerchants, AdminReports, AdminStores, AdminUpgrades, AdminUsers] =
   ['AdminCategories', 'AdminListings', 'AdminMerchants', 'AdminReports', 'AdminStores', 'AdminUpgrades', 'AdminUsers'].map((n) => lazyNamed(adminPages, n));
-const [AdminAccount, AdminFiles, AdminReviews, AdminSettings, AdminSitemap, AdminTexts] =
-  ['AdminAccount', 'AdminFiles', 'AdminReviews', 'AdminSettings', 'AdminSitemap', 'AdminTexts'].map((n) => lazyNamed(adminSite, n));
+const [AdminAccount, AdminFiles, AdminReviews, AdminSettings, AdminSitemap, AdminTexts, AdminAppearance, AdminAlerts, AdminPayments] =
+  ['AdminAccount', 'AdminFiles', 'AdminReviews', 'AdminSettings', 'AdminSitemap', 'AdminTexts', 'AdminAppearance', 'AdminAlerts', 'AdminPayments'].map((n) => lazyNamed(adminSite, n));
 import StoreSettings from './pages/StoreSettings.jsx';
 
 function RequireAuth({ children, admin = false }) {
@@ -123,6 +123,10 @@ export default function App() {
         <Route path="texts" element={<AdminTexts />} />
         <Route path="sitemap" element={<AdminSitemap />} />
         <Route path="banner" element={<AdminBanner />} />
+        <Route path="appearance" element={<AdminAppearance />} />
+        <Route path="alerts" element={<AdminAlerts />} />
+        <Route path="payments" element={<AdminPayments />} />
+        <Route path="cities" element={<AdminCities />} />
         <Route path="menus" element={<AdminMenus />} />
         <Route path="pages" element={<AdminCustomPages />} />
         <Route path="listings/new" element={<AdminNewListing />} />

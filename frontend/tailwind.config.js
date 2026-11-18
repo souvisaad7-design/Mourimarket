@@ -14,12 +14,10 @@ export default {
         surface: v('surface'),
         // Always-dark ink for overlays, toasts and badges, whatever the theme.
         ink: '#0f172a',
-        brand: {
-          // Mauritanian green
-          50: '#effaf3', 100: '#d8f3e2', 200: '#b3e6c8', 300: '#7fd2a5', 400: '#48b77c',
-          500: '#249b5e', 600: '#167d4a', 700: '#0f6a3d', 800: '#0d5532', 900: '#0b462a',
-        },
-        gold: { 300: '#fde68a', 400: '#fbc531', 500: '#f5b301', 600: '#d99a00' },
+        // Primary and secondary colours are CSS variables too, so the admin can change them
+        // (Admin → Identity & appearance). Defaults: Mauritanian green and gold (index.css).
+        brand: Object.fromEntries([50, 100, 200, 300, 400, 500, 600, 700, 800, 900].map((n) => [n, v(`brand-${n}`)])),
+        gold: Object.fromEntries([300, 400, 500, 600].map((n) => [n, v(`gold-${n}`)])),
       },
       keyframes: {
         'fade-in': { from: { opacity: 0, transform: 'translateY(4px)' }, to: { opacity: 1, transform: 'none' } },

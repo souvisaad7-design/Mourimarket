@@ -106,10 +106,10 @@ const SLIDES = [
 
 export default function HeroCarousel() {
   const { t, dir, lang } = useI18n();
-  // Slides the admin made (Admin → Banner) replace the built-in ones.
-  const custom = (useSettings().settings.hero?.slides || []).filter((s) => s.enabled);
+  // Banners the admin made (Admin → Banners, table `banners`) replace the built-in slides.
+  const custom = useSettings().banners || [];
   const slides = custom.length
-    ? custom.map((s, i) => ({ key: `c${i}`, to: s.link || '/products', image: s.image, title: pickLang(s.title, lang), text: pickLang(s.text, lang), cta: pickLang(s.cta, lang) }))
+    ? custom.map((s) => ({ key: `b${s.id}`, to: s.link || '/products', image: s.image_url, title: pickLang(s.title, lang), text: pickLang(s.subtitle, lang), cta: pickLang(s.cta, lang) }))
     : SLIDES.map((s) => ({ ...s, title: t(`hero.s${s.key}title`), text: t(`hero.s${s.key}text`), cta: t(`hero.s${s.key}cta`) }));
   const [index, setIndex] = useState(0);
   const paused = useRef(false);
@@ -147,7 +147,7 @@ export default function HeroCarousel() {
   return (
     <section
       className="relative overflow-hidden rounded-3xl bg-brand-800 shadow-sm"
-      aria-roledescription="carousel" aria-label="MauriMarket"
+      aria-roledescription="carousel" aria-label={t('hero.label')}
       onMouseEnter={() => { paused.current = true; }} onMouseLeave={() => { paused.current = false; }}
       onFocus={() => { paused.current = true; }} onBlur={() => { paused.current = false; }}
       onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
@@ -179,8 +179,8 @@ export default function HeroCarousel() {
           </div>
           {/* gold + white curved divider between the panels */}
           <svg viewBox="0 0 60 330" preserveAspectRatio="none" className="absolute inset-y-0 start-0 h-full w-14 ltr:-scale-x-100" aria-hidden="true">
-            <path d="M60 0H0v330h60C18 250 18 80 60 0z" fill="#0d5532" />
-            <path d="M60 0C18 80 18 250 60 330" fill="none" stroke="#fbc531" strokeWidth="7" />
+            <path d="M60 0H0v330h60C18 250 18 80 60 0z" style={{ fill: 'rgb(var(--brand-800))' }} />
+            <path d="M60 0C18 80 18 250 60 330" fill="none" style={{ stroke: 'rgb(var(--gold-400))' }} strokeWidth="7" />
             <path d="M52 0C12 80 12 250 52 330" fill="none" stroke="#fff" strokeWidth="2" opacity="0.7" />
           </svg>
           <span className="absolute bottom-4 end-4 flex items-center gap-1.5 rounded-full bg-brand-800/90 px-3 py-1.5 text-sm font-semibold text-white shadow">

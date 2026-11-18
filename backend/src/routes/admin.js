@@ -7,7 +7,7 @@ import { badRequest, conflict, notFound, pagination, parse } from '../lib/http.j
 import { notify } from '../lib/notify.js';
 import { normalizePhone } from '../lib/phone.js';
 import { getSettings, saveSettings } from '../lib/settings.js';
-import { CITY_KEYS } from '../lib/constants.js';
+import { assertCity, cityKey, getCities, invalidateCities } from '../lib/cities.js';
 import { requireAdmin, requireAuth } from '../middleware/auth.js';
 import { removeUploads, saveFile, sendFile, upload } from '../middleware/upload.js';
 import { PRODUCT_FROM, PRODUCT_SELECT } from './products.js';
@@ -486,11 +486,12 @@ router.put('/users/:id/profile', async (req, res) => {
       name: z.string().trim().min(2, 'min_2').max(100),
       phone: z.string().trim().max(30).optional().or(z.literal('')),
       email: z.string().trim().toLowerCase().email('invalid_email').max(160).optional().or(z.literal('')),
-      city: z.enum(CITY_KEYS).optional().or(z.literal('')),
+      city: cityKey.optional().or(z.literal('')),
       bio: z.string().trim().max(500).optional(),
     }),
     req.body,
   );
+  await assertCity(data.city);
   const phone = data.phone ? normalizePhone(data.phone) : null;
   if (data.phone && !phone) throw badRequest('validation_error', { phone: 'invalid_phone' });
   if (!phone && !data.email) throw badRequest('validation_error', { phone: 'required' });
@@ -536,10 +537,11 @@ router.put('/stores/:id', async (req, res) => {
       phone: z.string().trim().max(30).optional(),
       whatsapp: z.string().trim().max(30).optional(),
       email: z.string().trim().max(160).optional(),
-      city: z.enum(CITY_KEYS).optional().or(z.literal('')),
+      city: cityKey.optional().or(z.literal('')),
     }),
     req.body,
   );
+  await assertCity(data.city);
   const { rows } = await query(
     `UPDATE stores SET name = $1, description = $2, phone = $3, whatsapp = $4, email = $5, city = $6, updated_at = now()
      WHERE id = $7 RETURNING id, name, slug`,
@@ -628,11 +630,12 @@ router.post('/users', async (req, res) => {
       password: z.string().min(8, 'min_8').max(128),
       accountType: z.enum(['buyer', 'individual', 'merchant']).default('individual'),
       role: z.enum(['user', 'admin']).default('user'),
-      city: z.enum(CITY_KEYS).optional().or(z.literal('')),
+      city: cityKey.optional().or(z.literal('')),
       isVerified: z.boolean().optional(),
     }),
     req.body,
   );
+  await assertCity(data.city);
   const phone = data.phone ? normalizePhone(data.phone) : null;
   if (data.phone && !phone) throw badRequest('validation_error', { phone: 'invalid_phone' });
   if (!phone && !data.email) throw badRequest('validation_error', { phone: 'required' });
@@ -709,5 +712,98 @@ router.put('/pages/:id', (req, res) => savePage(req, res, parseInt(req.params.id
 router.delete('/pages/:id', async (req, res) => {
   const { rowCount } = await query('DELETE FROM pages WHERE id = $1', [parseInt(req.params.id, 10) || 0]);
   if (!rowCount) throw notFound('page_not_found');
+  res.json({ ok: true });
+});
+
+// ---------- Banners (home page slider) ----------
+
+const LB = (max) => z.object({ ar: z.string().trim().max(max).default(''), fr: z.string().trim().max(max).default(''), en: z.string().trim().max(max).default('') });
+const bannerHref = z.string().trim().max(300).refine((v) => v.startsWith('/') || /^https:\/\//i.test(v), 'link');
+const bannerImage = z.string().trim().max(300).refine((v) => v === '' || /^\/uploads\/f\/\d+$/.test(v) || /^https:\/\//i.test(v), 'image');
+const bannerSchema = z.object({
+  title: LB(120), subtitle: LB(200), cta: LB(40), link: bannerHref, imageUrl: bannerImage.default(''), isActive: z.boolean().default(true),
+});
+
+router.get('/banners', async (_req, res) => {
+  const { rows } = await query('SELECT * FROM banners ORDER BY sort_order, id');
+  res.json({ items: rows });
+});
+
+/** PUT /admin/banners { items: [...] } – replace the whole slider in one go (order = array order). */
+router.put('/banners', async (req, res) => {
+  const { items } = parse(z.object({ items: z.array(bannerSchema).max(10) }), req.body);
+  const rows = await tx(async (client) => {
+    await client.query('DELETE FROM banners');
+    const out = [];
+    for (const [i, b] of items.entries()) {
+      const { rows: r } = await client.query(
+        `INSERT INTO banners (title, subtitle, cta, link, image_url, is_active, sort_order) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [b.title, b.subtitle, b.cta, b.link, b.imageUrl || null, b.isActive, (i + 1) * 10],
+      );
+      out.push(r[0]);
+    }
+    return out;
+  });
+  res.json({ items: rows });
+});
+
+// ---------- Cities / wilayas ----------
+
+router.get('/cities', async (_req, res) => {
+  const [cities, usage] = await Promise.all([
+    getCities({ fresh: true }),
+    query(`SELECT city, SUM(n)::int AS n FROM (
+             SELECT city, COUNT(*) AS n FROM products GROUP BY city
+             UNION ALL SELECT city, COUNT(*) FROM users WHERE city IS NOT NULL GROUP BY city
+             UNION ALL SELECT city, COUNT(*) FROM stores WHERE city IS NOT NULL GROUP BY city) t GROUP BY city`),
+  ]);
+  const used = Object.fromEntries(usage.rows.map((u) => [u.city, u.n]));
+  res.json({ items: cities.map((c) => ({ ...c, used: used[c.key] || 0 })) });
+});
+
+const citySchema = z.object({
+  key: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'slug').max(40),
+  nameAr: z.string().trim().min(2, 'min_2').max(80),
+  nameFr: z.string().trim().max(80).optional(),
+  nameEn: z.string().trim().max(80).optional(),
+  isActive: z.boolean().default(true),
+  sortOrder: z.coerce.number().int().min(0).max(100000).default(0),
+});
+
+async function saveCity(req, res, id) {
+  const d = parse(citySchema, req.body);
+  try {
+    const { rows } = id
+      ? await query(
+        `UPDATE cities SET name_ar = $1, name_fr = $2, name_en = $3, is_active = $4, sort_order = $5 WHERE id = $6 RETURNING *`,
+        [d.nameAr, d.nameFr || d.nameAr, d.nameEn || d.nameFr || d.nameAr, d.isActive, d.sortOrder, id],
+      )
+      : await query(
+        `INSERT INTO cities (key, name_ar, name_fr, name_en, is_active, sort_order) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [d.key, d.nameAr, d.nameFr || d.nameAr, d.nameEn || d.nameFr || d.nameAr, d.isActive, d.sortOrder],
+      );
+    if (!rows[0]) throw notFound('city_not_found');
+    invalidateCities();
+    res.status(id ? 200 : 201).json({ city: rows[0] });
+  } catch (err) {
+    if (err.code === '23505') throw conflict('city_exists');
+    throw err;
+  }
+}
+router.post('/cities', (req, res) => saveCity(req, res, null));
+router.put('/cities/:id', (req, res) => saveCity(req, res, parseInt(req.params.id, 10) || 0));
+
+/** DELETE /admin/cities/:id – only when nothing uses it (otherwise hide it instead). */
+router.delete('/cities/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10) || 0;
+  const c = (await query('SELECT key FROM cities WHERE id = $1', [id])).rows[0];
+  if (!c) throw notFound('city_not_found');
+  const { rows } = await query(
+    `SELECT (SELECT COUNT(*) FROM products WHERE city = $1) + (SELECT COUNT(*) FROM users WHERE city = $1) + (SELECT COUNT(*) FROM stores WHERE city = $1) AS n`,
+    [c.key],
+  );
+  if (Number(rows[0].n) > 0) throw conflict('city_in_use');
+  await query('DELETE FROM cities WHERE id = $1', [id]);
+  invalidateCities();
   res.json({ ok: true });
 });

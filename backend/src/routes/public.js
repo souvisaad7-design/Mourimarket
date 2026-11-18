@@ -2,7 +2,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { query } from '../db.js';
-import { CITIES, CITY_KEYS, REPORT_REASONS, FEATURE_PLANS, PAYMENT_METHODS, VERIFY_PRICE, paidUpgradesEnabled } from '../lib/constants.js';
+import { PAYMENT_METHODS, REPORT_REASONS } from '../lib/constants.js';
+import { assertCity, cityKey, publicCities } from '../lib/cities.js';
 import { conflict, forbidden, notFound, parse, slugify } from '../lib/http.js';
 import { requireAuth } from '../middleware/auth.js';
 import { removeUploads, saveFile, upload } from '../middleware/upload.js';
@@ -11,14 +12,23 @@ import { PRODUCT_FROM, PRODUCT_SELECT } from './products.js';
 
 const router = Router();
 
-router.get('/meta', (_req, res) => {
-  res.json({ cities: CITIES, reportReasons: REPORT_REASONS, currency: 'MRU', upgrades: paidUpgradesEnabled() ? { verifyPrice: VERIFY_PRICE, featurePlans: FEATURE_PLANS, paymentMethods: PAYMENT_METHODS } : null });
+router.get('/meta', async (_req, res) => {
+  const [cities, settings] = await Promise.all([publicCities(), getSettings()]);
+  const { pricing, features } = settings;
+  res.json({
+    cities, reportReasons: REPORT_REASONS, currency: 'MRU',
+    upgrades: features.paidUpgrades ? { verifyPrice: pricing.verifyPrice, featurePlans: pricing.featurePlans, paymentMethods: PAYMENT_METHODS } : null,
+  });
 });
 
 /** GET /api/settings – site texts, contact details and switches the admin edits. */
 router.get('/settings', async (_req, res) => {
   res.set('Cache-Control', 'no-cache');
-  res.json({ settings: await getSettings() });
+  const [settings, banners] = await Promise.all([
+    getSettings(),
+    query('SELECT id, title, subtitle, cta, link, image_url FROM banners WHERE is_active ORDER BY sort_order, id'),
+  ]);
+  res.json({ settings, banners: banners.rows });
 });
 
 /** GET /api/pages – published custom pages (for menus and the footer). */
@@ -120,7 +130,7 @@ const storeSchema = z.object({
   phone: z.string().trim().max(30).optional(),
   whatsapp: z.string().trim().max(30).optional(),
   email: z.string().trim().email('invalid_email').optional().or(z.literal('')),
-  city: z.enum(CITY_KEYS).optional().or(z.literal('')),
+  city: cityKey.optional().or(z.literal('')),
 });
 
 /** PUT /api/stores/me – create or update the merchant's store (multipart, optional "logo"). */
@@ -128,6 +138,7 @@ router.put('/stores/me', requireAuth, upload.single('logo'), async (req, res) =>
   try {
     if (req.user.account_type !== 'merchant') throw forbidden('merchant_only');
     const data = parse(storeSchema, req.body);
+    await assertCity(data.city);
     const existing = (await query('SELECT id, slug, logo_url FROM stores WHERE owner_id = $1', [req.user.id])).rows[0];
     const logo = req.file ? await saveFile(req.file) : null;
     let store;

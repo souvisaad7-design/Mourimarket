@@ -13,7 +13,7 @@ function useAction(reload) {
   return async (fn) => {
     try {
       await fn();
-      notify(t('common.saved'));
+      notify(t('common.changesSaved'));
       reload();
     } catch (err) {
       const msg = t(`errors.${err.code}`);
@@ -353,7 +353,7 @@ export function AdminCategories() {
       else await api(`/admin/categories/${editing.id}`, { method: 'PUT', body: form });
       setEditing(null);
       loadCategories();
-      notify(t('common.saved'));
+      notify(t('common.changesSaved'));
     } catch (err) { setError(err); }
   };
   const remove = async (c) => {
@@ -394,7 +394,7 @@ export function AdminCategories() {
             <Field label={t('admin.icon')}><input className="input text-center" value={form.icon} onChange={set('icon')} maxLength={16} /></Field>
             <Field label={t('admin.order')}><input className="input" type="number" value={form.sortOrder} onChange={set('sortOrder')} /></Field>
           </div>
-          <button className="btn-primary w-full">{t('common.save')}</button>
+          <button className="btn-primary w-full">{t('common.saveChanges')}</button>
         </form>
       </Modal>
     </div>
@@ -663,7 +663,7 @@ function UserEditModal({ user, onClose, onSaved }) {
     f.setBusy(true);
     try {
       await api(`/admin/users/${user.id}/profile`, { method: 'PUT', body: f.form });
-      notify(t('common.saved'));
+      notify(t('common.changesSaved'));
       onSaved();
     } catch (err) { f.setError(err); } finally { f.setBusy(false); }
   };
@@ -676,7 +676,7 @@ function UserEditModal({ user, onClose, onSaved }) {
         <Field label={t('auth.email')} error={fieldError('email')} optional><input className="input" type="email" dir="ltr" value={f.form.email} onChange={f.set('email')} /></Field>
         <Field label={t('form.city')} optional><CitySelect value={f.form.city} onChange={(v) => f.setForm({ ...f.form, city: v })} cities={meta.cities} placeholder="—" /></Field>
         <Field label={t('profile.bio')} optional><textarea className="input" rows={2} maxLength={500} value={f.form.bio} onChange={f.set('bio')} /></Field>
-        <button className="btn-primary w-full" disabled={f.busy}>{t('common.save')}</button>
+        <button className="btn-primary w-full" disabled={f.busy}>{t('common.saveChanges')}</button>
       </form>
     </Modal>
   );
@@ -693,7 +693,7 @@ function StoreEditModal({ store, onClose, onSaved }) {
     f.setBusy(true);
     try {
       await api(`/admin/stores/${store.id}`, { method: 'PUT', body: f.form });
-      notify(t('common.saved'));
+      notify(t('common.changesSaved'));
       onSaved();
     } catch (err) { f.setError(err); } finally { f.setBusy(false); }
   };
@@ -709,7 +709,7 @@ function StoreEditModal({ store, onClose, onSaved }) {
         </div>
         <Field label={t('auth.email')} optional><input className="input" type="email" dir="ltr" value={f.form.email} onChange={f.set('email')} /></Field>
         <Field label={t('form.city')} optional><CitySelect value={f.form.city} onChange={(v) => f.setForm({ ...f.form, city: v })} cities={meta.cities} placeholder="—" /></Field>
-        <button className="btn-primary w-full" disabled={f.busy}>{t('common.save')}</button>
+        <button className="btn-primary w-full" disabled={f.busy}>{t('common.saveChanges')}</button>
       </form>
     </Modal>
   );

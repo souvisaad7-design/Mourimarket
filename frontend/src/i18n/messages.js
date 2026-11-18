@@ -1132,6 +1132,103 @@ deepMerge(ar, v18.ar);
 deepMerge(fr, v18.fr);
 deepMerge(en, v18.en);
 
+// ---------- v19: identity, maintenance, cities, payments, alert bar ----------
+const v19 = {
+  ar: {
+    common: { saveChanges: 'حفظ التغييرات', changesSaved: 'تم حفظ التغييرات ✓' },
+    hero: { label: 'العروض الرئيسية' },
+    maintenance: {
+      title: 'الموقع تحت الصيانة', text: 'نقوم ببعض التحسينات وسنعود قريباً. شكراً لصبركم!', adminLink: 'دخول المدير',
+      adminNotice: 'وضع الصيانة مفعّل: الزوار يرون صفحة الصيانة، وأنت ترى الموقع لأنك مدير.', turnOff: 'إيقافه',
+    },
+    admin: {
+      siteSettings: 'إعدادات عامة', generalHint: 'خيارات التسجيل ونشر الإعلانات.',
+      appearance: 'الهوية والمظهر', appearanceHint: 'اسم الموقع، والشعار، والألوان، ووضع الصيانة. يظهر كل تغيير للزوار فوراً.',
+      identity: 'هوية الموقع', siteName: 'اسم الموقع', siteNameHint: 'يظهر بجانب الشعار وفي عنوان المتصفح. اتركه فارغاً لـ MauriMarket.',
+      logo: 'الشعار (Logo)', logoHint: 'صورة مربعة بخلفية شفافة (PNG) أفضل. تظهر أيضاً كأيقونة المتصفح.', useDefaultLogo: 'الشعار الأصلي',
+      primaryColor: 'اللون الأساسي', secondaryColor: 'اللون الثانوي', colorHint: 'اضغط على المربع لاختيار اللون.', resetColor: 'الأصلي',
+      colorsApplyHint: 'الأساسي: الأزرار والروابط والعناوين. الثانوي: زر «أضف إعلاناً» والنجوم والتمييز.',
+      maintenance: 'وضع الصيانة', maintenanceHint: 'أغلق الموقع مؤقتاً أمام الزوار. تبقى أنت قادراً على تصفحه وإدارته.',
+      maintenanceOn: 'تفعيل وضع الصيانة', maintenanceOnHint: 'يرى الزوار رسالتك فقط، ولا يستطيعون التسجيل أو النشر.', maintenanceMessage: 'رسالة للزوار',
+      alerts: 'شريط التنبيهات', alertStyle: 'طريقة العرض', alertStatic: 'ثابت', alertMarquee: 'متحرك',
+      payments: 'الدفع والتمييز والتواصل', paymentsHint: 'أسعار التمييز (VIP) والتوثيق، وأرقام حسابات الدفع، وواتساب الدعم، وروابط التواصل.',
+      pricing: 'الأسعار والتمييز (VIP)', pricingHint: 'المبالغ بالأوقية (MRU). تظهر للبائعين في نموذج الطلب.',
+      paidOn: 'تفعيل الخدمات المدفوعة', paidOnHint: 'عند الإيقاف يبقى الموقع مجانياً بالكامل وتختفي نماذج الدفع.',
+      verifyPrice: 'سعر توثيق الحساب', vipPlans: 'باقات تمييز الإعلانات', addPlan: 'إضافة باقة', daysUnit: 'يوماً',
+      contactHint2: 'واتساب الدعم يظهر في «اتصل بنا»، وكذلك البريد والهاتف والعنوان.', supportWhatsapp: 'واتساب الدعم الفني',
+      cities: 'المدن والمقاطعات', citiesHint: 'المدن التي تظهر في الفلاتر ونماذج الإعلانات والتسجيل. أخفِ المدينة بدل حذفها إن كانت مستخدمة.',
+      addCity: 'إضافة مدينة', editCity: 'تعديل المدينة', cityUsed: 'مستخدمة {n} مرة', hidden: 'مخفية', hide: 'إخفاء', show: 'إظهار',
+      cityNameAr: 'الاسم بالعربية', cityNameFr: 'الاسم بالفرنسية', cityNameEn: 'الاسم بالإنجليزية', cityKey: 'المعرّف',
+      cityKeyHint: 'أحرف إنجليزية صغيرة و- (مثال: tevragh-zeina).', cityKeyLocked: 'لا يتغير بعد الإنشاء.', sortOrder: 'الترتيب', cityActive: 'ظاهرة في الموقع',
+      deleteCityConfirm: 'حذف مدينة «{name}»؟',
+    },
+    errors: { city_in_use: 'لا يمكن حذف مدينة مستخدمة في إعلانات أو حسابات. أخفِها بدلاً من ذلك.', city_exists: 'هذا المعرّف مستخدم لمدينة أخرى.', maintenance: 'الموقع تحت الصيانة حالياً. حاول لاحقاً.' },
+  },
+  fr: {
+    common: { saveChanges: 'Enregistrer les modifications', changesSaved: 'Modifications enregistrées ✓' },
+    hero: { label: 'Offres principales' },
+    maintenance: {
+      title: 'Site en maintenance', text: 'Nous faisons quelques améliorations et revenons très vite. Merci de votre patience !', adminLink: 'Connexion admin',
+      adminNotice: 'Mode maintenance actif : les visiteurs voient la page de maintenance, vous voyez le site car vous êtes admin.', turnOff: 'Désactiver',
+    },
+    admin: {
+      siteSettings: 'Paramètres généraux', generalHint: 'Inscriptions et publication des annonces.',
+      appearance: 'Identité et apparence', appearanceHint: 'Nom, logo, couleurs et mode maintenance. Visible immédiatement par les visiteurs.',
+      identity: 'Identité du site', siteName: 'Nom du site', siteNameHint: 'À côté du logo et dans l’onglet. Vide = MauriMarket.',
+      logo: 'Logo', logoHint: 'Image carrée, idéalement PNG transparent. Sert aussi d’icône d’onglet.', useDefaultLogo: 'Logo d’origine',
+      primaryColor: 'Couleur principale', secondaryColor: 'Couleur secondaire', colorHint: 'Cliquez sur le carré pour choisir.', resetColor: 'D’origine',
+      colorsApplyHint: 'Principale : boutons, liens, titres. Secondaire : « Publier », étoiles, mises en avant.',
+      maintenance: 'Mode maintenance', maintenanceHint: 'Fermez le site aux visiteurs le temps d’une intervention. Vous gardez l’accès.',
+      maintenanceOn: 'Activer le mode maintenance', maintenanceOnHint: 'Les visiteurs ne voient que votre message et ne peuvent rien publier.', maintenanceMessage: 'Message aux visiteurs',
+      alerts: 'Bandeau d’alerte', alertStyle: 'Affichage', alertStatic: 'Fixe', alertMarquee: 'Défilant',
+      payments: 'Paiement, VIP et contact', paymentsHint: 'Prix VIP et vérification, numéros de paiement, WhatsApp du support, réseaux sociaux.',
+      pricing: 'Prix et mise en avant (VIP)', pricingHint: 'Montants en MRU, affichés aux vendeurs.',
+      paidOn: 'Activer les services payants', paidOnHint: 'Désactivé : le site reste entièrement gratuit.',
+      verifyPrice: 'Prix de la vérification', vipPlans: 'Formules de mise en avant', addPlan: 'Ajouter une formule', daysUnit: 'jours',
+      contactHint2: 'Le WhatsApp du support s’affiche dans « Contact », avec l’e-mail, le téléphone et l’adresse.', supportWhatsapp: 'WhatsApp du support',
+      cities: 'Villes et wilayas', citiesHint: 'Villes des filtres et formulaires. Masquez une ville utilisée au lieu de la supprimer.',
+      addCity: 'Ajouter une ville', editCity: 'Modifier la ville', cityUsed: 'utilisée {n} fois', hidden: 'masquée', hide: 'Masquer', show: 'Afficher',
+      cityNameAr: 'Nom en arabe', cityNameFr: 'Nom en français', cityNameEn: 'Nom en anglais', cityKey: 'Identifiant',
+      cityKeyHint: 'Minuscules et - (ex. tevragh-zeina).', cityKeyLocked: 'Ne change plus après création.', sortOrder: 'Ordre', cityActive: 'Visible sur le site',
+      deleteCityConfirm: 'Supprimer la ville « {name} » ?',
+    },
+    errors: { city_in_use: 'Ville utilisée par des annonces ou comptes : masquez-la plutôt.', city_exists: 'Identifiant déjà utilisé.', maintenance: 'Le site est en maintenance. Réessayez plus tard.' },
+  },
+  en: {
+    common: { saveChanges: 'Save changes', changesSaved: 'Changes saved ✓' },
+    hero: { label: 'Main offers' },
+    maintenance: {
+      title: 'Down for maintenance', text: 'We are making some improvements and will be back soon. Thank you for your patience!', adminLink: 'Admin sign-in',
+      adminNotice: 'Maintenance mode is on: visitors see the maintenance page; you see the site because you are an admin.', turnOff: 'Turn off',
+    },
+    admin: {
+      siteSettings: 'General settings', generalHint: 'Sign-ups and listing publication.',
+      appearance: 'Identity & appearance', appearanceHint: 'Site name, logo, colours and maintenance mode. Visitors see changes right away.',
+      identity: 'Site identity', siteName: 'Site name', siteNameHint: 'Next to the logo and in the browser tab. Empty = MauriMarket.',
+      logo: 'Logo', logoHint: 'A square image, ideally a transparent PNG. Also used as the tab icon.', useDefaultLogo: 'Original logo',
+      primaryColor: 'Primary colour', secondaryColor: 'Secondary colour', colorHint: 'Click the square to pick a colour.', resetColor: 'Original',
+      colorsApplyHint: 'Primary: buttons, links, headings. Secondary: “Post an ad”, stars and featured badges.',
+      maintenance: 'Maintenance mode', maintenanceHint: 'Close the site to visitors for a while. You keep full access.',
+      maintenanceOn: 'Turn on maintenance mode', maintenanceOnHint: 'Visitors only see your message and cannot sign up or post.', maintenanceMessage: 'Message to visitors',
+      alerts: 'Alert bar', alertStyle: 'Display', alertStatic: 'Still', alertMarquee: 'Scrolling',
+      payments: 'Payments, VIP & contact', paymentsHint: 'VIP and verification prices, payment numbers, support WhatsApp and social links.',
+      pricing: 'Prices & featuring (VIP)', pricingHint: 'Amounts in MRU, shown to sellers in the request form.',
+      paidOn: 'Turn on paid services', paidOnHint: 'When off, the site stays completely free and payment forms are hidden.',
+      verifyPrice: 'Verification price', vipPlans: 'Featuring plans', addPlan: 'Add plan', daysUnit: 'days',
+      contactHint2: 'The support WhatsApp shows in “Contact us”, with the email, phone and address.', supportWhatsapp: 'Support WhatsApp',
+      cities: 'Cities & wilayas', citiesHint: 'Cities shown in filters and forms. Hide a city that is in use instead of deleting it.',
+      addCity: 'Add city', editCity: 'Edit city', cityUsed: 'used {n} times', hidden: 'hidden', hide: 'Hide', show: 'Show',
+      cityNameAr: 'Arabic name', cityNameFr: 'French name', cityNameEn: 'English name', cityKey: 'Identifier',
+      cityKeyHint: 'Lower-case letters and - (e.g. tevragh-zeina).', cityKeyLocked: 'Cannot change after creation.', sortOrder: 'Order', cityActive: 'Visible on the site',
+      deleteCityConfirm: 'Delete the city “{name}”?',
+    },
+    errors: { city_in_use: 'This city is used by listings or accounts. Hide it instead.', city_exists: 'This identifier is already used.', maintenance: 'The site is under maintenance. Please try again later.' },
+  },
+};
+deepMerge(ar, v19.ar);
+deepMerge(fr, v19.fr);
+deepMerge(en, v19.en);
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },

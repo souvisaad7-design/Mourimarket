@@ -1,26 +1,69 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { applyColors } from '../lib/theme.js';
 
 // Same shape as the server defaults (backend/src/lib/settings.js), used until /api/settings loads.
 export const DEFAULT_SETTINGS = {
+  appearance: { siteName: '', logoUrl: '', primaryColor: '', secondaryColor: '' },
+  maintenance: { enabled: false, message: { ar: '', fr: '', en: '' } },
+  pricing: { verifyPrice: 500, featurePlans: [] },
   contact: { email: '', whatsapp: '', phone: '', address: '' },
   social: { facebook: '', instagram: '', tiktok: '', x: '', youtube: '' },
-  announcement: { enabled: false, tone: 'gold', link: '' },
-  features: { registration: true, autoApprove: false },
+  announcement: { enabled: false, tone: 'gold', style: 'static', link: '' },
+  features: { registration: true, autoApprove: false, paidUpgrades: false },
   payment: { bankily: '', masrvi: '', sedad: '', accountName: 'MauriMarket' },
+  menu: { header: null, footer: null, home: {} },
   texts: { ar: {}, fr: {}, en: {} },
 };
 
-const SettingsContext = createContext({ settings: DEFAULT_SETTINGS, reload: () => {}, setSettings: () => {} });
+export const DEFAULT_SITE_NAME = 'MauriMarket';
+let currentSiteName = DEFAULT_SITE_NAME;
+/** The site name for places outside React (the browser tab title). */
+export const getSiteName = () => currentSiteName;
 
-/** Site settings the admin edits (texts, contact details, switches), loaded once and shared. */
+const SettingsContext = createContext({ settings: DEFAULT_SETTINGS, banners: [], reload: () => {}, setSettings: () => {}, setBanners: () => {} });
+
+/**
+ * Site settings the admin edits (texts, identity, colours, banners…), loaded from the
+ * database and shared. Reloaded when the visitor comes back to the tab, so changes
+ * saved in /admin show up without a manual refresh.
+ */
 export function SettingsProvider({ children }) {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
-  const reload = useCallback(() => fetch('/api/settings')
+  const [banners, setBanners] = useState([]);
+  const reload = useCallback(() => fetch('/api/settings', { cache: 'no-store' })
     .then((r) => (r.ok ? r.json() : null))
-    .then((d) => { if (d?.settings) setSettings(d.settings); })
+    .then((d) => {
+      if (!d?.settings) return;
+      setSettings({ ...DEFAULT_SETTINGS, ...d.settings });
+      setBanners(d.banners || []);
+    })
     .catch(() => {}), []);
-  useEffect(() => { reload(); }, [reload]);
-  const value = useMemo(() => ({ settings, reload, setSettings }), [settings, reload]);
+
+  useEffect(() => {
+    reload();
+    const onVisible = () => { if (document.visibilityState === 'visible') reload(); };
+    document.addEventListener('visibilitychange', onVisible);
+    const id = setInterval(() => { if (document.visibilityState === 'visible') reload(); }, 120_000);
+    return () => { document.removeEventListener('visibilitychange', onVisible); clearInterval(id); };
+  }, [reload]);
+
+  // Identity: colours, tab icon and name.
+  const { primaryColor, secondaryColor, logoUrl, siteName } = settings.appearance || {};
+  useEffect(() => { applyColors({ primaryColor, secondaryColor }); }, [primaryColor, secondaryColor]);
+  useEffect(() => {
+    const icon = document.querySelector('link[rel="icon"]');
+    if (icon) {
+      icon.setAttribute('href', logoUrl || '/favicon.svg');
+      if (logoUrl) icon.removeAttribute('type'); else icon.setAttribute('type', 'image/svg+xml');
+    }
+  }, [logoUrl]);
+  useEffect(() => {
+    const prev = currentSiteName;
+    currentSiteName = siteName || DEFAULT_SITE_NAME;
+    if (prev !== currentSiteName) document.title = document.title.replace(prev, currentSiteName);
+  }, [siteName]);
+
+  const value = useMemo(() => ({ settings, banners, reload, setSettings, setBanners }), [settings, banners, reload]);
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 }
 

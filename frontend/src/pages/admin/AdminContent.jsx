@@ -106,7 +106,7 @@ function useSaveSection() {
     try {
       const { settings } = await api('/admin/settings', { method: 'PUT', body });
       setSettings(settings);
-      notify(t('common.saved'));
+      notify(t('common.changesSaved'));
       return true;
     } catch (err) { setError(err); return false; } finally { setBusy(false); }
   };
@@ -132,77 +132,172 @@ function RowTools({ index, length, onMove, onRemove }) {
   );
 }
 
-// ---------- Banner (hero slides) ----------
+// ---------- Banners (table `banners`) ----------
 
 const builtinSlides = (t) => [1, 2, 3, 4].map((k) => ({
-  enabled: true,
-  title: Object.fromEntries(LANGS.map((l) => [l.code, ''])), text: emptyL(), cta: emptyL(),
-  link: ['/products', '/products?category=vehicles', '/sell', '/products?deals=1'][k - 1], image: '',
-  _defaults: { title: t(`hero.s${k}title`), text: t(`hero.s${k}text`), cta: t(`hero.s${k}cta`) },
+  title: { ...emptyL(), ar: t(`hero.s${k}title`) }, subtitle: { ...emptyL(), ar: t(`hero.s${k}text`) }, cta: { ...emptyL(), ar: t(`hero.s${k}cta`) },
+  link: ['/products', '/products?category=vehicles', '/sell', '/products?deals=1'][k - 1], imageUrl: '', isActive: true,
 }));
+const fromRow = (b) => ({
+  title: { ...emptyL(), ...b.title }, subtitle: { ...emptyL(), ...b.subtitle }, cta: { ...emptyL(), ...b.cta },
+  link: b.link || '/products', imageUrl: b.image_url || '', isActive: b.is_active,
+});
 
 export function AdminBanner() {
   const { t, lang } = useI18n();
-  const { settings } = useSettings();
-  const { save, busy, error } = useSaveSection();
-  const [slides, setSlides] = useState(() => structuredClone(settings.hero?.slides || []));
-  useEffect(() => { setSlides(structuredClone(settings.hero?.slides || [])); }, [settings.hero]);
+  const { notify } = useApp();
+  const { reload: reloadSite } = useSettings();
+  const { data, loading, error: loadError } = useApi('/admin/banners');
+  const [slides, setSlides] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  useEffect(() => { if (data?.items) setSlides(data.items.map(fromRow)); }, [data]);
+  if (loading || !slides) return loadError ? <ErrorBox error={loadError} /> : <Spinner />;
   const set = (i, patch) => setSlides((s) => s.map((x, j) => (j === i ? { ...x, ...patch } : x)));
-
-  // Start from the current built-in slides, with their texts filled in.
-  const importBuiltin = () => setSlides(builtinSlides(t).map(({ _defaults, ...s }) => ({
-    ...s, title: { ...emptyL(), ar: _defaults.title }, text: { ...emptyL(), ar: _defaults.text }, cta: { ...emptyL(), ar: _defaults.cta },
-  })));
-  const add = () => setSlides((s) => [...s, { enabled: true, title: emptyL(), text: emptyL(), cta: emptyL(), link: '/products', image: '' }]);
-  const submit = () => save({ hero: { slides: slides.map(({ _defaults, ...s }) => s) } });
+  const add = () => setSlides((s) => [...s, { title: emptyL(), subtitle: emptyL(), cta: emptyL(), link: '/products', imageUrl: '', isActive: true }]);
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const { items } = await api('/admin/banners', { method: 'PUT', body: { items: slides } });
+      setSlides(items.map(fromRow));
+      reloadSite();
+      notify(t('common.changesSaved'));
+    } catch (err) { setError(err); } finally { setBusy(false); }
+  };
+  const saveBtn = <button className="btn-primary" disabled={busy} onClick={submit}><Icon name="check" className="h-4 w-4" />{busy ? t('common.loading') : t('common.saveChanges')}</button>;
 
   return (
     <div className="max-w-4xl">
-      <PageTitle icon="image" title={t('admin.banner')} subtitle={t('admin.bannerHint')}>
-        <button className="btn-primary" disabled={busy} onClick={submit}>{busy ? t('common.loading') : t('common.save')}</button>
-      </PageTitle>
+      <PageTitle icon="image" title={t('admin.banner')} subtitle={t('admin.bannerHint')}>{slides.length > 0 && saveBtn}</PageTitle>
       <ErrorBox error={error} />
       {!slides.length ? (
         <div className="card space-y-3 p-6 text-center">
           <p className="text-slate-600">{t('admin.bannerBuiltin')}</p>
           <div className="flex flex-wrap justify-center gap-2">
-            <button type="button" className="btn-primary" onClick={importBuiltin}><Icon name="edit" className="h-4 w-4" />{t('admin.bannerEditCurrent')}</button>
+            <button type="button" className="btn-primary" onClick={() => setSlides(builtinSlides(t))}><Icon name="edit" className="h-4 w-4" />{t('admin.bannerEditCurrent')}</button>
             <button type="button" className="btn-outline" onClick={add}><Icon name="plus" className="h-4 w-4" />{t('admin.addSlide')}</button>
           </div>
         </div>
       ) : (
         <ol className="space-y-4">
           {slides.map((s, i) => (
-            <li key={i} className={`card space-y-4 p-5 ${s.enabled ? '' : 'opacity-60'}`}>
+            <li key={i} className={`card space-y-4 p-4 sm:p-5 ${s.isActive ? '' : 'opacity-60'}`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="font-bold">{t('admin.slideN', { n: i + 1 })}{pickLang(s.title, lang) ? ` — ${pickLang(s.title, lang)}` : ''}</h2>
                 <div className="flex items-center gap-2">
-                  <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={s.enabled} onChange={(e) => set(i, { enabled: e.target.checked })} />{t('admin.slideVisible')}</label>
+                  <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={s.isActive} onChange={(e) => set(i, { isActive: e.target.checked })} />{t('admin.slideVisible')}</label>
                   <RowTools index={i} length={slides.length} onMove={(d) => setSlides(move(slides, i, d))} onRemove={() => setSlides(slides.filter((_, j) => j !== i))} />
                 </div>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <LangInputs label={t('admin.slideTitle')} value={s.title} max={120} onChange={(v) => set(i, { title: v })} required />
-                <LangInputs label={t('admin.slideText')} value={s.text} max={200} onChange={(v) => set(i, { text: v })} />
+                <LangInputs label={t('admin.slideText')} value={s.subtitle} max={200} onChange={(v) => set(i, { subtitle: v })} />
                 <LangInputs label={t('admin.slideButton')} value={s.cta} max={40} onChange={(v) => set(i, { cta: v })} />
                 <div className="space-y-4">
                   <Field label={t('admin.set.link')} hint={t('admin.set.linkHint')}><input className="input" dir="ltr" value={s.link} onChange={(e) => set(i, { link: e.target.value })} /></Field>
-                  <ImagePicker label={t('admin.slideImage')} value={s.image} onChange={(url) => set(i, { image: url })} />
+                  <ImagePicker label={t('admin.slideImage')} value={s.imageUrl} onChange={(url) => set(i, { imageUrl: url })} />
                 </div>
               </div>
             </li>
           ))}
         </ol>
       )}
-      {slides.length > 0 && (
-        <div className="mt-4 flex flex-wrap justify-between gap-2">
-          <button type="button" className="btn-outline" onClick={add} disabled={slides.length >= 8}><Icon name="plus" className="h-4 w-4" />{t('admin.addSlide')}</button>
-          <div className="flex gap-2">
-            <button type="button" className="btn-ghost text-rose-600" onClick={() => window.confirm(t('admin.bannerResetConfirm')) && setSlides([])}>{t('admin.bannerReset')}</button>
-            <button className="btn-primary" disabled={busy} onClick={submit}>{t('common.save')}</button>
-          </div>
+      <div className="mt-4 flex flex-wrap justify-between gap-2">
+        <button type="button" className="btn-outline" onClick={add} disabled={slides.length >= 10}><Icon name="plus" className="h-4 w-4" />{t('admin.addSlide')}</button>
+        <div className="flex flex-wrap gap-2">
+          {slides.length > 0 && <button type="button" className="btn-ghost text-rose-600" onClick={() => window.confirm(t('admin.bannerResetConfirm')) && setSlides([])}>{t('admin.bannerReset')}</button>}
+          {(slides.length > 0 || data.items.length > 0) && saveBtn}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Cities / wilayas (table `cities`) ----------
+
+const emptyCity = () => ({ id: null, key: '', nameAr: '', nameFr: '', nameEn: '', isActive: true, sortOrder: 0 });
+
+export function AdminCities() {
+  const { t, number } = useI18n();
+  const { notify, reloadMeta } = useApp();
+  const { data, loading, error, reload } = useApi('/admin/cities');
+  const [editing, setEditing] = useState(null);
+  const [formError, setFormError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const fieldError = useFieldError(formError);
+  const done = (msg) => { notify(msg); reload(); reloadMeta(); };
+  const open = (c) => {
+    setFormError(null);
+    setEditing(c ? { id: c.id, key: c.key, nameAr: c.name_ar, nameFr: c.name_fr, nameEn: c.name_en, isActive: c.is_active, sortOrder: c.sort_order } : { ...emptyCity(), sortOrder: ((data?.items?.at(-1)?.sort_order) || 0) + 10 });
+  };
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      if (editing.id) await api(`/admin/cities/${editing.id}`, { method: 'PUT', body: editing });
+      else await api('/admin/cities', { method: 'POST', body: editing });
+      setEditing(null);
+      done(t('common.changesSaved'));
+    } catch (err) { setFormError(err); } finally { setBusy(false); }
+  };
+  const toggle = async (c) => {
+    await api(`/admin/cities/${c.id}`, { method: 'PUT', body: { key: c.key, nameAr: c.name_ar, nameFr: c.name_fr, nameEn: c.name_en, isActive: !c.is_active, sortOrder: c.sort_order } });
+    done(t('common.changesSaved'));
+  };
+  const remove = async (c) => {
+    if (!window.confirm(t('admin.deleteCityConfirm', { name: c.name_ar }))) return;
+    try {
+      await api(`/admin/cities/${c.id}`, { method: 'DELETE' });
+      done(t('common.changesSaved'));
+    } catch (err) {
+      notify(err.code === 'city_in_use' ? t('errors.city_in_use') : t('common.error'), 'error');
+    }
+  };
+
+  return (
+    <div className="max-w-4xl">
+      <PageTitle icon="pin" title={t('admin.cities')} subtitle={t('admin.citiesHint')}>
+        <button className="btn-primary" onClick={() => open(null)}><Icon name="plus" className="h-4 w-4" />{t('admin.addCity')}</button>
+      </PageTitle>
+      <ErrorBox error={error} />
+      {loading ? <Spinner /> : (
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {(data?.items || []).map((c) => (
+            <li key={c.id} className={`card flex items-center gap-3 p-3 ${c.is_active ? '' : 'opacity-60'}`}>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-800"><Icon name="pin" className="h-4 w-4" /></span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold">{c.name_ar} <span className="text-xs font-normal text-slate-400">· {c.name_fr}</span></p>
+                <p className="text-xs text-slate-500"><code dir="ltr">{c.key}</code> · {t('admin.cityUsed', { n: number(c.used) })}{!c.is_active && <> · <span className="font-semibold text-amber-700">{t('admin.hidden')}</span></>}</p>
+              </div>
+              <button className="btn-ghost px-2 py-1.5 text-xs" onClick={() => toggle(c)}>{c.is_active ? t('admin.hide') : t('admin.show')}</button>
+              <button className="btn-ghost p-2" onClick={() => open(c)} aria-label={t('common.edit')}><Icon name="edit" className="h-4 w-4" /></button>
+              <button className="btn-ghost p-2 text-rose-600" onClick={() => remove(c)} aria-label={t('common.delete')}><Icon name="trash" className="h-4 w-4" /></button>
+            </li>
+          ))}
+        </ul>
       )}
+      <Modal open={Boolean(editing)} onClose={() => setEditing(null)} title={editing?.id ? t('admin.editCity') : t('admin.addCity')}>
+        {editing && (
+          <form onSubmit={submit} className="space-y-3">
+            <ErrorBox error={formError && !formError.fields ? formError : null} />
+            <Field label={t('admin.cityNameAr')} error={fieldError('nameAr')}><input className="input" required value={editing.nameAr} onChange={(e) => setEditing({ ...editing, nameAr: e.target.value })} /></Field>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label={t('admin.cityNameFr')} optional><input className="input" dir="ltr" value={editing.nameFr} onChange={(e) => setEditing({ ...editing, nameFr: e.target.value })} /></Field>
+              <Field label={t('admin.cityNameEn')} optional><input className="input" dir="ltr" value={editing.nameEn} onChange={(e) => setEditing({ ...editing, nameEn: e.target.value })} /></Field>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label={t('admin.cityKey')} hint={editing.id ? t('admin.cityKeyLocked') : t('admin.cityKeyHint')} error={fieldError('key')}>
+                <input className="input" dir="ltr" required disabled={Boolean(editing.id)} value={editing.key} placeholder="tevragh-zeina"
+                  onChange={(e) => setEditing({ ...editing, key: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-') })} />
+              </Field>
+              <Field label={t('admin.sortOrder')}><input className="input" type="number" min="0" dir="ltr" value={editing.sortOrder} onChange={(e) => setEditing({ ...editing, sortOrder: e.target.value })} /></Field>
+            </div>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editing.isActive} onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })} />{t('admin.cityActive')}</label>
+            <button className="btn-primary w-full" disabled={busy}><Icon name="check" className="h-4 w-4" />{busy ? t('common.loading') : t('common.saveChanges')}</button>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 }
@@ -281,7 +376,7 @@ export function AdminMenus() {
   return (
     <div className="max-w-4xl space-y-6">
       <PageTitle icon="link" title={t('admin.menus')} subtitle={t('admin.menusHint')}>
-        <button className="btn-primary" disabled={busy} onClick={submit}>{busy ? t('common.loading') : t('common.save')}</button>
+        <button className="btn-primary" disabled={busy} onClick={submit}>{busy ? t('common.loading') : t('common.saveChanges')}</button>
       </PageTitle>
       <ErrorBox error={error} />
       <div className="grid gap-6 lg:grid-cols-2">
@@ -304,7 +399,7 @@ export function AdminMenus() {
       </section>
       <div className="flex flex-wrap justify-between gap-2">
         <button type="button" className="btn-ghost text-rose-600" onClick={() => window.confirm(t('admin.menusResetConfirm')) && save({ menu: { header: null, footer: null, home: Object.fromEntries(HOME_SECTIONS.map((k) => [k, true])) } })}>{t('admin.menusReset')}</button>
-        <button className="btn-primary" disabled={busy} onClick={submit}>{t('common.save')}</button>
+        <button className="btn-primary" disabled={busy} onClick={submit}>{t('common.saveChanges')}</button>
       </div>
     </div>
   );
@@ -351,7 +446,7 @@ function PageEditor({ page, onClose, onSaved }) {
       const body = { slug: form.slug || slugify(form.title.en || form.title.fr) || `page-${Date.now().toString(36)}`, title: form.title, body: form.body, coverUrl: form.coverUrl || '', isPublished: form.isPublished };
       if (form.id) await api(`/admin/pages/${form.id}`, { method: 'PUT', body });
       else await api('/admin/pages', { method: 'POST', body });
-      notify(t('common.saved'));
+      notify(t('common.changesSaved'));
       onSaved();
     } catch (err) { setError(err); } finally { setBusy(false); }
   };
@@ -391,7 +486,7 @@ function PageEditor({ page, onClose, onSaved }) {
           )}
         </div>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isPublished} onChange={(e) => setForm({ ...form, isPublished: e.target.checked })} />{t('admin.pagePublished')}</label>
-        <button className="btn-primary w-full" disabled={busy}>{busy ? t('common.loading') : t('common.save')}</button>
+        <button className="btn-primary w-full" disabled={busy}>{busy ? t('common.loading') : t('common.saveChanges')}</button>
       </form>
     </Modal>
   );
@@ -405,7 +500,7 @@ export function AdminCustomPages() {
   const remove = async (p) => {
     if (!window.confirm(t('admin.deletePageConfirm', { title: pickLang(p.title, lang) }))) return;
     await api(`/admin/pages/${p.id}`, { method: 'DELETE' });
-    notify(t('common.saved'));
+    notify(t('common.changesSaved'));
     reload();
   };
   const open = (p) => setEditing(p ? { id: p.id, slug: p.slug, title: { ...emptyL(), ...p.title }, body: { ...emptyL(), ...p.body }, coverUrl: p.cover_url || '', isPublished: p.is_published } : emptyPage());

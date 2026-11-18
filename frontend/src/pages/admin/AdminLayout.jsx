@@ -2,7 +2,8 @@ import { Suspense, useEffect, useState } from 'react';
 import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ThemeToggle } from '../../components/AppChrome.jsx';
 import { LangSwitcher, Toast } from '../../components/Layout.jsx';
-import { ErrorBox, Field, Icon, LogoMark, Spinner, StatusBadge, useCityName } from '../../components/ui.jsx';
+import { ErrorBox, Field, Icon, SiteMark, Spinner, StatusBadge, useCityName } from '../../components/ui.jsx';
+import { useSettings } from '../../context/SettingsContext.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useI18n } from '../../i18n/index.jsx';
 import { api } from '../../lib/api.js';
@@ -15,9 +16,13 @@ const NAV = [
     ['listings', 'listings', 'image', 'pending_products'], ['merchants', 'merchantsTab', 'store', 'pending_merchants'],
     ['reports', 'reports', 'flag', 'open_reports'], ['requests', 'requests', 'star', 'pending_upgrades'],
   ]],
-  ['manage', [['users', 'users', 'user'], ['stores', 'stores', 'store'], ['categories', 'categories', 'filter'], ['reviews', 'reviews', 'star'], ['files', 'files', 'image']]],
+  ['manage', [
+    ['users', 'users', 'user'], ['stores', 'stores', 'store'], ['categories', 'categories', 'filter'], ['cities', 'cities', 'pin'],
+    ['reviews', 'reviews', 'star'], ['files', 'files', 'image'],
+  ]],
   ['site', [
-    ['settings', 'siteSettings', 'globe'], ['banner', 'banner', 'image'], ['menus', 'menus', 'menu'], ['pages', 'customPages', 'edit'],
+    ['appearance', 'appearance', 'star'], ['banner', 'banner', 'image'], ['alerts', 'alerts', 'bell'], ['payments', 'payments', 'phone'],
+    ['settings', 'siteSettings', 'globe'], ['menus', 'menus', 'menu'], ['pages', 'customPages', 'edit'],
     ['texts', 'siteTexts', 'edit'], ['sitemap', 'sitemap.title', 'link'],
   ]],
   ['account', [['account', 'adminAccount', 'shield']]],
@@ -73,7 +78,7 @@ export default function AdminLayout() {
             <Icon name={open ? 'x' : 'menu'} />
           </button>
           <Link to="/admin" className="flex items-center gap-2">
-            <LogoMark className="h-8 w-8" />
+            <SiteMark className="h-8 w-8" />
             <span className="font-bold">{t('admin.title')}</span>
           </Link>
           <div className="ms-auto flex items-center gap-1.5">
@@ -111,6 +116,7 @@ export function AdminLogin() {
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   useDocumentTitle(t('admin.loginTitle'));
+  const siteName = useSettings().settings.appearance?.siteName;
   const leaving = Boolean(location.state?.logout);
   useEffect(() => { if (leaving) logout(); }, [leaving, logout]);
   if (user?.role === 'admin' && !leaving) return <Navigate to={location.state?.from || '/admin'} replace />;
@@ -131,8 +137,8 @@ export function AdminLogin() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-900 via-brand-800 to-brand-700 p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-2 text-white">
-          <LogoMark className="h-14 w-14" />
-          <p className="text-lg font-bold">MauriMarket</p>
+          <SiteMark className="h-14 w-14" />
+          <p className="text-lg font-bold">{siteName || 'MauriMarket'}</p>
         </div>
         <form onSubmit={submit} className="card space-y-4 p-6" noValidate>
           <div>
@@ -244,7 +250,7 @@ function ActiveListingsCard({ live, total }) {
         </span>
         <span className="flex shrink-0 flex-col items-center gap-1">
           <span className="relative flex h-16 w-16 items-center justify-center rounded-full sm:h-20 sm:w-20"
-            style={{ background: `conic-gradient(#fbc531 ${pct * 3.6}deg, rgba(255,255,255,.18) 0)` }}>
+            style={{ background: `conic-gradient(rgb(var(--gold-400)) ${pct * 3.6}deg, rgba(255,255,255,.18) 0)` }}>
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-700 text-sm font-bold ltr-nums sm:h-16 sm:w-16 sm:text-base">{pct}%</span>
           </span>
           <Icon name="chevron" className="h-5 w-5 text-brand-100 transition-transform rtl:rotate-180 group-hover:-translate-x-1 ltr:group-hover:translate-x-1" />

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useSettings } from '../context/SettingsContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 
 const ICONS = {
@@ -78,26 +79,37 @@ export function LogoMark({ className = 'h-10 w-10' }) {
     <svg viewBox="0 0 64 64" className={`shrink-0 ${className}`} aria-hidden="true">
       <defs>
         <linearGradient id="mm-bag" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#249b5e" />
-          <stop offset="1" stopColor="#0b462a" />
+          <stop offset="0" style={{ stopColor: 'rgb(var(--brand-500))' }} />
+          <stop offset="1" style={{ stopColor: 'rgb(var(--brand-900))' }} />
         </linearGradient>
       </defs>
-      <path d="M22 24v-6a10 10 0 0 1 20 0v6" fill="none" stroke="#0d5532" strokeWidth="4.5" strokeLinecap="round" />
+      <path d="M22 24v-6a10 10 0 0 1 20 0v6" fill="none" style={{ stroke: 'rgb(var(--brand-800))' }} strokeWidth="4.5" strokeLinecap="round" />
       <path d="M11 22h42l-3.2 31.5A6 6 0 0 1 43.8 59H20.2a6 6 0 0 1-6-5.5z" fill="url(#mm-bag)" />
-      <path d="M32 31.5l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L32 46.3l-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9z" fill="#fbc531" />
-      <path d="M6 51c14 7 33 5 52-11" fill="none" stroke="#fbc531" strokeWidth="3.5" strokeLinecap="round" />
+      <path d="M32 31.5l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L32 46.3l-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9z" style={{ fill: 'rgb(var(--gold-400))' }} />
+      <path d="M6 51c14 7 33 5 52-11" fill="none" style={{ stroke: 'rgb(var(--gold-400))' }} strokeWidth="3.5" strokeLinecap="round" />
     </svg>
   );
 }
 
+/** The site's mark: the admin's uploaded logo, or the built-in bag. */
+export function SiteMark({ className = 'h-10 w-10' }) {
+  const { logoUrl } = useSettings().settings.appearance || {};
+  return logoUrl ? <img src={logoUrl} alt="" className={`shrink-0 object-contain ${className}`} /> : <LogoMark className={className} />;
+}
+
 export function Logo({ className = '', size = 'md' }) {
   const big = size === 'lg';
+  const name = useSettings().settings.appearance?.siteName;
   return (
-    <Link to="/" className={`flex items-center gap-1.5 ${className}`} aria-label="MauriMarket">
-      <LogoMark className={big ? 'h-12 w-12' : 'h-10 w-10'} />
-      <span className={`${big ? 'text-2xl' : 'text-xl'} font-bold tracking-tight`} dir="ltr">
-        <span className="text-brand-900 dark-brand-text">Mauri</span><span className="text-brand-600">Market</span>
-      </span>
+    <Link to="/" className={`flex items-center gap-1.5 ${className}`} aria-label={name || 'MauriMarket'}>
+      <SiteMark className={big ? 'h-12 w-12' : 'h-10 w-10'} />
+      {name ? (
+        <span className={`${big ? 'text-2xl' : 'text-xl'} max-w-[11rem] truncate font-bold tracking-tight text-brand-800 dark-brand-text sm:max-w-none`}>{name}</span>
+      ) : (
+        <span className={`${big ? 'text-2xl' : 'text-xl'} font-bold tracking-tight`} dir="ltr">
+          <span className="text-brand-900 dark-brand-text">Mauri</span><span className="text-brand-600">Market</span>
+        </span>
+      )}
     </Link>
   );
 }

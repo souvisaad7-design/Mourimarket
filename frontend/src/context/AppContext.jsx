@@ -57,10 +57,17 @@ export function AppProvider({ children }) {
 
   const login = useCallback((token, u) => { setToken(token); setUser(u); refreshUser(); }, [refreshUser]);
   const logout = useCallback(() => { setToken(null); setUser(null); }, []);
+  const reloadMeta = useCallback(() => api('/meta').then(setMeta).catch(() => {}), []);
+  // Cities, prices and categories are edited in /admin: refresh them when the visitor comes back to the tab.
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') { reloadMeta(); loadCategories(); } };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [reloadMeta, loadCategories]);
 
   const value = useMemo(
-    () => ({ user, ready, login, logout, refreshUser, categories, loadCategories, meta, counts, refreshCounts, notify, toast }),
-    [user, ready, login, logout, refreshUser, categories, loadCategories, meta, counts, refreshCounts, notify, toast],
+    () => ({ user, ready, login, logout, refreshUser, categories, loadCategories, meta, reloadMeta, counts, refreshCounts, notify, toast }),
+    [user, ready, login, logout, refreshUser, categories, loadCategories, meta, reloadMeta, counts, refreshCounts, notify, toast],
   );
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

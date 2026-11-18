@@ -396,7 +396,6 @@ describe('admin: latest activity', () => {
 
 describe('free mode (default): paid requests are off', () => {
   it('hides prices and the request endpoints', async () => {
-    delete process.env.PAID_UPGRADES;
     assert.equal((await call('/api/meta')).data.upgrades, null);
     const seller = await login('mohamed@example.mr');
     assert.equal((await call('/api/upgrade-requests', { token: seller })).status, 404);
@@ -405,9 +404,15 @@ describe('free mode (default): paid requests are off', () => {
   });
 });
 
-describe('verification & featuring requests (PAID_UPGRADES=true)', () => {
-  before(() => { process.env.PAID_UPGRADES = 'true'; });
-  after(() => { delete process.env.PAID_UPGRADES; });
+const setPaid = async (on) => {
+  const admin = await login('admin@maurimarket.mr', 'Admin12345');
+  const s = (await call('/api/admin/settings', { token: admin })).data.settings;
+  await call('/api/admin/settings', { method: 'PUT', token: admin, body: { features: { ...s.features, paidUpgrades: on } } });
+};
+
+describe('verification & featuring requests (paid features turned on in the panel)', () => {
+  before(() => setPaid(true));
+  after(() => setPaid(false));
   const receipt = () => new Blob([PNG], { type: 'image/png' });
   const form = (fields, withReceipt = true) => {
     const fd = new FormData();
@@ -697,22 +702,93 @@ describe('admin: add users, post for anyone, pages, banner and menus', () => {
     assert.equal((await call(`/api/admin/pages/${c.data.page.id}`, { method: 'DELETE', token: admin })).status, 200);
   });
 
-  it('saves banner slides and menus (validated)', async () => {
-    const slide = { enabled: true, title: { ar: 'عرض خاص', fr: '', en: '' }, text: { ar: 'نص', fr: '', en: '' }, cta: { ar: 'اكتشف', fr: '', en: '' }, link: '/products', image: '' };
+  it('saves banners (own table) and menus (validated)', async () => {
+    const slide = { title: { ar: 'عرض خاص', fr: '', en: '' }, subtitle: { ar: 'نص', fr: '', en: '' }, cta: { ar: 'اكتشف', fr: '', en: '' }, link: '/products', imageUrl: '', isActive: true };
+    const hidden = { ...slide, title: { ar: 'مخفي', fr: '', en: '' }, isActive: false };
+    const b = await call('/api/admin/banners', { method: 'PUT', token: admin, body: { items: [slide, hidden] } });
+    assert.equal(b.status, 200, JSON.stringify(b.data));
+    assert.equal(b.data.items.length, 2);
+    const pubBanners = (await call('/api/settings')).data.banners;
+    assert.deepEqual(pubBanners.map((x) => x.title.ar), ['عرض خاص'], 'hidden banners are not public');
+    assert.equal((await call('/api/admin/banners', { method: 'PUT', token: admin, body: { items: [{ ...slide, link: 'javascript:alert(1)' }] } })).status, 400);
     const ok = await call('/api/admin/settings', { method: 'PUT', token: admin, body: {
-      hero: { slides: [slide] },
       menu: { header: [{ type: 'builtin', key: 'home' }, { type: 'link', label: { ar: 'الشروط', fr: '', en: '' }, to: '/p/terms' }], footer: null,
         home: { hero: true, categories: true, latest: true, promo: false, deals: true, cities: false, stores: true, features: true } },
     } });
     assert.equal(ok.status, 200, JSON.stringify(ok.data));
     const s = (await call('/api/settings')).data.settings;
-    assert.equal(s.hero.slides[0].title.ar, 'عرض خاص');
     assert.equal(s.menu.header[1].to, '/p/terms');
     assert.equal(s.menu.home.cities, false);
-    const bad = await call('/api/admin/settings', { method: 'PUT', token: admin, body: { hero: { slides: [{ ...slide, link: 'javascript:alert(1)' }] } } });
-    assert.equal(bad.status, 400);
     const bad2 = await call('/api/admin/settings', { method: 'PUT', token: admin, body: { menu: { header: [{ type: 'builtin', key: 'nope' }], footer: null, home: s.menu.home } } });
     assert.equal(bad2.status, 400);
-    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { hero: { slides: [] }, menu: { header: null, footer: null, home: { ...s.menu.home, promo: true, cities: true } } } });
+    await call('/api/admin/banners', { method: 'PUT', token: admin, body: { items: [] } });
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { menu: { header: null, footer: null, home: { ...s.menu.home, promo: true, cities: true } } } });
+  });
+});
+
+describe('admin: identity, maintenance, prices, cities', () => {
+  let admin;
+  before(async () => { admin = await login('admin@maurimarket.mr', 'Admin12345'); });
+
+  it('saves identity & colours (validated) and serves them publicly', async () => {
+    const ok = await call('/api/admin/settings', { method: 'PUT', token: admin, body: { appearance: { siteName: 'سوق موريتانيا', logoUrl: '', primaryColor: '#1d4ed8', secondaryColor: '#f97316' } } });
+    assert.equal(ok.status, 200);
+    const s = (await call('/api/settings')).data.settings;
+    assert.equal(s.appearance.siteName, 'سوق موريتانيا');
+    assert.equal(s.appearance.primaryColor, '#1d4ed8');
+    assert.equal((await call('/api/admin/settings', { method: 'PUT', token: admin, body: { appearance: { primaryColor: 'red' } } })).status, 400);
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { appearance: { siteName: '', logoUrl: '', primaryColor: '', secondaryColor: '' } } });
+  });
+
+  it('maintenance mode: visitors can read but not write; admins keep working', async () => {
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { maintenance: { enabled: true, message: { ar: 'نعود قريباً', fr: '', en: '' } } } });
+    assert.equal((await call('/api/products')).status, 200, 'reading still works');
+    const reg = await call('/api/auth/register', { method: 'POST', body: { name: 'Late', phone: '41998877', password: 'latecomer1' } });
+    assert.equal(reg.status, 503);
+    assert.equal(reg.data.error, 'maintenance');
+    const seller = await login('mohamed@example.mr');
+    assert.ok(seller, 'login still works');
+    assert.equal((await call('/api/favorites/1', { method: 'POST', token: seller })).status, 503);
+    assert.equal((await call('/api/admin/settings', { token: admin })).status, 200);
+    assert.notEqual((await call('/api/favorites/1', { method: 'POST', token: admin })).status, 503, 'admins are not blocked');
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { maintenance: { enabled: false, message: { ar: '', fr: '', en: '' } } } });
+    assert.equal((await call('/api/auth/register', { method: 'POST', body: { name: 'Late', phone: '41998877', password: 'latecomer1' } })).status, 201);
+  });
+
+  it('prices and the paid switch come from the panel', async () => {
+    const s = (await call('/api/admin/settings', { token: admin })).data.settings;
+    const r = await call('/api/admin/settings', { method: 'PUT', token: admin, body: {
+      pricing: { verifyPrice: 750, featurePlans: [{ days: 3, price: 100 }, { days: 10, price: 300 }] }, features: { ...s.features, paidUpgrades: true },
+    } });
+    assert.equal(r.status, 200, JSON.stringify(r.data));
+    const meta = (await call('/api/meta')).data.upgrades;
+    assert.equal(meta.verifyPrice, 750);
+    assert.deepEqual(meta.featurePlans.map((p) => p.days), [3, 10]);
+    const seller = await login('fatimetou@example.mr');
+    const fd = new FormData(); fd.append('kind', 'verify'); fd.append('paymentMethod', 'bankily'); fd.append('receipt', new Blob([PNG], { type: 'image/png' }), 'r.png');
+    const req = await call('/api/upgrade-requests', { method: 'POST', token: seller, form: fd });
+    assert.ok(req.status === 201 || req.data.error === 'already_verified', JSON.stringify(req.data));
+    if (req.status === 201) assert.equal(req.data.request.amount, 750);
+    assert.equal((await call('/api/admin/settings', { method: 'PUT', token: admin, body: { pricing: { verifyPrice: 1, featurePlans: [{ days: 3, price: 1 }, { days: 3, price: 2 }] } } })).status, 400, 'duplicate days rejected');
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { pricing: s.pricing, features: s.features } });
+    assert.equal((await call('/api/meta')).data.upgrades, null);
+  });
+
+  it('cities: add, rename, hide, validate, and refuse deleting a city in use', async () => {
+    const list = (await call('/api/admin/cities', { token: admin })).data.items;
+    assert.ok(list.length >= 10 && list.find((c) => c.key === 'nouakchott').used > 0);
+    const c = await call('/api/admin/cities', { method: 'POST', token: admin, body: { key: 'chami', nameAr: 'الشامي', nameFr: 'Chami', nameEn: 'Chami' } });
+    assert.equal(c.status, 201);
+    assert.equal((await call('/api/admin/cities', { method: 'POST', token: admin, body: { key: 'chami', nameAr: 'مكرر' } })).data.error, 'city_exists');
+    assert.ok((await call('/api/meta')).data.cities.some((x) => x.key === 'chami' && x.ar === 'الشامي'));
+    // usable in forms right away
+    const r = await call('/api/auth/register', { method: 'POST', body: { name: 'من الشامي', phone: '41887766', password: 'chami1234', city: 'chami' } });
+    assert.equal(r.status, 201);
+    assert.equal((await call('/api/auth/register', { method: 'POST', body: { name: 'Bad city', phone: '41887755', password: 'chami1234', city: 'atlantis' } })).data.fields.city, 'invalid');
+    assert.equal((await call(`/api/admin/cities/${c.data.city.id}`, { method: 'DELETE', token: admin })).data.error, 'city_in_use');
+    await call(`/api/admin/cities/${c.data.city.id}`, { method: 'PUT', token: admin, body: { key: 'chami', nameAr: 'الشامي', isActive: false, sortOrder: 5 } });
+    assert.ok(!(await call('/api/meta')).data.cities.some((x) => x.key === 'chami'), 'hidden cities leave the filters');
+    const unused = await call('/api/admin/cities', { method: 'POST', token: admin, body: { key: 'bir-moghrein', nameAr: 'بئر أم كرين' } });
+    assert.equal((await call(`/api/admin/cities/${unused.data.city.id}`, { method: 'DELETE', token: admin })).status, 200);
   });
 });

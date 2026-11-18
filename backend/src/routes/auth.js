@@ -6,7 +6,7 @@ import { config } from '../config.js';
 import { query } from '../db.js';
 import { notifyMerchantRequest } from '../lib/merchant.js';
 import { getSettings } from '../lib/settings.js';
-import { CITY_KEYS } from '../lib/constants.js';
+import { assertCity, cityKey } from '../lib/cities.js';
 import { badRequest, conflict, forbidden, parse, unauthorized } from '../lib/http.js';
 import { normalizePhone } from '../lib/phone.js';
 import { requireAuth, signToken } from '../middleware/auth.js';
@@ -41,7 +41,7 @@ const registerSchema = z.object({
   email: optionalEmail,
   password,
   accountType: z.enum(ACCOUNT_TYPES).default('buyer'),
-  city: z.enum(CITY_KEYS).optional(),
+  city: cityKey.optional(),
 });
 
 /** Map unique-index violations to friendly error codes. */
@@ -55,6 +55,7 @@ function uniqueConflict(err) {
 router.post('/register', async (req, res) => {
   if (!(await getSettings()).features.registration) throw forbidden('registration_closed');
   const data = parse(registerSchema, req.body);
+  await assertCity(data.city);
   if ((await query('SELECT 1 FROM users WHERE phone = $1', [data.phone])).rowCount) throw conflict('phone_taken');
   if (data.email && (await query('SELECT 1 FROM users WHERE email = $1', [data.email])).rowCount) throw conflict('email_taken');
   const hash = await bcrypt.hash(data.password, 12);
@@ -128,13 +129,14 @@ const profileSchema = z.object({
   name: z.string().trim().min(2, 'min_2').max(100),
   phone: z.preprocess(emptyToUndefined, phoneField.optional()),
   email: optionalEmail,
-  city: z.enum(CITY_KEYS).optional().or(z.literal('')),
+  city: cityKey.optional().or(z.literal('')),
   bio: z.string().trim().max(500).optional(),
   accountType: z.enum(ACCOUNT_TYPES).optional(),
 });
 
 router.put('/me', requireAuth, upload.single('avatar'), async (req, res) => {
   const data = parse(profileSchema, req.body);
+  await assertCity(data.city);
   const old = (await query('SELECT avatar_url, phone, email, account_type, merchant_status FROM users WHERE id = $1', [req.user.id])).rows[0];
   // Account type: asking for "merchant" files a request for an admin to review instead.
   let accountType = data.accountType || old.account_type;
