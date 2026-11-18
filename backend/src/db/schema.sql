@@ -282,3 +282,13 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS merchant_reviewed_by INT REFERENCES u
 ALTER TABLE users ADD COLUMN IF NOT EXISTS merchant_reviewed_at TIMESTAMPTZ;
 UPDATE users SET merchant_status = 'approved' WHERE account_type = 'merchant' AND merchant_status IS NULL;
 CREATE INDEX IF NOT EXISTS idx_users_merchant_status ON users(merchant_status, merchant_requested_at);
+
+-- ---------- Site settings edited from the admin panel ----------
+-- One JSON document per section (contact, social, announcement, features, payment, texts).
+CREATE TABLE IF NOT EXISTS site_settings (
+  key         TEXT PRIMARY KEY,
+  value       JSONB NOT NULL,
+  updated_by  INT REFERENCES users(id) ON DELETE SET NULL,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE site_settings ENABLE ROW LEVEL SECURITY;

@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Icon } from '../components/ui.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { useDocumentTitle } from '../lib/hooks.js';
-import { SITE_CONTACT } from '../siteConfig.js';
+import { useSettings } from '../context/SettingsContext.jsx';
 
 const SAFETY = {
   ar: ['قابل البائع في مكان عام ومزدحم، ويفضل نهاراً.', 'افحص المنتج جيداً قبل الدفع، وجرّب الأجهزة الإلكترونية.', 'لا ترسل أي مبلغ مقدماً عبر تطبيقات التحويل قبل استلام المنتج.', 'بالنسبة للسيارات والعقارات، تحقق من الأوراق الرسمية قبل الاتفاق.', 'استخدم نظام الرسائل في المنصة لحفظ سجل المحادثة.', 'أبلغ عن أي إعلان مشبوه باستخدام زر «الإبلاغ عن الإعلان».'],
@@ -50,7 +50,8 @@ export function About() {
   useEffect(() => {
     if (hash === '#contact') setTimeout(() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' }), 50);
   }, [hash]);
-  const wa = SITE_CONTACT.whatsapp.replace(/[^\d]/g, '');
+  const SITE_CONTACT = useSettings().settings.contact;
+  const wa = (SITE_CONTACT.whatsapp || '').replace(/[^\d]/g, '');
   return (
     <div className="container-page max-w-4xl space-y-6 py-10">
       <div className="rounded-3xl bg-gradient-to-bl from-brand-700 to-brand-900 p-8 text-white">
@@ -75,13 +76,15 @@ export function About() {
       </div>
       <section id="contact" className="card scroll-mt-24 p-6">
         <h2 className="mb-2 flex items-center gap-2 text-lg font-bold"><Icon name="mail" className="h-5 w-5 text-brand-700" />{t('about.contactTitle')}</h2>
-        {SITE_CONTACT.email || wa ? (
+        {SITE_CONTACT.email || wa || SITE_CONTACT.phone ? (
           <>
             <p className="mb-4 text-slate-600">{t('about.contactText')}</p>
             <div className="flex flex-wrap gap-3">
               {SITE_CONTACT.email && <a href={`mailto:${SITE_CONTACT.email}`} className="btn-outline" dir="ltr"><Icon name="mail" className="h-4 w-4" />{SITE_CONTACT.email}</a>}
+              {SITE_CONTACT.phone && <a href={`tel:${SITE_CONTACT.phone.replace(/[^\d+]/g, '')}`} className="btn-outline" dir="ltr"><Icon name="phone" className="h-4 w-4" />{SITE_CONTACT.phone}</a>}
               {wa && <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" className="btn bg-[#25D366] text-white hover:brightness-95">{t('about.whatsapp')} <span className="ltr-nums">{SITE_CONTACT.whatsapp}</span></a>}
             </div>
+            {SITE_CONTACT.address && <p className="mt-4 flex items-center gap-2 text-sm text-slate-600"><Icon name="pin" className="h-4 w-4 text-brand-700" />{SITE_CONTACT.address}</p>}
           </>
         ) : <p className="text-slate-600">{t('about.contactSoon')}</p>}
       </section>

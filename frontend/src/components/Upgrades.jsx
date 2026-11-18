@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
 import { compressImage } from '../lib/image.js';
-import { SITE_PAYMENT } from '../siteConfig.js';
+import { useSettings } from '../context/SettingsContext.jsx';
 import { ErrorBox, Field, Icon, Modal, useFieldError } from './ui.jsx';
 
 const STATUS_TONE = {
@@ -18,6 +18,7 @@ export const isFeaturable = (p) => p.status === 'approved' && p.availability ===
 export function UpgradeModal({ request, products = [], onClose, onDone }) {
   const { t, price } = useI18n();
   const { meta, notify } = useApp();
+  const SITE_PAYMENT = useSettings().settings.payment;
   const cfg = meta.upgrades || { verifyPrice: 0, featurePlans: [], paymentMethods: [] };
   const kind = request?.kind;
   const featurable = products.filter(isFeaturable);

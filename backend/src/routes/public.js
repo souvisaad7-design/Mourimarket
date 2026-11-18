@@ -6,12 +6,19 @@ import { CITIES, CITY_KEYS, REPORT_REASONS, FEATURE_PLANS, PAYMENT_METHODS, VERI
 import { conflict, forbidden, notFound, parse, slugify } from '../lib/http.js';
 import { requireAuth } from '../middleware/auth.js';
 import { removeUploads, saveFile, upload } from '../middleware/upload.js';
+import { getSettings } from '../lib/settings.js';
 import { PRODUCT_FROM, PRODUCT_SELECT } from './products.js';
 
 const router = Router();
 
 router.get('/meta', (_req, res) => {
   res.json({ cities: CITIES, reportReasons: REPORT_REASONS, currency: 'MRU', upgrades: paidUpgradesEnabled() ? { verifyPrice: VERIFY_PRICE, featurePlans: FEATURE_PLANS, paymentMethods: PAYMENT_METHODS } : null });
+});
+
+/** GET /api/settings – site texts, contact details and switches the admin edits. */
+router.get('/settings', async (_req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  res.json({ settings: await getSettings() });
 });
 
 router.get('/categories', async (_req, res) => {

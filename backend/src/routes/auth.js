@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { config } from '../config.js';
 import { query } from '../db.js';
 import { notifyMerchantRequest } from '../lib/merchant.js';
+import { getSettings } from '../lib/settings.js';
 import { CITY_KEYS } from '../lib/constants.js';
 import { badRequest, conflict, forbidden, parse, unauthorized } from '../lib/http.js';
 import { normalizePhone } from '../lib/phone.js';
@@ -52,6 +53,7 @@ function uniqueConflict(err) {
 }
 
 router.post('/register', async (req, res) => {
+  if (!(await getSettings()).features.registration) throw forbidden('registration_closed');
   const data = parse(registerSchema, req.body);
   if ((await query('SELECT 1 FROM users WHERE phone = $1', [data.phone])).rowCount) throw conflict('phone_taken');
   if (data.email && (await query('SELECT 1 FROM users WHERE email = $1', [data.email])).rowCount) throw conflict('email_taken');

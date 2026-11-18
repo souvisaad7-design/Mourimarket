@@ -5,6 +5,9 @@ import { z } from 'zod';
 import { query, tx } from '../db.js';
 import { badRequest, conflict, notFound, pagination, parse } from '../lib/http.js';
 import { notify } from '../lib/notify.js';
+import { normalizePhone } from '../lib/phone.js';
+import { getSettings, saveSettings } from '../lib/settings.js';
+import { CITY_KEYS } from '../lib/constants.js';
 import { requireAdmin, requireAuth } from '../middleware/auth.js';
 import { removeUploads, sendFile } from '../middleware/upload.js';
 import { PRODUCT_FROM, PRODUCT_SELECT } from './products.js';
@@ -62,10 +65,10 @@ router.get('/users', async (req, res) => {
   const { limit, offset, page } = pagination(req.query, { defaultLimit: 30 });
   const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
   const params = [q];
-  const where = `WHERE ($1 = '' OR u.name ILIKE '%' || $1 || '%' OR u.email ILIKE '%' || $1 || '%')`;
+  const where = `WHERE ($1 = '' OR u.name ILIKE '%' || $1 || '%' OR u.email ILIKE '%' || $1 || '%' OR u.phone LIKE '%' || $1 || '%')`;
   const [items, total] = await Promise.all([
     query(
-      `SELECT u.id, u.name, u.email, u.phone, u.role, u.account_type, u.city, u.is_active, u.is_verified, u.created_at,
+      `SELECT u.id, u.name, u.email, u.phone, u.role, u.account_type, u.city, u.bio, u.is_active, u.is_verified, u.created_at,
          (SELECT COUNT(*) FROM products p WHERE p.seller_id = u.id) AS products_count
        FROM users u ${where} ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`,
       params,
@@ -270,7 +273,7 @@ router.patch('/reports/:id', async (req, res) => {
 
 router.get('/stores', async (_req, res) => {
   const { rows } = await query(
-    `SELECT s.id, s.name, s.slug, s.city, s.is_active, s.created_at, u.id AS owner_id, u.name AS owner_name, u.email AS owner_email,
+    `SELECT s.id, s.name, s.slug, s.city, s.description, s.phone, s.whatsapp, s.email, s.is_active, s.created_at, u.id AS owner_id, u.name AS owner_name, u.email AS owner_email,
        u.is_verified AS owner_verified,
        (SELECT COUNT(*) FROM products p WHERE p.store_id = s.id) AS products_count
      FROM stores s JOIN users u ON u.id = s.owner_id ORDER BY s.created_at DESC`,
@@ -431,4 +434,185 @@ router.patch('/merchant-requests/:id', async (req, res) => {
   if (data.status === 'approved') await notify(id, 'merchant_approved', {}, '/dashboard/store');
   else await notify(id, 'merchant_rejected', { reason: data.note }, '/profile');
   res.json({ user: rows[0] });
+});
+
+// ---------- Site settings (texts, contact, switches) ----------
+
+router.get('/settings', async (_req, res) => {
+  const { rows } = await query(
+    `SELECT s.key, s.updated_at, u.name AS updated_by_name FROM site_settings s LEFT JOIN users u ON u.id = s.updated_by`,
+  );
+  res.json({ settings: await getSettings({ fresh: true }), updated: rows });
+});
+
+/** PUT /admin/settings { contact?, social?, announcement?, features?, payment?, texts? } – each section replaced whole. */
+router.put('/settings', async (req, res) => {
+  res.json({ settings: await saveSettings(req.body, req.user.id) });
+});
+
+// ---------- The admin's own account (login email + password) ----------
+
+router.put('/account', async (req, res) => {
+  const data = parse(
+    z.object({
+      currentPassword: z.string().min(1),
+      name: z.string().trim().min(2, 'min_2').max(100).optional(),
+      email: z.string().trim().toLowerCase().email('invalid_email').max(160).optional(),
+      newPassword: z.string().min(8, 'min_8').max(128).optional().or(z.literal('')),
+    }),
+    req.body,
+  );
+  const me = (await query('SELECT password_hash FROM users WHERE id = $1', [req.user.id])).rows[0];
+  if (!(await bcrypt.compare(data.currentPassword, me.password_hash))) throw badRequest('wrong_password');
+  if (data.email && (await query('SELECT 1 FROM users WHERE email = $1 AND id <> $2', [data.email, req.user.id])).rowCount) {
+    throw conflict('email_taken');
+  }
+  const hash = data.newPassword ? await bcrypt.hash(data.newPassword, 12) : null;
+  const { rows } = await query(
+    `UPDATE users SET name = COALESCE($1, name), email = COALESCE($2, email),
+       password_hash = COALESCE($3, password_hash), updated_at = now()
+     WHERE id = $4 RETURNING id, name, email, role`,
+    [data.name ?? null, data.email ?? null, hash, req.user.id],
+  );
+  res.json({ user: rows[0], passwordChanged: Boolean(hash) });
+});
+
+// ---------- Users: edit details, delete ----------
+
+router.put('/users/:id/profile', async (req, res) => {
+  const id = parseInt(req.params.id, 10) || 0;
+  const data = parse(
+    z.object({
+      name: z.string().trim().min(2, 'min_2').max(100),
+      phone: z.string().trim().max(30).optional().or(z.literal('')),
+      email: z.string().trim().toLowerCase().email('invalid_email').max(160).optional().or(z.literal('')),
+      city: z.enum(CITY_KEYS).optional().or(z.literal('')),
+      bio: z.string().trim().max(500).optional(),
+    }),
+    req.body,
+  );
+  const phone = data.phone ? normalizePhone(data.phone) : null;
+  if (data.phone && !phone) throw badRequest('validation_error', { phone: 'invalid_phone' });
+  if (!phone && !data.email) throw badRequest('validation_error', { phone: 'required' });
+  try {
+    const { rows } = await query(
+      `UPDATE users SET name = $1, phone = $2, email = $3, city = $4, bio = $5, updated_at = now()
+       WHERE id = $6 RETURNING id, name, phone, email, city, bio`,
+      [data.name, phone, data.email || null, data.city || null, data.bio || null, id],
+    );
+    if (!rows[0]) throw notFound('user_not_found');
+    res.json({ user: rows[0] });
+  } catch (err) {
+    if (err.code === '23505') throw conflict(String(err.constraint || err.detail).includes('phone') ? 'phone_taken' : 'email_taken');
+    throw err;
+  }
+});
+
+/** DELETE /admin/users/:id – removes the account and everything it owns (listings, store, messages…). */
+router.delete('/users/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10) || 0;
+  if (id === req.user.id) throw badRequest('cannot_delete_self');
+  const u = (await query('SELECT role, avatar_url FROM users WHERE id = $1', [id])).rows[0];
+  if (!u) throw notFound('user_not_found');
+  if (u.role === 'admin') throw badRequest('cannot_delete_admin');
+  const files = await query(
+    `SELECT i.url FROM product_images i JOIN products p ON p.id = i.product_id WHERE p.seller_id = $1
+     UNION ALL SELECT logo_url FROM stores WHERE owner_id = $1`,
+    [id],
+  );
+  await query('DELETE FROM users WHERE id = $1', [id]);
+  removeUploads([u.avatar_url, ...files.rows.map((r) => r.url)]);
+  res.json({ ok: true });
+});
+
+// ---------- Stores: edit, delete ----------
+
+router.put('/stores/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10) || 0;
+  const data = parse(
+    z.object({
+      name: z.string().trim().min(2, 'min_2').max(100),
+      description: z.string().trim().max(2000).optional(),
+      phone: z.string().trim().max(30).optional(),
+      whatsapp: z.string().trim().max(30).optional(),
+      email: z.string().trim().max(160).optional(),
+      city: z.enum(CITY_KEYS).optional().or(z.literal('')),
+    }),
+    req.body,
+  );
+  const { rows } = await query(
+    `UPDATE stores SET name = $1, description = $2, phone = $3, whatsapp = $4, email = $5, city = $6, updated_at = now()
+     WHERE id = $7 RETURNING id, name, slug`,
+    [data.name, data.description || null, data.phone || null, data.whatsapp || null, data.email || null, data.city || null, id],
+  );
+  if (!rows[0]) throw notFound('store_not_found');
+  res.json({ store: rows[0] });
+});
+
+router.delete('/stores/:id', async (req, res) => {
+  const { rows } = await query('DELETE FROM stores WHERE id = $1 RETURNING owner_id, name, logo_url', [parseInt(req.params.id, 10) || 0]);
+  if (!rows[0]) throw notFound('store_not_found');
+  removeUploads([rows[0].logo_url]);
+  await notify(rows[0].owner_id, 'store_disabled', { name: rows[0].name }, '/dashboard/store');
+  res.json({ ok: true });
+});
+
+// ---------- Reviews ----------
+
+router.get('/reviews', async (req, res) => {
+  const { limit, offset, page } = pagination(req.query, { defaultLimit: 30 });
+  const [items, total] = await Promise.all([
+    query(
+      `SELECT r.id, r.rating, r.comment, r.created_at, r.product_id, p.title AS product_title,
+         r.reviewer_id, rv.name AS reviewer_name, r.seller_id, s.name AS seller_name
+       FROM reviews r JOIN products p ON p.id = r.product_id JOIN users rv ON rv.id = r.reviewer_id JOIN users s ON s.id = r.seller_id
+       ORDER BY r.created_at DESC LIMIT ${limit} OFFSET ${offset}`,
+    ),
+    query('SELECT COUNT(*) AS n FROM reviews'),
+  ]);
+  res.json({ items: items.rows, total: total.rows[0].n, page, limit });
+});
+
+router.delete('/reviews/:id', async (req, res) => {
+  const { rowCount } = await query('DELETE FROM reviews WHERE id = $1', [parseInt(req.params.id, 10) || 0]);
+  if (!rowCount) throw notFound();
+  res.json({ ok: true });
+});
+
+// ---------- Files (uploaded images) ----------
+
+const FILE_USAGE = `
+  (SELECT json_build_object('kind', 'listing', 'id', p.id, 'label', p.title)
+     FROM product_images i JOIN products p ON p.id = i.product_id WHERE i.url = '/uploads/f/' || f.id LIMIT 1),
+  (SELECT json_build_object('kind', 'avatar', 'id', u.id, 'label', u.name) FROM users u WHERE u.avatar_url = '/uploads/f/' || f.id LIMIT 1),
+  (SELECT json_build_object('kind', 'store', 'id', s.id, 'label', s.name, 'slug', s.slug) FROM stores s WHERE s.logo_url = '/uploads/f/' || f.id LIMIT 1)`;
+
+router.get('/files', async (req, res) => {
+  const { limit, offset, page } = pagination(req.query, { defaultLimit: 48, maxLimit: 96 });
+  const unused = req.query.filter === 'unused';
+  const where = `WHERE NOT f.is_private ${unused ? `AND COALESCE(${FILE_USAGE}) IS NULL` : ''}`;
+  const [items, total, sum] = await Promise.all([
+    query(
+      `SELECT f.id, f.mime, octet_length(f.data) AS size, f.created_at, '/uploads/f/' || f.id AS url,
+         COALESCE(${FILE_USAGE}) AS used_by
+       FROM files f ${where} ORDER BY f.id DESC LIMIT ${limit} OFFSET ${offset}`,
+    ),
+    query(`SELECT COUNT(*) AS n FROM files f ${where}`),
+    query('SELECT COUNT(*) AS n, COALESCE(SUM(octet_length(data)), 0) AS bytes FROM files WHERE NOT is_private'),
+  ]);
+  res.json({ items: items.rows, total: total.rows[0].n, page, limit, totals: sum.rows[0] });
+});
+
+/** DELETE /admin/files/:id – also detaches it from the listing / avatar / store logo using it. */
+router.delete('/files/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10) || 0;
+  const url = `/uploads/f/${id}`;
+  await tx(async (client) => {
+    await client.query('DELETE FROM product_images WHERE url = $1', [url]);
+    await client.query('UPDATE users SET avatar_url = NULL WHERE avatar_url = $1', [url]);
+    await client.query('UPDATE stores SET logo_url = NULL WHERE logo_url = $1', [url]);
+    const { rowCount } = await client.query('DELETE FROM files WHERE id = $1 AND NOT is_private', [id]);
+    if (!rowCount) throw notFound();
+  });
+  res.json({ ok: true });
 });

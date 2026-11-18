@@ -744,7 +744,7 @@ const v15 = {
     admin: {
       requests: 'طلبات التوثيق والتمييز', pendingUpgrades: 'طلبات توثيق وتمييز', activeListings: 'إجمالي الإعلانات النشطة',
       activeListingsSub: 'منشورة ومتاحة للبيع · من أصل {total} إعلان', totalListings: 'كل الإعلانات',
-      allKinds: 'الكل', approve: 'قبول وتفعيل', reject: 'رفض', rejectTitle: 'رفض الطلب', rejectReason: 'سبب الرفض (يصل إلى البائع)',
+      allKinds: 'الكل', approveActivate: 'قبول وتفعيل', rejectTitle: 'رفض الطلب', rejectReasonSeller: 'سبب الرفض (يصل إلى البائع)',
       viewReceipt: 'عرض الإيصال', receiptTitle: 'إيصال الدفع', openOriginal: 'فتح بالحجم الكامل', noReceipt: 'لا يوجد إيصال',
       confirmApproveVerify: 'تأكيد: هل وصل المبلغ؟ سيتم توثيق الحساب فوراً.', confirmApproveFeature: 'تأكيد: هل وصل المبلغ؟ سيتم تمييز الإعلان {days} يوماً.',
       reviewedBy: 'راجعه {name}', listingNotLive: 'الإعلان لم يعد منشوراً', alreadyVerified: 'موثّق مسبقاً', paidVia: 'عبر {method}',
@@ -779,7 +779,7 @@ const v15 = {
     admin: {
       requests: 'Vérifications & mises en avant', pendingUpgrades: 'Demandes de vérification/mise en avant', activeListings: 'Total des annonces actives',
       activeListingsSub: 'Publiées et disponibles · sur {total} annonces', totalListings: 'Toutes les annonces',
-      allKinds: 'Tout', approve: 'Accepter et activer', reject: 'Refuser', rejectTitle: 'Refuser la demande', rejectReason: 'Motif du refus (envoyé au vendeur)',
+      allKinds: 'Tout', approveActivate: 'Accepter et activer', rejectTitle: 'Refuser la demande', rejectReasonSeller: 'Motif du refus (envoyé au vendeur)',
       viewReceipt: 'Voir le reçu', receiptTitle: 'Reçu de paiement', openOriginal: 'Ouvrir en taille réelle', noReceipt: 'Aucun reçu',
       confirmApproveVerify: 'Le paiement est-il bien reçu ? Le compte sera vérifié immédiatement.', confirmApproveFeature: 'Le paiement est-il bien reçu ? L’annonce sera à la une {days} jours.',
       reviewedBy: 'Traitée par {name}', listingNotLive: 'L’annonce n’est plus en ligne', alreadyVerified: 'Déjà vérifié', paidVia: 'via {method}',
@@ -814,7 +814,7 @@ const v15 = {
     admin: {
       requests: 'Verification & featuring', pendingUpgrades: 'Verification & featuring requests', activeListings: 'Total active listings',
       activeListingsSub: 'Published and available · out of {total} listings', totalListings: 'All listings',
-      allKinds: 'All', approve: 'Approve & activate', reject: 'Reject', rejectTitle: 'Reject request', rejectReason: 'Reason (sent to the seller)',
+      allKinds: 'All', approveActivate: 'Approve & activate', rejectTitle: 'Reject request', rejectReasonSeller: 'Reason (sent to the seller)',
       viewReceipt: 'View receipt', receiptTitle: 'Payment receipt', openOriginal: 'Open full size', noReceipt: 'No receipt',
       confirmApproveVerify: 'Has the payment arrived? The account will be verified right away.', confirmApproveFeature: 'Has the payment arrived? The listing will be featured for {days} days.',
       reviewedBy: 'Reviewed by {name}', listingNotLive: 'Listing is no longer live', alreadyVerified: 'Already verified', paidVia: 'via {method}',
@@ -907,6 +907,133 @@ const v16 = {
 deepMerge(ar, v16.ar);
 deepMerge(fr, v16.fr);
 deepMerge(en, v16.en);
+
+// ---------- v17: admin area with full control ----------
+const v17 = {
+  ar: {
+    announcement: { text: '' },
+    admin: {
+      nav: { dashboard: 'لوحة التحكم', review: 'المراجعة', manage: 'الإدارة', site: 'الموقع', account: 'الحساب' },
+      viewSite: 'عرض الموقع', loginTitle: 'دخول المدير', loginSubtitle: 'أدخل البريد الإلكتروني وكلمة المرور الخاصين بالمدير.', backToSite: '← العودة إلى الموقع',
+      siteSettings: 'إعدادات الموقع', siteSettingsHint: 'معلومات التواصل، والإعلان العلوي، وروابط التواصل الاجتماعي، وخيارات التسجيل والنشر. تظهر التغييرات في الموقع فوراً.',
+      set: {
+        features: 'خيارات الموقع', registration: 'السماح بالتسجيل', registrationHint: 'عند الإيقاف لا يستطيع أحد إنشاء حساب جديد.',
+        autoApprove: 'نشر الإعلانات تلقائياً', autoApproveHint: 'عند التفعيل تُنشر الإعلانات الجديدة دون مراجعة الإدارة.',
+        announcement: 'شريط الإعلان العلوي', announcementHint: 'رسالة تظهر أعلى كل صفحات الموقع، مثل عرض أو تنبيه.', showAnnouncement: 'إظهار الشريط',
+        announcementText: 'نص الإعلان', tone: 'اللون', tones: { gold: 'ذهبي', brand: 'أخضر', rose: 'أحمر' }, link: 'رابط عند الضغط', linkHint: 'مثال: /products?deals=1 أو رابط https',
+        contact: 'معلومات التواصل', contactHint: 'تظهر في صفحة «من نحن» قسم «اتصل بنا».', address: 'العنوان',
+        social: 'وسائل التواصل الاجتماعي', socialHint: 'تظهر في أسفل الموقع. اترك الحقل فارغاً لإخفائه.',
+        payment: 'أرقام الدفع', paymentHint: 'تظهر للبائعين في نموذج التوثيق والتمييز المدفوع.', paymentOff: 'الدفع متوقف حالياً (الموقع مجاني). تُستخدم هذه الأرقام فقط إذا فُعّل الدفع.',
+        accountName: 'اسم صاحب الحساب', lastChange: 'آخر تعديل بواسطة {name}',
+      },
+      siteTexts: 'نصوص الموقع', siteTextsHint: 'غيّر أي نص يظهر في الموقع بالعربية والفرنسية والإنجليزية. اترك الحقل فارغاً لاستخدام النص الأصلي.',
+      saveTexts: 'حفظ النصوص', textGroup: 'القسم', searchTexts: 'ابحث في كل النصوص…', customTexts: '{n} نص معدّل', customised: 'معدّل',
+      resetText: 'إرجاع النص الأصلي', defaultText: 'النص الأصلي', keepVars: 'انتبه: النص الأصلي يحتوي على {vars} — احتفظ بها ليظهر الاسم أو الرقم الصحيح.',
+      textGroups: { brand: 'الشعار والعبارة', announcement: 'شريط الإعلان', hero: 'البنر الرئيسي', home: 'الصفحة الرئيسية', nav: 'القوائم والروابط', footer: 'أسفل الموقع', about: 'من نحن', help: 'المساعدة', products: 'قائمة الإعلانات', product: 'صفحة الإعلان', auth: 'الدخول والتسجيل', dashboard: 'لوحة البائع', form: 'نموذج الإعلان', store: 'المتاجر', seller: 'البائعون', roles: 'أنواع الحسابات', card: 'بطاقة العضو', notifications: 'الإشعارات', errors: 'رسائل الخطأ', common: 'عام' },
+      adminAccount: 'حساب المدير', adminAccountHint: 'البريد الإلكتروني وكلمة المرور اللذان تدخل بهما إلى لوحة الإدارة.',
+      loginEmail: 'بريد الدخول', loginEmailHint: 'ستدخل إلى لوحة الإدارة بهذا البريد.', newPassword: 'كلمة مرور جديدة', newPasswordHint: '8 أحرف على الأقل. اتركها فارغة إن لم ترد تغييرها.',
+      currentPassword: 'كلمة المرور الحالية', currentPasswordHint: 'مطلوبة لتأكيد أي تغيير.', accountSavedPassword: 'تم الحفظ. استخدم كلمة المرور الجديدة في الدخول القادم.',
+      reviews: 'التقييمات', reviewsHint: 'كل تقييمات المشترين للبائعين. احذف المسيء أو المزيّف.', deleteReviewConfirm: 'حذف هذا التقييم نهائياً؟',
+      files: 'الملفات والصور', filesHint: 'كل الصور المرفوعة في الموقع (صور الإعلانات، الصور الشخصية، شعارات المتاجر).', filesTotal: '{n} ملف · {size}',
+      unusedFiles: 'غير مستخدمة', unused: 'غير مستخدمة', viewFile: 'عرض الملف', usedBy: { listing: 'إعلان', avatar: 'صورة شخصية', store: 'شعار متجر' },
+      deleteFileConfirm: 'حذف هذه الصورة نهائياً؟', deleteUsedFileConfirm: 'هذه الصورة مستخدمة في «{label}». حذفها سيزيلها من هناك أيضاً. متابعة؟',
+      deleteUserConfirm: 'سيُحذف حساب «{name}» نهائياً مع كل إعلاناته ورسائله ومتجره. للتأكيد اكتب الاسم كما هو:',
+      deleteStoreConfirm: 'حذف متجر «{name}» نهائياً؟ تبقى إعلانات صاحبه.', editUser: 'تعديل «{name}»', editStore: 'تعديل متجر «{name}»',
+      sitemap: {
+        title: 'خريطة الموقع', hint: 'كل صفحات الموقع وأقسامه في مكان واحد. اضغط على أي رابط لفتحه.', public: 'صفحات الزوار', account: 'صفحات الحساب',
+        admin: 'أقسام لوحة الإدارة', categories: 'التصنيفات', stores: 'المتاجر', outside: 'خارج الموقع (للمطوّر)',
+        repo: 'ملفات الموقع (GitHub)', repoHint: 'كل ملفات الكود المصدري للموقع.', vercelHint: 'الاستضافة والنشر.', supabaseHint: 'قاعدة البيانات.',
+      },
+    },
+    errors: {
+      registration_closed: 'التسجيل مغلق حالياً. حاول لاحقاً.', admin_only: 'هذا الحساب ليس حساب مدير.', cannot_delete_self: 'لا يمكنك حذف حسابك.',
+      cannot_delete_admin: 'لا يمكن حذف حساب مدير. أزل صلاحية المدير أولاً.',
+    },
+  },
+  fr: {
+    announcement: { text: '' },
+    admin: {
+      nav: { dashboard: 'Tableau de bord', review: 'Modération', manage: 'Gestion', site: 'Site', account: 'Compte' },
+      viewSite: 'Voir le site', loginTitle: 'Connexion administrateur', loginSubtitle: 'Saisissez l’e-mail et le mot de passe administrateur.', backToSite: '← Retour au site',
+      siteSettings: 'Paramètres du site', siteSettingsHint: 'Coordonnées, bandeau d’annonce, réseaux sociaux, inscriptions et publication. Les changements sont visibles immédiatement.',
+      set: {
+        features: 'Options du site', registration: 'Autoriser les inscriptions', registrationHint: 'Désactivé : personne ne peut créer de compte.',
+        autoApprove: 'Publier les annonces automatiquement', autoApproveHint: 'Activé : les nouvelles annonces sont publiées sans modération.',
+        announcement: 'Bandeau d’annonce', announcementHint: 'Message affiché en haut de toutes les pages (offre, alerte…).', showAnnouncement: 'Afficher le bandeau',
+        announcementText: 'Texte de l’annonce', tone: 'Couleur', tones: { gold: 'Doré', brand: 'Vert', rose: 'Rouge' }, link: 'Lien au clic', linkHint: 'Ex. : /products?deals=1 ou un lien https',
+        contact: 'Coordonnées', contactHint: 'Affichées dans « À propos » → « Contact ».', address: 'Adresse',
+        social: 'Réseaux sociaux', socialHint: 'Affichés en bas du site. Laissez vide pour masquer.',
+        payment: 'Numéros de paiement', paymentHint: 'Affichés aux vendeurs dans le formulaire payant.', paymentOff: 'Paiement désactivé (site gratuit). Utilisés seulement si le paiement est activé.',
+        accountName: 'Titulaire du compte', lastChange: 'Dernière modification par {name}',
+      },
+      siteTexts: 'Textes du site', siteTextsHint: 'Modifiez n’importe quel texte du site en arabe, français et anglais. Laissez vide pour le texte d’origine.',
+      saveTexts: 'Enregistrer les textes', textGroup: 'Section', searchTexts: 'Rechercher dans tous les textes…', customTexts: '{n} textes modifiés', customised: 'Modifié',
+      resetText: 'Revenir au texte d’origine', defaultText: 'Texte d’origine', keepVars: 'Attention : le texte d’origine contient {vars} — gardez-les.',
+      textGroups: { brand: 'Logo et slogan', announcement: 'Bandeau', hero: 'Bannière', home: 'Accueil', nav: 'Menus', footer: 'Pied de page', about: 'À propos', help: 'Aide', products: 'Liste des annonces', product: 'Page annonce', auth: 'Connexion', dashboard: 'Espace vendeur', form: 'Formulaire', store: 'Boutiques', seller: 'Vendeurs', roles: 'Types de compte', card: 'Carte membre', notifications: 'Notifications', errors: 'Erreurs', common: 'Général' },
+      adminAccount: 'Compte administrateur', adminAccountHint: 'L’e-mail et le mot de passe pour entrer dans l’administration.',
+      loginEmail: 'E-mail de connexion', loginEmailHint: 'Vous vous connecterez avec cet e-mail.', newPassword: 'Nouveau mot de passe', newPasswordHint: '8 caractères min. Laissez vide pour ne pas changer.',
+      currentPassword: 'Mot de passe actuel', currentPasswordHint: 'Requis pour confirmer.', accountSavedPassword: 'Enregistré. Utilisez le nouveau mot de passe à la prochaine connexion.',
+      reviews: 'Avis', reviewsHint: 'Tous les avis des acheteurs. Supprimez les abusifs ou faux.', deleteReviewConfirm: 'Supprimer définitivement cet avis ?',
+      files: 'Fichiers et images', filesHint: 'Toutes les images envoyées (annonces, photos de profil, logos).', filesTotal: '{n} fichiers · {size}',
+      unusedFiles: 'Non utilisées', unused: 'Non utilisée', viewFile: 'Voir le fichier', usedBy: { listing: 'Annonce', avatar: 'Photo de profil', store: 'Logo' },
+      deleteFileConfirm: 'Supprimer définitivement cette image ?', deleteUsedFileConfirm: 'Cette image est utilisée par « {label} ». Elle en sera retirée. Continuer ?',
+      deleteUserConfirm: 'Le compte « {name} » sera supprimé avec ses annonces, messages et boutique. Tapez le nom pour confirmer :',
+      deleteStoreConfirm: 'Supprimer la boutique « {name} » ? Les annonces restent.', editUser: 'Modifier « {name} »', editStore: 'Modifier la boutique « {name} »',
+      sitemap: {
+        title: 'Plan du site', hint: 'Toutes les pages et sections du site au même endroit.', public: 'Pages visiteurs', account: 'Pages du compte',
+        admin: 'Sections admin', categories: 'Catégories', stores: 'Boutiques', outside: 'Hors du site (développeur)',
+        repo: 'Fichiers du site (GitHub)', repoHint: 'Tout le code source du site.', vercelHint: 'Hébergement et déploiement.', supabaseHint: 'Base de données.',
+      },
+    },
+    errors: {
+      registration_closed: 'Les inscriptions sont fermées pour le moment.', admin_only: 'Ce compte n’est pas administrateur.', cannot_delete_self: 'Vous ne pouvez pas supprimer votre compte.',
+      cannot_delete_admin: 'Impossible de supprimer un administrateur. Retirez d’abord ses droits.',
+    },
+  },
+  en: {
+    announcement: { text: '' },
+    admin: {
+      nav: { dashboard: 'Dashboard', review: 'Review', manage: 'Manage', site: 'Website', account: 'Account' },
+      viewSite: 'View site', loginTitle: 'Admin sign-in', loginSubtitle: 'Enter the admin email and password.', backToSite: '← Back to the site',
+      siteSettings: 'Site settings', siteSettingsHint: 'Contact details, announcement bar, social links, sign-up and posting options. Changes show on the site right away.',
+      set: {
+        features: 'Site options', registration: 'Allow sign-ups', registrationHint: 'When off, nobody can create a new account.',
+        autoApprove: 'Publish listings automatically', autoApproveHint: 'When on, new listings go live without admin review.',
+        announcement: 'Announcement bar', announcementHint: 'A message shown at the top of every page, such as an offer or notice.', showAnnouncement: 'Show the bar',
+        announcementText: 'Announcement text', tone: 'Colour', tones: { gold: 'Gold', brand: 'Green', rose: 'Red' }, link: 'Link on click', linkHint: 'e.g. /products?deals=1 or an https link',
+        contact: 'Contact details', contactHint: 'Shown on the About page, “Contact us”.', address: 'Address',
+        social: 'Social media', socialHint: 'Shown in the footer. Leave empty to hide.',
+        payment: 'Payment numbers', paymentHint: 'Shown to sellers in the paid verification/featuring form.', paymentOff: 'Payments are off (the site is free). Only used if payments are turned on.',
+        accountName: 'Account holder', lastChange: 'Last changed by {name}',
+      },
+      siteTexts: 'Site texts', siteTextsHint: 'Change any text on the site, in Arabic, French and English. Leave empty to use the original text.',
+      saveTexts: 'Save texts', textGroup: 'Section', searchTexts: 'Search all texts…', customTexts: '{n} texts changed', customised: 'Changed',
+      resetText: 'Restore original', defaultText: 'Original', keepVars: 'Note: the original contains {vars} — keep them so names and numbers show.',
+      textGroups: { brand: 'Logo & tagline', announcement: 'Announcement', hero: 'Hero banner', home: 'Home page', nav: 'Menus & links', footer: 'Footer', about: 'About', help: 'Help', products: 'Listings list', product: 'Listing page', auth: 'Sign-in', dashboard: 'Seller dashboard', form: 'Listing form', store: 'Stores', seller: 'Sellers', roles: 'Account types', card: 'Member card', notifications: 'Notifications', errors: 'Error messages', common: 'General' },
+      adminAccount: 'Admin account', adminAccountHint: 'The email and password you use to enter the admin area.',
+      loginEmail: 'Sign-in email', loginEmailHint: 'You will sign in to the admin area with this email.', newPassword: 'New password', newPasswordHint: 'At least 8 characters. Leave empty to keep the current one.',
+      currentPassword: 'Current password', currentPasswordHint: 'Needed to confirm any change.', accountSavedPassword: 'Saved. Use the new password next time you sign in.',
+      reviews: 'Reviews', reviewsHint: 'Every buyer review. Delete abusive or fake ones.', deleteReviewConfirm: 'Delete this review permanently?',
+      files: 'Files & images', filesHint: 'Every uploaded image (listing photos, profile pictures, store logos).', filesTotal: '{n} files · {size}',
+      unusedFiles: 'Unused', unused: 'Unused', viewFile: 'View file', usedBy: { listing: 'Listing', avatar: 'Profile picture', store: 'Store logo' },
+      deleteFileConfirm: 'Delete this image permanently?', deleteUsedFileConfirm: 'This image is used by “{label}”. Deleting removes it there too. Continue?',
+      deleteUserConfirm: 'The account “{name}” will be deleted with all its listings, messages and store. Type the name to confirm:',
+      deleteStoreConfirm: 'Delete the store “{name}”? The owner’s listings stay.', editUser: 'Edit “{name}”', editStore: 'Edit store “{name}”',
+      sitemap: {
+        title: 'Site map', hint: 'Every page and section of the site in one place.', public: 'Visitor pages', account: 'Account pages',
+        admin: 'Admin sections', categories: 'Categories', stores: 'Stores', outside: 'Outside the site (developer)',
+        repo: 'Site files (GitHub)', repoHint: 'All of the site’s source code.', vercelHint: 'Hosting and deployment.', supabaseHint: 'Database.',
+      },
+    },
+    errors: {
+      registration_closed: 'Sign-ups are closed for now.', admin_only: 'This account is not an admin account.', cannot_delete_self: 'You cannot delete your own account.',
+      cannot_delete_admin: 'An admin account cannot be deleted. Remove admin rights first.',
+    },
+  },
+};
+deepMerge(ar, v17.ar);
+deepMerge(fr, v17.fr);
+deepMerge(en, v17.en);
 
 export const messages = { ar, fr, en };
 export const LANGS = [

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useSettings } from '../context/SettingsContext.jsx';
 import { LANGS, messages } from './messages.js';
 
 const I18nContext = createContext(null);
@@ -17,6 +18,9 @@ function lookup(dict, key) {
 
 export function I18nProvider({ children }) {
   const [lang, setLangState] = useState(readStoredLang);
+  // Texts the admin changed from the panel take precedence over the built-in ones.
+  const { settings } = useSettings();
+  const overrides = settings.texts;
   const meta = LANGS.find((l) => l.code === lang);
 
   useEffect(() => {
@@ -31,13 +35,14 @@ export function I18nProvider({ children }) {
 
   const t = useCallback(
     (key, vars) => {
-      let s = lookup(messages[lang], key) ?? lookup(messages.ar, key) ?? key;
+      const own = overrides?.[lang]?.[key];
+      let s = (own || undefined) ?? lookup(messages[lang], key) ?? (overrides?.ar?.[key] || undefined) ?? lookup(messages.ar, key) ?? key;
       if (vars && typeof s === 'string') {
         s = s.replace(/\{(\w+)\}/g, (_, k) => (vars[k] ?? ''));
       }
       return s;
     },
-    [lang],
+    [lang, overrides],
   );
 
   const value = useMemo(() => {

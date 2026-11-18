@@ -1,31 +1,153 @@
-import { Link, NavLink, Outlet } from 'react-router-dom';
-import { ErrorBox, Icon, Spinner, StatusBadge, useCityName } from '../../components/ui.jsx';
+import { Suspense, useEffect, useState } from 'react';
+import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { ThemeToggle } from '../../components/AppChrome.jsx';
+import { LangSwitcher, Toast } from '../../components/Layout.jsx';
+import { ErrorBox, Field, Icon, LogoMark, Spinner, StatusBadge, useCityName } from '../../components/ui.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useI18n } from '../../i18n/index.jsx';
+import { api } from '../../lib/api.js';
 import { useApi, useDocumentTitle } from '../../lib/hooks.js';
 
-const TABS = [
-  ['', 'overview', 'grid'], ['listings', 'listings', 'image'], ['merchants', 'merchantsTab', 'store'], ['reports', 'reports', 'flag'], ['requests', 'requests', 'star'],
-  ['users', 'users', 'user'], ['stores', 'stores', 'store'], ['categories', 'categories', 'filter'],
+// Sidebar sections of the admin area. `count` names a field of /admin/stats totals shown as a badge.
+const NAV = [
+  ['dashboard', [['', 'overview', 'grid']]],
+  ['review', [
+    ['listings', 'listings', 'image', 'pending_products'], ['merchants', 'merchantsTab', 'store', 'pending_merchants'],
+    ['reports', 'reports', 'flag', 'open_reports'], ['requests', 'requests', 'star', 'pending_upgrades'],
+  ]],
+  ['manage', [['users', 'users', 'user'], ['stores', 'stores', 'store'], ['categories', 'categories', 'filter'], ['reviews', 'reviews', 'star'], ['files', 'files', 'image']]],
+  ['site', [['settings', 'siteSettings', 'globe'], ['texts', 'siteTexts', 'edit'], ['sitemap', 'sitemap.title', 'link']]],
+  ['account', [['account', 'adminAccount', 'shield']]],
 ];
 
+function AdminNav({ totals, onNavigate }) {
+  const { t, number } = useI18n();
+  const { meta } = useApp();
+  return (
+    <nav aria-label={t('admin.title')} className="space-y-5">
+      {NAV.map(([group, items]) => (
+        <div key={group}>
+          <p className="mb-1.5 px-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">{t(`admin.nav.${group}`)}</p>
+          <ul className="space-y-0.5">
+            {items.filter(([path]) => path !== 'requests' || meta.upgrades).map(([path, key, icon, count]) => {
+              const n = count ? Number(totals?.[count] || 0) : 0;
+              return (
+                <li key={key}>
+                  <NavLink to={`/admin${path ? `/${path}` : ''}`} end={!path} onClick={onNavigate}
+                    className={({ isActive }) => `flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold transition ${isActive ? 'bg-brand-700 text-white' : 'text-slate-700 hover:bg-slate-100'}`}>
+                    <Icon name={icon} className="h-4 w-4 shrink-0" />
+                    <span className="flex-1 truncate">{t(`admin.${key}`)}</span>
+                    {n > 0 && <span className="rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white ltr-nums">{number(n)}</span>}
+                  </NavLink>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </nav>
+  );
+}
+
+/** The admin area: its own full-screen layout (sidebar + top bar), separate from the public site. */
 export default function AdminLayout() {
   const { t } = useI18n();
-  const { meta } = useApp();
-  const tabs = TABS.filter(([path]) => path !== 'requests' || meta.upgrades);
+  const { user } = useApp();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const [open, setOpen] = useState(false);
+  const stats = useApi('/admin/stats', undefined, [pathname]);
   useDocumentTitle(t('admin.title'));
+  useEffect(() => { setOpen(false); window.scrollTo(0, 0); }, [pathname]);
+  // The sign-in page does the sign-out, so it never sends the next admin back to this page.
+  const signOut = () => navigate('/admin/login', { replace: true, state: { logout: true } });
+
   return (
-    <div className="container-page py-6">
-      <h1 className="mb-4 flex items-center gap-2 text-2xl font-bold"><Icon name="shield" className="h-6 w-6 text-brand-700" />{t('admin.title')}</h1>
-      <nav className="mb-6 flex gap-1 overflow-x-auto rounded-xl bg-surface p-1 ring-1 ring-slate-200">
-        {tabs.map(([path, key, icon]) => (
-          <NavLink key={key} to={`/admin${path ? `/${path}` : ''}`} end={!path}
-            className={({ isActive }) => `flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold ${isActive ? 'bg-brand-700 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
-            <Icon name={icon} className="h-4 w-4" />{t(`admin.${key}`)}
-          </NavLink>
-        ))}
-      </nav>
-      <Outlet />
+    <div className="min-h-screen bg-slate-50">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-surface/95 backdrop-blur">
+        <div className="flex h-14 items-center gap-3 px-4">
+          <button type="button" className="btn-ghost p-2 lg:hidden" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-controls="admin-sidebar" aria-label={t('nav.menu')}>
+            <Icon name={open ? 'x' : 'menu'} />
+          </button>
+          <Link to="/admin" className="flex items-center gap-2">
+            <LogoMark className="h-8 w-8" />
+            <span className="font-bold">{t('admin.title')}</span>
+          </Link>
+          <div className="ms-auto flex items-center gap-1.5">
+            <LangSwitcher compact />
+            <ThemeToggle />
+            <a href="/" target="_blank" rel="noreferrer" className="btn-outline hidden px-3 py-1.5 text-xs sm:inline-flex"><Icon name="globe" className="h-4 w-4" />{t('admin.viewSite')}</a>
+            <span className="hidden max-w-[10rem] truncate text-sm font-semibold text-slate-700 md:block">{user?.name}</span>
+            <button type="button" onClick={signOut} className="btn-ghost px-2.5 py-1.5 text-xs text-rose-600"><Icon name="logout" className="h-4 w-4" /><span className="hidden sm:inline">{t('nav.logout')}</span></button>
+          </div>
+        </div>
+      </header>
+      <div className="flex">
+        {open && <div className="fixed inset-0 top-14 z-20 bg-ink/40 lg:hidden" onClick={() => setOpen(false)} aria-hidden="true" />}
+        <aside id="admin-sidebar"
+          className={`fixed inset-y-0 top-14 z-20 w-64 shrink-0 overflow-y-auto border-e border-slate-200 bg-surface p-3 transition-transform start-0 lg:sticky lg:block lg:h-[calc(100vh-3.5rem)] ${open ? '' : 'max-lg:ltr:-translate-x-full max-lg:rtl:translate-x-full'}`}>
+          <AdminNav totals={stats.data?.totals} onNavigate={() => setOpen(false)} />
+          <a href="/" target="_blank" rel="noreferrer" className="btn-outline mt-6 w-full text-xs sm:hidden"><Icon name="globe" className="h-4 w-4" />{t('admin.viewSite')}</a>
+        </aside>
+        <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
+          <Suspense fallback={<Spinner />}><Outlet /></Suspense>
+        </main>
+      </div>
+      <Toast />
+    </div>
+  );
+}
+
+/** Admin sign-in with email and password, at /admin/login. */
+export function AdminLogin() {
+  const { t } = useI18n();
+  const { user, login, logout } = useApp();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [form, setForm] = useState({ identifier: '', password: '' });
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useDocumentTitle(t('admin.loginTitle'));
+  const leaving = Boolean(location.state?.logout);
+  useEffect(() => { if (leaving) logout(); }, [leaving, logout]);
+  if (user?.role === 'admin' && !leaving) return <Navigate to={location.state?.from || '/admin'} replace />;
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const { token, user: u } = await api('/auth/login', { method: 'POST', body: form });
+      if (u.role !== 'admin') { logout(); setError({ code: 'admin_only' }); return; }
+      login(token, u);
+      navigate(location.state?.from || '/admin', { replace: true });
+    } catch (err) { setError(err); } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-900 via-brand-800 to-brand-700 p-4">
+      <div className="w-full max-w-sm">
+        <div className="mb-6 flex flex-col items-center gap-2 text-white">
+          <LogoMark className="h-14 w-14" />
+          <p className="text-lg font-bold">MauriMarket</p>
+        </div>
+        <form onSubmit={submit} className="card space-y-4 p-6" noValidate>
+          <div>
+            <h1 className="flex items-center gap-2 text-xl font-bold"><Icon name="shield" className="h-5 w-5 text-brand-700" />{t('admin.loginTitle')}</h1>
+            <p className="mt-1 text-sm text-slate-500">{t('admin.loginSubtitle')}</p>
+          </div>
+          <ErrorBox error={error} />
+          <Field label={t('auth.email')}>
+            <input className="input" type="email" autoComplete="username" required value={form.identifier} onChange={(e) => setForm({ ...form, identifier: e.target.value })} dir="ltr" />
+          </Field>
+          <Field label={t('auth.password')}>
+            <input className="input" type="password" autoComplete="current-password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} dir="ltr" />
+          </Field>
+          <button className="btn-primary w-full" disabled={busy}>{busy ? t('common.loading') : t('nav.login')}</button>
+          <a href="/" className="block text-center text-xs text-slate-500 hover:text-brand-700">{t('admin.backToSite')}</a>
+        </form>
+      </div>
+      <Toast />
     </div>
   );
 }

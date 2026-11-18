@@ -5,6 +5,7 @@ import App from './App.jsx';
 import { applyTheme } from './components/AppChrome.jsx';
 import { AppProvider } from './context/AppContext.jsx';
 import { I18nProvider } from './i18n/index.jsx';
+import { SettingsProvider } from './context/SettingsContext.jsx';
 import './index.css';
 
 applyTheme();
@@ -17,11 +18,13 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <I18nProvider>
-        <AppProvider>
-          <App />
-        </AppProvider>
-      </I18nProvider>
+      <SettingsProvider>
+        <I18nProvider>
+          <AppProvider>
+            <App />
+          </AppProvider>
+        </I18nProvider>
+      </SettingsProvider>
     </BrowserRouter>
   </React.StrictMode>,
 );

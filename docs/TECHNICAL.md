@@ -59,6 +59,26 @@ The full DDL is in `backend/src/db/schema.sql`. Indexes cover the listing query 
 
 This meets the spec's requirement to tie reviews to documented sales and so limit fake reviews.
 
+### Admin area (full control)
+
+The admin area is a separate part of the app at `/admin`, with its own sign-in page (`/admin/login`, email + password) and its own layout (sidebar, no public header or footer). It is loaded on demand, so visitors never download it. Sections:
+
+| Group | Sections |
+|---|---|
+| Review | Listings (approve, reject, feature, **edit**, delete), merchant requests, reports, paid requests (only when `PAID_UPGRADES=true`) |
+| Manage | Users (edit details, account type, verify, disable, reset password, make admin, **delete**), stores (**edit**, disable, **delete**), categories, reviews (**delete**), files (every uploaded image, where it is used, **delete**) |
+| Website | Settings, texts, site map |
+| Account | The admin's own name, sign-in email and password (current password required) |
+
+**Site settings** live in the `site_settings` table (one JSON document per section, validated by `backend/src/lib/settings.js`) and are served publicly by `GET /api/settings`:
+`contact` (email, WhatsApp, phone, address), `social` (https links shown in the footer), `announcement` (bar on top of every page: on/off, colour, link; its text is the `announcement.text` key), `features` (`registration` open/closed, `autoApprove` listings — replaces the `AUTO_APPROVE` env var at runtime), `payment` (mobile-money numbers), and `texts`.
+
+**Texts**: `texts.{ar,fr,en}` maps any translation key (e.g. `brand.tagline`, `hero.s1Title`) to a replacement. The frontend's `t()` uses an override first, then the built-in text, so every text on the site can be changed from the panel without a deploy.
+
+Endpoints: `GET/PUT /admin/settings` · `PUT /admin/account {currentPassword, name?, email?, newPassword?}` · `PUT /admin/users/:id/profile` · `DELETE /admin/users/:id` (not yourself, not an admin) · `PUT/DELETE /admin/stores/:id` · `GET /admin/reviews` · `DELETE /admin/reviews/:id` · `GET /admin/files?filter=unused` · `DELETE /admin/files/:id` (also detaches it from the listing / avatar / logo).
+
+The source code itself is not editable from the browser: the site runs on Vercel, where code is fixed at build time. Code changes go through the GitHub repository.
+
 ### Merchant accounts are approved by an admin
 
 1. Choosing **merchant** at sign-up, in the profile or from "become a seller" does not make the account a merchant: it becomes an `individual` seller with `users.merchant_status = 'pending'` (it can still post ads, which are moderated anyway), and every admin is notified.
@@ -70,7 +90,7 @@ This meets the spec's requirement to tie reviews to documented sales and so limi
 
 > **Off by default — the site is free.** The feature is only active when the environment variable `PAID_UPGRADES=true` is set (Vercel → Settings → Environment Variables, then redeploy). When off, `/api/meta` returns `upgrades: null`, the request endpoints return 404, and the seller panel and admin tab are hidden. Admins can still verify accounts and feature listings for free from the Users and Listings tabs.
 
-1. A seller picks **verify account** (`VERIFY_PRICE`) or **feature a listing** for 7/15/30 days (`FEATURE_PLANS`, in `backend/src/lib/constants.js`), pays by mobile money (numbers in `frontend/src/siteConfig.js` → `SITE_PAYMENT`) and uploads the receipt photo.
+1. A seller picks **verify account** (`VERIFY_PRICE`) or **feature a listing** for 7/15/30 days (`FEATURE_PLANS`, in `backend/src/lib/constants.js`), pays by mobile money (numbers set in Admin → Site settings → Payment numbers) and uploads the receipt photo.
 2. The amount is always set by the server. One pending request per account (verify) or per listing (feature), enforced by partial unique indexes.
 3. Receipts are stored in `files` with `is_private = true`: the public `/uploads/f/:id` route returns 404 for them; admins load them via `GET /admin/upgrade-requests/:id/receipt` (bearer token → blob URL).
 4. An admin approves (sets `users.is_verified`, or extends `products.featured_until` by the paid days on top of any time left) or rejects with a reason; the seller is notified either way.

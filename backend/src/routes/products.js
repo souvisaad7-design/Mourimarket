@@ -7,6 +7,7 @@ import { badRequest, forbidden, notFound, pagination, parse } from '../lib/http.
 import { notify } from '../lib/notify.js';
 import { optionalAuth, requireAuth } from '../middleware/auth.js';
 import { removeUploads, saveFile, upload } from '../middleware/upload.js';
+import { getSettings } from '../lib/settings.js';
 import { buildSearch, escapeLike, normalize } from '../lib/search.js';
 
 const router = Router();
@@ -225,7 +226,7 @@ router.post('/', requireAuth, upload.array('images', MAX_IMAGES), async (req, re
   const data = parse(productSchema, req.body);
     checkOldPrice(data);
   if (!files.length) throw badRequest('validation_error', { images: 'image_required' });
-  const status = config.autoApprove ? 'approved' : 'pending';
+  const status = (await getSettings()).features.autoApprove ? 'approved' : 'pending';
   const product = await tx(async (client) => {
     await assertCategory(data.categoryId, client);
     const storeId = await storeIdFor(req.user.id, client);
@@ -273,7 +274,7 @@ router.put('/:id', requireAuth, upload.array('images', MAX_IMAGES), async (req, 
         product.id, await saveFile(file, client), rows[0].max + 1 + i,
       ]);
     }
-    const keepApproved = config.autoApprove || req.user.role === 'admin';
+    const keepApproved = (await getSettings()).features.autoApprove || req.user.role === 'admin';
     await client.query(
       `UPDATE products SET title = $1, description = $2, price = $3, category_id = $4, city = $5, condition = $6,
          status = CASE WHEN $7 THEN status ELSE 'pending' END,

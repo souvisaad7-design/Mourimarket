@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import BecomeSeller from './components/BecomeSeller.jsx';
 import Layout from './components/Layout.jsx';
@@ -18,15 +19,26 @@ import Products from './pages/Products.jsx';
 import Profile from './pages/Profile.jsx';
 import SellerProfile from './pages/SellerProfile.jsx';
 import { StoreDetail, Stores } from './pages/Stores.jsx';
+
+// The admin area is loaded on demand, so visitors never download it.
+const lazyNamed = (load, name) => lazy(() => load().then((m) => ({ default: m[name] })));
+const adminLayout = () => import('./pages/admin/AdminLayout.jsx');
+const adminPages = () => import('./pages/admin/AdminPages.jsx');
+const adminSite = () => import('./pages/admin/AdminSite.jsx');
+const AdminLayout = lazy(adminLayout);
+const AdminLogin = lazyNamed(adminLayout, 'AdminLogin');
+const AdminOverview = lazyNamed(adminLayout, 'AdminOverview');
+const [AdminCategories, AdminListings, AdminMerchants, AdminReports, AdminStores, AdminUpgrades, AdminUsers] =
+  ['AdminCategories', 'AdminListings', 'AdminMerchants', 'AdminReports', 'AdminStores', 'AdminUpgrades', 'AdminUsers'].map((n) => lazyNamed(adminPages, n));
+const [AdminAccount, AdminFiles, AdminReviews, AdminSettings, AdminSitemap, AdminTexts] =
+  ['AdminAccount', 'AdminFiles', 'AdminReviews', 'AdminSettings', 'AdminSitemap', 'AdminTexts'].map((n) => lazyNamed(adminSite, n));
 import StoreSettings from './pages/StoreSettings.jsx';
-import AdminLayout, { AdminOverview } from './pages/admin/AdminLayout.jsx';
-import { AdminCategories, AdminListings, AdminMerchants, AdminReports, AdminStores, AdminUpgrades, AdminUsers } from './pages/admin/AdminPages.jsx';
 
 function RequireAuth({ children, admin = false }) {
   const { user, ready } = useApp();
   const location = useLocation();
   if (!ready) return <Spinner />;
-  if (!user) return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
+  if (!user) return <Navigate to={admin ? '/admin/login' : '/login'} replace state={{ from: location.pathname + location.search }} />;
   if (admin && user.role !== 'admin') return <Navigate to="/" replace />;
   return children;
 }
@@ -87,19 +99,27 @@ export default function App() {
         <Route path="messages/:id" element={<RequireAuth><Messages /></RequireAuth>} />
         <Route path="notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
 
-        {/* Admin */}
-        <Route path="admin" element={<RequireAuth admin><AdminLayout /></RequireAuth>}>
-          <Route index element={<AdminOverview />} />
-          <Route path="users" element={<AdminUsers />} />
-          <Route path="listings" element={<AdminListings />} />
-          <Route path="categories" element={<AdminCategories />} />
-          <Route path="reports" element={<AdminReports />} />
-          <Route path="requests" element={<AdminUpgrades />} />
-          <Route path="merchants" element={<AdminMerchants />} />
-          <Route path="stores" element={<AdminStores />} />
-        </Route>
-
         <Route path="*" element={<NotFound />} />
+      </Route>
+
+      {/* Admin */}
+      <Route path="admin/login" element={<Suspense fallback={<Spinner />}><AdminLogin /></Suspense>} />
+      <Route path="admin" element={<RequireAuth admin><Suspense fallback={<Spinner />}><AdminLayout /></Suspense></RequireAuth>}>
+        <Route index element={<AdminOverview />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="listings" element={<AdminListings />} />
+        <Route path="categories" element={<AdminCategories />} />
+        <Route path="reports" element={<AdminReports />} />
+        <Route path="requests" element={<AdminUpgrades />} />
+        <Route path="merchants" element={<AdminMerchants />} />
+        <Route path="reviews" element={<AdminReviews />} />
+        <Route path="files" element={<AdminFiles />} />
+        <Route path="settings" element={<AdminSettings />} />
+        <Route path="texts" element={<AdminTexts />} />
+        <Route path="sitemap" element={<AdminSitemap />} />
+        <Route path="account" element={<AdminAccount />} />
+        <Route path="*" element={<Navigate to="/admin" replace />} />
+        <Route path="stores" element={<AdminStores />} />
       </Route>
     </Routes>
   );

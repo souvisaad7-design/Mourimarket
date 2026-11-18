@@ -557,3 +557,91 @@ describe('merchant accounts need an admin\'s approval', () => {
     assert.ok(approved.some((x) => x.id === user.id && x.reviewed_by_name));
   });
 });
+
+describe('admin: full control', () => {
+  let admin; let seller;
+  before(async () => {
+    admin = await login('admin@maurimarket.mr', 'Admin12345');
+    seller = await login('sidi@example.mr');
+  });
+
+  it('edits site settings; texts and contact are public, validation applies', async () => {
+    assert.equal((await call('/api/admin/settings', { token: seller })).status, 403);
+    const r = await call('/api/admin/settings', { method: 'PUT', token: admin, body: {
+      contact: { email: 'contact@maurimarket.mr', whatsapp: '+222 22 00 00 00' },
+      announcement: { enabled: true, tone: 'brand', link: '/products' },
+      texts: { ar: { 'brand.tagline': 'سوق موريتانيا الأول', 'announcement.text': 'مرحباً بكم' }, fr: {}, en: {} },
+    } });
+    assert.equal(r.status, 200);
+    const pub = (await call('/api/settings')).data.settings;
+    assert.equal(pub.contact.email, 'contact@maurimarket.mr');
+    assert.equal(pub.contact.phone, '', 'missing fields keep defaults');
+    assert.equal(pub.texts.ar['brand.tagline'], 'سوق موريتانيا الأول');
+    assert.equal(pub.announcement.enabled, true);
+    const bad = await call('/api/admin/settings', { method: 'PUT', token: admin, body: { social: { facebook: 'javascript:alert(1)' } } });
+    assert.equal(bad.status, 400);
+    assert.ok(bad.data.fields['social.facebook']);
+    const badKey = await call('/api/admin/settings', { method: 'PUT', token: admin, body: { texts: { ar: { 'bad key!': 'x' } } } });
+    assert.equal(badKey.status, 400);
+  });
+
+  it('closes registration and turns on auto-approve from the panel', async () => {
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { features: { registration: false, autoApprove: true } } });
+    const reg = await call('/api/auth/register', { method: 'POST', body: { name: 'Closed', phone: '41112233', password: 'closed123' } });
+    assert.equal(reg.status, 403);
+    assert.equal(reg.data.error, 'registration_closed');
+    const fd = new FormData();
+    for (const [k, v] of Object.entries({ title: 'إعلان معتمد تلقائياً', description: 'وصف إعلان للاختبار هنا', price: '1000', city: 'nouakchott', condition: 'used', categoryId: '1' })) fd.append(k, v);
+    fd.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+    const p = await call('/api/products', { method: 'POST', token: seller, form: fd });
+    assert.equal(p.status, 201, JSON.stringify(p.data));
+    assert.equal(p.data.product.status, 'approved');
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { features: { registration: true, autoApprove: false } } });
+    assert.equal((await call('/api/auth/register', { method: 'POST', body: { name: 'Open', phone: '41112234', password: 'opened123' } })).status, 201);
+  });
+
+  it('edits and deletes users, stores, reviews and files', async () => {
+    const reg = await call('/api/auth/register', { method: 'POST', body: { name: 'To Delete', phone: '41112299', password: 'delete123' } });
+    const id = reg.data.user.id;
+    const ed = await call(`/api/admin/users/${id}/profile`, { method: 'PUT', token: admin, body: { name: 'Edited Name', phone: '41112298', city: 'rosso', bio: 'x' } });
+    assert.equal(ed.status, 200);
+    assert.equal(ed.data.user.phone, '+22241112298');
+    assert.equal((await call(`/api/admin/users/${id}/profile`, { method: 'PUT', token: admin, body: { name: 'Bad', phone: '123' } })).status, 400);
+    const adminId = (await call('/api/auth/me', { token: admin })).data.user.id;
+    assert.equal((await call(`/api/admin/users/${adminId}`, { method: 'DELETE', token: admin })).data.error, 'cannot_delete_self');
+    assert.equal((await call(`/api/admin/users/${id}`, { method: 'DELETE', token: admin })).status, 200);
+    assert.equal((await call(`/api/users/${id}`)).status, 404);
+
+    const stores = (await call('/api/admin/stores', { token: admin })).data.items;
+    const st = stores.find((x) => x.slug === 'amana-store');
+    const se = await call(`/api/admin/stores/${st.id}`, { method: 'PUT', token: admin, body: { name: 'متجر معدّل', city: 'nouakchott' } });
+    assert.equal(se.status, 200);
+    assert.equal((await call(`/api/stores/${se.data.store.slug}`)).data.store.name, 'متجر معدّل');
+    assert.equal((await call(`/api/admin/stores/${st.id}`, { method: 'DELETE', token: admin })).status, 200);
+
+    const reviews = (await call('/api/admin/reviews', { token: admin })).data;
+    assert.ok(Array.isArray(reviews.items));
+    if (reviews.items[0]) assert.equal((await call(`/api/admin/reviews/${reviews.items[0].id}`, { method: 'DELETE', token: admin })).status, 200);
+
+    const files = (await call('/api/admin/files', { token: admin })).data;
+    assert.ok(files.items.length > 0 && Number(files.totals.bytes) > 0);
+    const used = files.items.find((f) => f.used_by?.kind === 'listing');
+    assert.ok(used, 'usage is reported');
+    assert.equal((await call(`/api/admin/files/${used.id}`, { method: 'DELETE', token: admin })).status, 200);
+    assert.equal((await fetch(`${base}${used.url}`)).status, 404);
+    const imgs = (await call(`/api/products/${used.used_by.id}`)).data.product.images || [];
+    assert.ok(!imgs.some((i) => i.url === used.url), 'detached from the listing');
+  });
+
+  it('changes the admin login email and password (current password required)', async () => {
+    assert.equal((await call('/api/admin/account', { method: 'PUT', token: admin, body: { currentPassword: 'nope', newPassword: 'NewAdmin123' } })).data.error, 'wrong_password');
+    const r = await call('/api/admin/account', { method: 'PUT', token: admin, body: { currentPassword: 'Admin12345', email: 'boss@maurimarket.mr', newPassword: 'NewAdmin123' } });
+    assert.equal(r.status, 200);
+    assert.equal(r.data.user.email, 'boss@maurimarket.mr');
+    assert.ok(await login('boss@maurimarket.mr', 'NewAdmin123'));
+    assert.equal((await call('/api/auth/login', { method: 'POST', body: { email: 'admin@maurimarket.mr', password: 'Admin12345' } })).status, 401);
+    // restore for other runs
+    const t2 = await login('boss@maurimarket.mr', 'NewAdmin123');
+    await call('/api/admin/account', { method: 'PUT', token: t2, body: { currentPassword: 'NewAdmin123', email: 'admin@maurimarket.mr', newPassword: 'Admin12345' } });
+  });
+});

@@ -4,6 +4,7 @@ import { CitySelect, ErrorBox, Field, Icon, Logo, PhoneInput, useFieldError } fr
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
+import { useSettings } from '../context/SettingsContext.jsx';
 import { useDocumentTitle } from '../lib/hooks.js';
 
 function AuthCard({ title, subtitle, children, footer }) {
@@ -76,6 +77,7 @@ export function Login() {
 export function Register() {
   const { t } = useI18n();
   const { login, meta } = useApp();
+  const registrationOpen = useSettings().settings.features.registration;
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', confirm: '', accountType: 'buyer', city: '' });
   const [error, setError] = useState(null);
@@ -99,6 +101,14 @@ export function Register() {
       navigate(user.account_type === 'merchant' ? '/dashboard/store' : user.account_type === 'buyer' ? '/' : '/dashboard', { replace: true });
     } catch (err) { setError(err); } finally { setBusy(false); }
   };
+
+  if (!registrationOpen) {
+    return (
+      <AuthCard title={t('auth.registerTitle')} footer={<>{t('auth.haveAccount')} <Link to="/login" className="link">{t('nav.login')}</Link></>}>
+        <p className="rounded-xl bg-amber-50 p-4 text-center text-sm text-amber-800">{t('errors.registration_closed')}</p>
+      </AuthCard>
+    );
+  }
 
   return (
     <AuthCard title={t('auth.registerTitle')} subtitle={t('auth.registerSubtitle')}

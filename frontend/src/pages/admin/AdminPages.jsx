@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Avatar, EmptyState, ErrorBox, Field, Icon, Modal, Pagination, Spinner, StatusBadge, VerifiedBadge, useCityName, useFieldError } from '../../components/ui.jsx';
+import { Avatar, CitySelect, EmptyState, ErrorBox, Field, Icon, Modal, Pagination, PhoneInput, Spinner, StatusBadge, VerifiedBadge, useCityName, useFieldError } from '../../components/ui.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useI18n } from '../../i18n/index.jsx';
 import { api, getToken } from '../../lib/api.js';
@@ -98,6 +98,7 @@ export function AdminListings() {
                     </button>
                   ))}
                   {p.status !== 'rejected' && <button className="btn-outline px-3 py-2 text-xs" onClick={() => { setRejecting(p); setReason(''); }}><Icon name="x" className="h-4 w-4" />{t('admin.reject')}</button>}
+                  <Link to={`/products/${p.id}/edit`} className="btn-outline px-3 py-2 text-xs"><Icon name="edit" className="h-4 w-4" />{t('common.edit')}</Link>
                   <button className="btn-ghost px-3 py-2 text-xs text-rose-600" onClick={() => window.confirm(t('dashboard.confirmDelete')) && act(() => api(`/admin/products/${p.id}`, { method: 'DELETE' }))}><Icon name="trash" className="h-4 w-4" />{t('common.delete')}</button>
                 </div>
               </li>
@@ -202,6 +203,11 @@ export function AdminUsers() {
   const act = useAction(reload);
   const patch = (id, body) => act(() => api(`/admin/users/${id}`, { method: 'PATCH', body }));
   const [temp, setTemp] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const remove = (u) => {
+    if (window.prompt(t('admin.deleteUserConfirm', { name: u.name })) !== u.name) return;
+    act(() => api(`/admin/users/${u.id}`, { method: 'DELETE' }));
+  };
   const resetPassword = async (u) => {
     if (!window.confirm(t('admin.resetConfirm', { name: u.name }))) return;
     try {
@@ -248,10 +254,12 @@ export function AdminUsers() {
                         <button className={`btn px-2 py-1 text-xs ${u.is_verified ? 'text-slate-600 hover:bg-slate-100' : 'bg-sky-50 text-sky-700 hover:bg-sky-100'}`} onClick={() => patch(u.id, { isVerified: !u.is_verified })}>
                           {u.is_verified ? t('admin.unverify') : <><VerifiedBadge small />{t('admin.verify')}</>}
                         </button>
+                        <button className="btn-ghost px-2 py-1 text-xs" onClick={() => setEditing(u)}><Icon name="edit" className="h-3.5 w-3.5" />{t('common.edit')}</button>
                         <button className="btn-ghost px-2 py-1 text-xs" onClick={() => resetPassword(u)}>{t('admin.resetPassword')}</button>
                         <button className="btn-ghost px-2 py-1 text-xs" onClick={() => patch(u.id, { role: u.role === 'admin' ? 'user' : 'admin' })}>
                           {u.role === 'admin' ? t('admin.removeAdmin') : t('admin.makeAdmin')}
                         </button>
+                        {u.role !== 'admin' && <button className="btn-ghost px-2 py-1 text-xs text-rose-600" onClick={() => remove(u)}><Icon name="trash" className="h-3.5 w-3.5" />{t('common.delete')}</button>}
                       </div>
                     )}
                   </td>
@@ -262,6 +270,7 @@ export function AdminUsers() {
         </div>
       )}
       {data && <Pagination page={data.page} total={data.total} limit={data.limit} onPage={setPage} />}
+      <UserEditModal user={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />
       <Modal open={Boolean(temp)} onClose={() => setTemp(null)} title={t('admin.resetPassword')}>
         {temp && (
           <div className="space-y-3 text-sm">
@@ -281,6 +290,8 @@ export function AdminStores() {
   const { t, date } = useI18n();
   const { data, loading, error, reload } = useApi('/admin/stores');
   const act = useAction(reload);
+  const [editing, setEditing] = useState(null);
+  const remove = (s) => window.confirm(t('admin.deleteStoreConfirm', { name: s.name })) && act(() => api(`/admin/stores/${s.id}`, { method: 'DELETE' }));
   if (loading) return <Spinner />;
   return (
     <div>
@@ -297,10 +308,13 @@ export function AdminStores() {
                 onClick={() => act(() => api(`/admin/stores/${s.id}`, { method: 'PATCH', body: { isActive: !s.is_active } }))}>
                 {s.is_active ? t('admin.disable') : t('admin.enable')}
               </button>
+              <button className="btn-ghost p-2" onClick={() => setEditing(s)} aria-label={t('common.edit')}><Icon name="edit" className="h-4 w-4" /></button>
+              <button className="btn-ghost p-2 text-rose-600" onClick={() => remove(s)} aria-label={t('common.delete')}><Icon name="trash" className="h-4 w-4" /></button>
             </li>
           ))}
         </ul>
       )}
+      <StoreEditModal store={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />
     </div>
   );
 }
@@ -497,7 +511,7 @@ export function AdminUpgrades() {
                 {status === 'pending' && (
                   <div className="flex shrink-0 gap-2 sm:flex-col">
                     <button className="btn-primary flex-1 px-3 py-2 text-xs" disabled={r.kind === 'feature' && !productLive} onClick={() => approve(r)}>
-                      <Icon name="check" className="h-4 w-4" />{t('admin.approve')}
+                      <Icon name="check" className="h-4 w-4" />{t('admin.approveActivate')}
                     </button>
                     <button className="btn-outline flex-1 px-3 py-2 text-xs text-rose-600" onClick={() => { setReason(''); setRejecting(r); }}>
                       <Icon name="x" className="h-4 w-4" />{t('admin.reject')}
@@ -517,7 +531,7 @@ export function AdminUpgrades() {
       </Modal>
       <Modal open={Boolean(rejecting)} onClose={() => setRejecting(null)} title={t('admin.rejectTitle')}>
         <form onSubmit={reject} className="space-y-4">
-          <Field label={t('admin.rejectReason')}><textarea className="input" rows={3} required maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+          <Field label={t('admin.rejectReasonSeller')}><textarea className="input" rows={3} required maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
           <button className="btn-danger w-full">{t('admin.reject')}</button>
         </form>
       </Modal>
@@ -609,10 +623,84 @@ export function AdminMerchants() {
       {data && <Pagination page={data.page} total={data.total} limit={data.limit} onPage={setPage} />}
       <Modal open={Boolean(rejecting)} onClose={() => setRejecting(null)} title={t('admin.rejectMerchantTitle')}>
         <form onSubmit={reject} className="space-y-4">
-          <Field label={t('admin.rejectReason')}><textarea className="input" rows={3} required maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+          <Field label={t('admin.rejectReasonSeller')}><textarea className="input" rows={3} required maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
           <button className="btn-danger w-full">{t('admin.rejectMerchant')}</button>
         </form>
       </Modal>
     </div>
+  );
+}
+
+// ---------- Edit forms (users, stores) ----------
+
+function useEditForm(initial, deps) {
+  const [form, setForm] = useState(initial);
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { setForm(initial); setError(null); }, deps); // eslint-disable-line react-hooks/exhaustive-deps
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  return { form, setForm, set, error, setError, busy, setBusy };
+}
+
+function UserEditModal({ user, onClose, onSaved }) {
+  const { t } = useI18n();
+  const { meta, notify } = useApp();
+  const f = useEditForm({ name: user?.name || '', phone: (user?.phone || '').replace(/^\+222/, ''), email: user?.email || '', city: user?.city || '', bio: user?.bio || '' }, [user?.id]);
+  const fieldError = useFieldError(f.error);
+  if (!user) return null;
+  const submit = async (e) => {
+    e.preventDefault();
+    f.setBusy(true);
+    try {
+      await api(`/admin/users/${user.id}/profile`, { method: 'PUT', body: f.form });
+      notify(t('common.saved'));
+      onSaved();
+    } catch (err) { f.setError(err); } finally { f.setBusy(false); }
+  };
+  return (
+    <Modal open onClose={onClose} title={t('admin.editUser', { name: user.name })}>
+      <form onSubmit={submit} className="space-y-3">
+        <ErrorBox error={f.error && !f.error.fields ? f.error : null} />
+        <Field label={t('auth.name')} error={fieldError('name')}><input className="input" required value={f.form.name} onChange={f.set('name')} /></Field>
+        <Field label={t('auth.phone')} error={fieldError('phone')}><PhoneInput value={f.form.phone} onChange={(v) => f.setForm({ ...f.form, phone: v })} /></Field>
+        <Field label={t('auth.email')} error={fieldError('email')} optional><input className="input" type="email" dir="ltr" value={f.form.email} onChange={f.set('email')} /></Field>
+        <Field label={t('form.city')} optional><CitySelect value={f.form.city} onChange={(v) => f.setForm({ ...f.form, city: v })} cities={meta.cities} placeholder="—" /></Field>
+        <Field label={t('profile.bio')} optional><textarea className="input" rows={2} maxLength={500} value={f.form.bio} onChange={f.set('bio')} /></Field>
+        <button className="btn-primary w-full" disabled={f.busy}>{t('common.save')}</button>
+      </form>
+    </Modal>
+  );
+}
+
+function StoreEditModal({ store, onClose, onSaved }) {
+  const { t } = useI18n();
+  const { meta, notify } = useApp();
+  const f = useEditForm({ name: store?.name || '', description: store?.description || '', phone: store?.phone || '', whatsapp: store?.whatsapp || '', email: store?.email || '', city: store?.city || '' }, [store?.id]);
+  const fieldError = useFieldError(f.error);
+  if (!store) return null;
+  const submit = async (e) => {
+    e.preventDefault();
+    f.setBusy(true);
+    try {
+      await api(`/admin/stores/${store.id}`, { method: 'PUT', body: f.form });
+      notify(t('common.saved'));
+      onSaved();
+    } catch (err) { f.setError(err); } finally { f.setBusy(false); }
+  };
+  return (
+    <Modal open onClose={onClose} title={t('admin.editStore', { name: store.name })}>
+      <form onSubmit={submit} className="space-y-3">
+        <ErrorBox error={f.error && !f.error.fields ? f.error : null} />
+        <Field label={t('store.name')} error={fieldError('name')}><input className="input" required value={f.form.name} onChange={f.set('name')} /></Field>
+        <Field label={t('store.description')} optional><textarea className="input" rows={3} maxLength={2000} value={f.form.description} onChange={f.set('description')} /></Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label={t('store.phone')} optional><input className="input" dir="ltr" value={f.form.phone} onChange={f.set('phone')} /></Field>
+          <Field label={t('store.whatsapp')} optional><input className="input" dir="ltr" value={f.form.whatsapp} onChange={f.set('whatsapp')} /></Field>
+        </div>
+        <Field label={t('auth.email')} optional><input className="input" type="email" dir="ltr" value={f.form.email} onChange={f.set('email')} /></Field>
+        <Field label={t('form.city')} optional><CitySelect value={f.form.city} onChange={(v) => f.setForm({ ...f.form, city: v })} cities={meta.cities} placeholder="—" /></Field>
+        <button className="btn-primary w-full" disabled={f.busy}>{t('common.save')}</button>
+      </form>
+    </Modal>
   );
 }

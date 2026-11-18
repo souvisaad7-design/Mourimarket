@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
+import { useSettings } from '../context/SettingsContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { LANGS } from '../i18n/messages.js';
 import { InstallPrompt, OfflineBanner, ThemeToggle } from './AppChrome.jsx';
@@ -16,7 +17,7 @@ function Badge({ n }) {
   );
 }
 
-function LangSwitcher({ compact, dark = false }) {
+export function LangSwitcher({ compact, dark = false }) {
   const { lang, setLang } = useI18n();
   if (dark) {
     return (
@@ -86,6 +87,37 @@ function UserMenu() {
 }
 
 /** Thin green strip above the header (desktop). */
+const ANNOUNCE_TONES = { brand: 'bg-brand-700 text-white', gold: 'bg-gold-400 text-ink', rose: 'bg-rose-600 text-white' };
+
+/** Site-wide announcement the admin writes in the panel (Settings → Announcement). */
+function AnnouncementBar() {
+  const { t } = useI18n();
+  const { announcement } = useSettings().settings;
+  const text = t('announcement.text');
+  if (!announcement?.enabled || !text || text === 'announcement.text') return null;
+  const body = <span className="font-semibold">{text}{announcement.link && <span aria-hidden="true"> ←</span>}</span>;
+  const cls = `block px-4 py-2 text-center text-sm ${ANNOUNCE_TONES[announcement.tone] || ANNOUNCE_TONES.gold}`;
+  if (!announcement.link) return <div className={cls} role="note">{body}</div>;
+  return /^https?:/.test(announcement.link)
+    ? <a href={announcement.link} target="_blank" rel="noreferrer" className={`${cls} hover:brightness-95`}>{body}</a>
+    : <Link to={announcement.link} className={`${cls} hover:brightness-95`}>{body}</Link>;
+}
+
+const SOCIAL = [['facebook', 'Facebook'], ['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['x', 'X'], ['youtube', 'YouTube']];
+
+function SocialLinks() {
+  const { social } = useSettings().settings;
+  const links = SOCIAL.filter(([k]) => social?.[k]);
+  if (!links.length) return null;
+  return (
+    <ul className="mt-4 flex flex-wrap gap-2">
+      {links.map(([k, label]) => (
+        <li key={k}><a href={social[k]} target="_blank" rel="noreferrer" className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-brand-50 hover:text-brand-800">{label}</a></li>
+      ))}
+    </ul>
+  );
+}
+
 function TopBar() {
   const { t } = useI18n();
   return (
@@ -230,6 +262,7 @@ function Footer() {
           <Logo />
           <p className="mt-3 max-w-sm text-sm text-slate-600">{t('footer.about')}</p>
           <p className="mt-2 text-sm font-semibold text-brand-700">{t('brand.tagline')}</p>
+          <SocialLinks />
         </div>
         <div>
           <h3 className="mb-3 text-sm font-bold">{t('nav.categories')}</h3>
@@ -279,7 +312,7 @@ function MobileTabBar() {
   );
 }
 
-function Toast() {
+export function Toast() {
   const { toast } = useApp();
   if (!toast) return null;
   return (
@@ -298,6 +331,7 @@ export default function Layout() {
   useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
   return (
     <div className="flex min-h-screen flex-col">
+      <AnnouncementBar />
       <Header />
       <OfflineBanner />
       <main className={`flex-1 ${onListing ? '' : 'pb-[calc(90px+env(safe-area-inset-bottom))] sm:pb-0'}`}><Outlet /></main>
