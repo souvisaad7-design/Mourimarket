@@ -116,7 +116,7 @@ const ar = {
     adminRole: 'مدير', userRole: 'مستخدم', open: 'مفتوحة', resolved: 'معالجة', dismissed: 'متجاهلة', deleteListing: 'حذف الإعلان',
   },
   footer: {
-    about: 'منصة موريتانية للبيع والشراء عبر الإنترنت تجمع الأفراد والتجار في مكان واحد.', links: 'روابط', help: 'المساعدة',
+    about: 'منصة موريتانية للبيع والشراء عبر الإنترنت تجمع الأفراد والتجار في مكان واحد.', links: 'الأقسام', help: 'المساعدة',
     safety: 'نصائح الأمان', guide: 'دليل الاستخدام', rights: 'جميع الحقوق محفوظة.',
   },
   errors: {
@@ -240,7 +240,7 @@ const fr = {
     owner: 'Propriétaire', confirmDeleteCategory: 'Supprimer cette catégorie ? Impossible si elle contient des annonces.', newListings: 'Nouvelles annonces', newUsers: 'Nouveaux utilisateurs',
     adminRole: 'Admin', userRole: 'Utilisateur', open: 'Ouverts', resolved: 'Traités', dismissed: 'Ignorés', deleteListing: 'Supprimer l’annonce',
   },
-  footer: { about: 'Plateforme mauritanienne d’achat et de vente en ligne réunissant particuliers et commerçants.', links: 'Liens', help: 'Aide', safety: 'Conseils de sécurité', guide: 'Guide d’utilisation', rights: 'Tous droits réservés.' },
+  footer: { about: 'Plateforme mauritanienne d’achat et de vente en ligne réunissant particuliers et commerçants.', links: 'Rubriques', help: 'Aide', safety: 'Conseils de sécurité', guide: 'Guide d’utilisation', rights: 'Tous droits réservés.' },
   errors: {
     not_found: 'Élément introuvable.', product_not_found: 'Annonce introuvable ou indisponible.', invalid_credentials: 'E-mail ou mot de passe incorrect.',
     email_taken: 'Cet e-mail est déjà utilisé.', account_disabled: 'Ce compte est désactivé.', unauthorized: 'Connexion requise.', invalid_token: 'Session expirée, reconnectez-vous.',
@@ -354,7 +354,7 @@ const en = {
     confirmDeleteCategory: 'Delete this category? Categories with listings cannot be deleted.', newListings: 'New listings', newUsers: 'New users',
     adminRole: 'Admin', userRole: 'User', open: 'Open', resolved: 'Resolved', dismissed: 'Dismissed', deleteListing: 'Delete listing',
   },
-  footer: { about: 'A Mauritanian online marketplace bringing individuals and merchants together in one place.', links: 'Links', help: 'Help', safety: 'Safety tips', guide: 'User guide', rights: 'All rights reserved.' },
+  footer: { about: 'A Mauritanian online marketplace bringing individuals and merchants together in one place.', links: 'Sections', help: 'Help', safety: 'Safety tips', guide: 'User guide', rights: 'All rights reserved.' },
   errors: {
     not_found: 'Not found.', product_not_found: 'Listing not found or no longer available.', invalid_credentials: 'Wrong email or password.', email_taken: 'This email is already registered.',
     account_disabled: 'This account is disabled.', unauthorized: 'Please log in.', invalid_token: 'Session expired, please log in again.', forbidden: 'You are not allowed to do that.',

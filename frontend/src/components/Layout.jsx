@@ -271,7 +271,7 @@ function Footer() {
   const custom = menu?.footer;
   const links = (custom || DEFAULT_FOOTER).map((it) => resolveLink(it, t, lang)).filter(Boolean);
   return (
-    <footer className="mt-16 border-t border-slate-200 bg-surface pb-20 sm:pb-0">
+    <footer className="mt-16 border-t border-slate-200 bg-surface pb-[calc(110px+env(safe-area-inset-bottom))] sm:pb-0">
       <div className="container-page grid gap-8 py-10 sm:grid-cols-2 lg:grid-cols-4">
         <div className="lg:col-span-2">
           <Logo />
