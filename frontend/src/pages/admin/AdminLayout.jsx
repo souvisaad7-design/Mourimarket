@@ -137,7 +137,7 @@ export function AdminLogin() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-900 via-brand-800 to-brand-700 p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-2 text-white">
-          <SiteMark className="h-14 w-14" />
+          <SiteMark className="h-14 w-14" onDark />
           <p className="text-lg font-bold">{siteNameShown}</p>
         </div>
         <form onSubmit={submit} className="card space-y-4 p-6" noValidate>

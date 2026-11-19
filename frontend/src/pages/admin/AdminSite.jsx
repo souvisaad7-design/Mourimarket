@@ -152,15 +152,15 @@ export function AdminAppearance() {
           </div>
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          {colour('primaryColor', '#0f6a3d', t('admin.primaryColor'))}
-          {colour('secondaryColor', '#fbc531', t('admin.secondaryColor'))}
+          {colour('primaryColor', '#305a4e', t('admin.primaryColor'))}
+          {colour('secondaryColor', '#d0af6c', t('admin.secondaryColor'))}
         </div>
         <div className="rounded-2xl border border-slate-200 p-4" aria-label={t('admin.preview')}>
           <p className="mb-3 text-xs font-semibold text-slate-500">{t('admin.preview')}</p>
           <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-xl px-4 py-2.5 text-sm font-semibold text-white" style={{ background: a.primaryColor || '#0f6a3d' }}>{t('nav.products')}</span>
-            <span className="rounded-xl px-4 py-2.5 text-sm font-semibold text-ink" style={{ background: a.secondaryColor || '#fbc531' }}>{t('nav.post')}</span>
-            <span className="font-bold" style={{ color: a.primaryColor || '#0f6a3d' }}>{a.siteName || t('brand.name')}</span>
+            <span className="rounded-xl px-4 py-2.5 text-sm font-semibold text-white" style={{ background: a.primaryColor || '#305a4e' }}>{t('nav.products')}</span>
+            <span className="rounded-xl px-4 py-2.5 text-sm font-semibold text-ink" style={{ background: a.secondaryColor || '#d0af6c' }}>{t('nav.post')}</span>
+            <span className="font-bold" style={{ color: a.primaryColor || '#305a4e' }}>{a.siteName || t('brand.name')}</span>
           </div>
           <p className="mt-2 text-[11px] text-slate-400">{t('admin.colorsApplyHint')}</p>
         </div>

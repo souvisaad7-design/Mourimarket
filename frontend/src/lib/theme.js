@@ -34,5 +34,5 @@ export function applyColors({ primaryColor, secondaryColor } = {}) {
   set(hasP ? brandPalette(primaryColor) : {}, BRAND_KEYS, hasP);
   set(hasS ? accentPalette(secondaryColor) : {}, ACCENT_KEYS, hasS);
   const meta = document.querySelector('meta[name="theme-color"][media*="light"]');
-  if (meta) meta.setAttribute('content', hasP ? primaryColor : '#0f6a3d');
+  if (meta) meta.setAttribute('content', hasP ? primaryColor : '#213c35');
 }

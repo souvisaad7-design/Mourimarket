@@ -61,7 +61,7 @@ function UserMenu() {
   const item = 'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100';
   return (
     <div className="relative" ref={ref}>
-      <button onClick={() => setOpen(!open)} className="flex items-center gap-2 rounded-full p-0.5 hover:ring-2 hover:ring-brand-100" aria-expanded={open} aria-haspopup="menu">
+      <button onClick={() => setOpen(!open)} className="flex items-center gap-2 rounded-full p-0.5 hover:ring-2 hover:ring-gold-300" aria-expanded={open} aria-haspopup="menu">
         <Avatar name={user.name} url={user.avatar_url} size="h-9 w-9" />
       </button>
       {open && (
@@ -182,8 +182,9 @@ function Header() {
   const location = useLocation();
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
+  // The header is dark green (design colours): links are light, the current one is sand-gold.
   const navCls = ({ isActive }) => `relative flex items-center gap-1.5 px-3 py-3 text-sm font-semibold transition ${
-    isActive ? 'text-brand-700 after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-brand-700' : 'text-slate-700 hover:text-brand-700'}`;
+    isActive ? 'text-gold-300 after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-gold-400' : 'text-white/85 hover:text-gold-300'}`;
   const mobileCls = ({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium ${isActive ? 'bg-brand-50 text-brand-800' : 'text-slate-700 hover:bg-slate-100'}`;
   const offersActive = location.pathname === '/products' && new URLSearchParams(location.search).has('deals');
   // The public "search listings" box is for shoppers; hide it inside the admin panel.
@@ -210,12 +211,12 @@ function Header() {
   return (
     <>
       <TopBar />
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-surface/95 backdrop-blur">
+      <header className="site-header sticky top-0 z-30 border-b border-brand-800 bg-brand-900 text-white">
         <div className="container-page flex h-16 items-center gap-3 md:h-[76px] md:gap-6">
           <button className="btn-ghost -ms-2 p-2 lg:hidden" onClick={() => setMobileOpen(!mobileOpen)} aria-label={t('nav.menu')} aria-expanded={mobileOpen}>
             <Icon name={mobileOpen ? 'x' : 'menu'} />
           </button>
-          <Logo size="lg" />
+          <Logo size="lg" onDark />
           {!inAdmin && <div className="mx-auto hidden w-full max-w-xl md:block"><SearchBar compact /></div>}
           <div className="ms-auto flex items-center gap-1.5 sm:gap-2 md:ms-0">
             <div className="hidden sm:block"><ThemeToggle /></div>
@@ -232,10 +233,10 @@ function Header() {
               </>
             ) : (
               <>
-                <Link to="/login" className="btn hidden rounded-full border-2 border-brand-700 px-5 text-brand-700 hover:bg-brand-50 sm:inline-flex">
+                <Link to="/login" className="btn hidden rounded-full border-2 border-white/60 px-5 text-white hover:bg-white/10 sm:inline-flex">
                   <Icon name="user" className="h-4 w-4" />{t('nav.loginShort')}
                 </Link>
-                <Link to="/register" className="btn rounded-full bg-brand-700 px-5 text-white hover:bg-brand-800">
+                <Link to="/register" className="btn rounded-full bg-gold-400 px-5 text-ink hover:bg-gold-500">
                   <Icon name="userPlus" className="h-4 w-4" /><span className="hidden sm:inline">{t('nav.register')}</span>
                 </Link>
               </>
@@ -245,13 +246,13 @@ function Header() {
         {/* Phones: search under the logo row */}
         {!inAdmin && <div className="container-page pb-3 md:hidden"><SearchBar compact /></div>}
         {/* Desktop navigation */}
-        <nav className="hidden border-t border-slate-100 lg:block">
+        <nav className="hidden border-t border-white/10 lg:block">
           <div className="container-page flex items-center justify-center gap-2">
             {items.map((l) => renderLink(l, navCls))}
           </div>
         </nav>
         {mobileOpen && (
-          <div className="border-t border-slate-200 bg-surface lg:hidden">
+          <div className="on-light border-t border-slate-200 bg-surface text-slate-800 lg:hidden">
             <nav className="container-page flex flex-col gap-1 py-3">
               {mobileItems.map((l) => renderLink(l, mobileCls, true))}
               {!user && <NavLink to="/login" className={mobileCls}><Icon name="user" className="h-4 w-4" />{t('nav.login')}</NavLink>}
@@ -346,7 +347,7 @@ function MaintenanceScreen() {
   const message = maintenance.message?.[lang] || maintenance.message?.ar || t('maintenance.text');
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-5 bg-gradient-to-br from-brand-900 via-brand-800 to-brand-700 p-6 text-center text-white">
-      <SiteMark className="h-20 w-20" />
+      <SiteMark className="h-20 w-20" onDark />
       <p className="text-2xl font-bold">{siteName}</p>
       <div className="max-w-md rounded-3xl bg-white/10 p-6 backdrop-blur">
         <p className="mb-2 flex items-center justify-center gap-2 text-lg font-bold"><Icon name="clock" className="h-5 w-5" />{t('maintenance.title')}</p>

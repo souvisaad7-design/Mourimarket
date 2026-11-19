@@ -8,28 +8,29 @@
    ------------------------------------------------------------------------- */
 :root {
   color-scheme: light;
-  --brand-50: 239 250 243;
-  --brand-100: 216 243 226;
-  --brand-200: 179 230 200;
-  --brand-300: 127 210 165;
-  --brand-400: 72 183 124;
-  --brand-500: 36 155 94;
-  --brand-600: 22 125 74;
-  --brand-700: 15 106 61;
-  --brand-800: 13 85 50;
-  --brand-900: 11 70 42;
-  --gold-300: 253 230 138;
-  --gold-400: 251 197 49;
-  --gold-500: 245 179 1;
-  --gold-600: 217 154 0;
-  /* dark-mode tints of the primary colour */
-  --brand-dark-text: 134 239 172;
-  --brand-dark-text-2: 74 222 128;
-  --brand-dark-bg: 20 83 45;
-  --brand-dark-strong: 240 253 244;
+  --brand-50: 241 243 243;
+  --brand-100: 226 232 230;
+  --brand-200: 197 209 205;
+  --brand-300: 156 176 170;
+  --brand-400: 114 143 135;
+  --brand-500: 81 116 106;
+  --brand-600: 62 102 90;
+  --brand-700: 48 90 78;
+  --brand-800: 39 74 64;
+  --brand-900: 33 61 53;
+  --gold-300: 229 211 174;
+  --gold-400: 208 175 108;
+  --gold-500: 196 165 102;
+  --gold-600: 177 149 92;
+  /* Default palette: Chinguetti green #213c35 / sand gold #d0af6c / cream #f4f0e5.
+     dark-mode tints of the primary colour */
+  --brand-dark-text: 172 189 184;
+  --brand-dark-text-2: 135 159 152;
+  --brand-dark-bg: 22 40 35;
+  --brand-dark-strong: 243 245 244;
   --surface: 255 255 255;
-  --slate-50: 248 250 252;
-  --slate-100: 241 245 249;
+  --slate-50: 244 240 229; /* cream page background */
+  --slate-100: 236 231 217;
   --slate-200: 226 232 240;
   --slate-300: 203 213 225;
   --slate-400: 148 163 184;
@@ -151,3 +152,10 @@
 @keyframes mm-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 @keyframes mm-marquee-rtl { from { transform: translateX(0); } to { transform: translateX(50%); } }
 @media (prefers-reduced-motion: reduce) { .mm-marquee-track { animation: none; } }
+
+/* Dark-green site header (light text on the primary colour). */
+.site-header .btn-ghost { color: rgb(244 240 229); }
+.site-header .btn-ghost:hover { background-color: rgb(255 255 255 / 0.1); }
+/* …except inside the light drop-down menu for phones. */
+.site-header .on-light .btn-ghost { color: rgb(var(--slate-700)); }
+.site-header .on-light .btn-ghost:hover { background-color: rgb(var(--slate-100)); }
