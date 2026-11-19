@@ -265,11 +265,10 @@ function Header() {
 }
 
 function Footer() {
-  const { t, tl, lang } = useI18n();
+  const { t, tl, lang, siteName } = useI18n();
   const { categories } = useApp();
-  const { menu, appearance } = useSettings().settings;
+  const { menu } = useSettings().settings;
   const custom = menu?.footer;
-  const siteName = appearance?.siteName;
   const links = (custom || DEFAULT_FOOTER).map((it) => resolveLink(it, t, lang)).filter(Boolean);
   return (
     <footer className="mt-16 border-t border-slate-200 bg-surface pb-20 sm:pb-0">
@@ -302,7 +301,7 @@ function Footer() {
         </div>
       </div>
       <div className="border-t border-slate-100 py-4 text-center text-xs text-slate-500">
-        © {new Date().getFullYear()} {siteName || 'MauriMarket'} — {t('footer.rights')}
+        © {new Date().getFullYear()} {siteName} — {t('footer.rights')}
       </div>
     </footer>
   );
@@ -342,13 +341,13 @@ export function Toast() {
 
 /** Shown to visitors while the admin has the site in maintenance mode. */
 function MaintenanceScreen() {
-  const { t, lang } = useI18n();
-  const { maintenance, appearance } = useSettings().settings;
+  const { t, lang, siteName } = useI18n();
+  const { maintenance } = useSettings().settings;
   const message = maintenance.message?.[lang] || maintenance.message?.ar || t('maintenance.text');
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-5 bg-gradient-to-br from-brand-900 via-brand-800 to-brand-700 p-6 text-center text-white">
       <SiteMark className="h-20 w-20" />
-      <p className="text-2xl font-bold">{appearance?.siteName || 'MauriMarket'}</p>
+      <p className="text-2xl font-bold">{siteName}</p>
       <div className="max-w-md rounded-3xl bg-white/10 p-6 backdrop-blur">
         <p className="mb-2 flex items-center justify-center gap-2 text-lg font-bold"><Icon name="clock" className="h-5 w-5" />{t('maintenance.title')}</p>
         <p className="whitespace-pre-line leading-relaxed text-white/90">{message}</p>

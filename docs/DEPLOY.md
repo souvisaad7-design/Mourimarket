@@ -1,4 +1,4 @@
-# نشر موقع MauriMarket على الإنترنت — خطوة بخطوة
+# نشر موقع Souk Chinguetti على الإنترنت — خطوة بخطوة
 
 ## الخيار (أ): Vercel + Supabase، وهو الموصى به إذا كانت حساباتك مربوطة مسبقاً
 
@@ -76,7 +76,7 @@ GitHub (الكود)  ──►  Render (يشغّل الموقع: الواجهة 
     أما `JWT_SECRET` فيولّده Render تلقائياً.
 12. اضغط **Apply**. يبدأ البناء ويستغرق 3 إلى 5 دقائق. تابع السجل (Logs) حتى تظهر الرسالة:
     ```
-    MauriMarket API listening on ...
+    Souk Chinguetti API listening on ...
     ```
 13. افتح الرابط الظاهر أعلى الصفحة، مثل `https://maurimarket.onrender.com`. **🎉 موقعك يعمل الآن.**
 

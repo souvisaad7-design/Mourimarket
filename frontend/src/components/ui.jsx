@@ -99,15 +99,16 @@ export function SiteMark({ className = 'h-10 w-10' }) {
 
 export function Logo({ className = '', size = 'md' }) {
   const big = size === 'lg';
+  const { t, siteName, lang } = useI18n();
   const name = useSettings().settings.appearance?.siteName;
   return (
-    <Link to="/" className={`flex items-center gap-1.5 ${className}`} aria-label={name || 'MauriMarket'}>
+    <Link to="/" className={`flex items-center gap-1.5 ${className}`} aria-label={siteName}>
       <SiteMark className={big ? 'h-12 w-12' : 'h-10 w-10'} />
       {name ? (
         <span className={`${big ? 'text-2xl' : 'text-xl'} max-w-[11rem] truncate font-bold tracking-tight text-brand-800 dark-brand-text sm:max-w-none`}>{name}</span>
       ) : (
-        <span className={`${big ? 'text-2xl' : 'text-xl'} font-bold tracking-tight`} dir="ltr">
-          <span className="text-brand-900 dark-brand-text">Mauri</span><span className="text-brand-600">Market</span>
+        <span className={`${big ? 'text-2xl' : 'text-xl'} whitespace-nowrap font-bold ${lang === 'ar' ? '' : 'tracking-tight'}`}>
+          <span className="text-brand-900 dark-brand-text">{t('brand.nameA')}</span> <span className="text-brand-600">{t('brand.nameB')}</span>
         </span>
       )}
     </Link>

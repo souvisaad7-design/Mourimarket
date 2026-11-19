@@ -1,4 +1,4 @@
-/* MauriMarket service worker: fast repeat visits and an offline fallback.
+/* Souk Chinguetti service worker: fast repeat visits and an offline fallback.
  * - Built assets (/assets/*, hashed names), icons and fonts: cache-first.
  * - Listing images (/uploads/*): stale-while-revalidate, capped.
  * - Page navigations: network-first, falling back to the cached app shell.

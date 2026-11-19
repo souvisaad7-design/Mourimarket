@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { useSettings } from '../context/SettingsContext.jsx';
+import { setCurrentSiteName, useSettings } from '../context/SettingsContext.jsx';
 import { LANGS, messages } from './messages.js';
 
 const I18nContext = createContext(null);
@@ -21,6 +21,9 @@ export function I18nProvider({ children }) {
   // Texts the admin changed from the panel take precedence over the built-in ones.
   const { settings } = useSettings();
   const overrides = settings.texts;
+  // The site's name: the admin's (Admin → Identity & appearance) or the default for this language.
+  const siteName = settings.appearance?.siteName || lookup(messages[lang], 'brand.name') || lookup(messages.ar, 'brand.name');
+  useEffect(() => { setCurrentSiteName(siteName); }, [siteName]);
   const meta = LANGS.find((l) => l.code === lang);
 
   useEffect(() => {
@@ -37,12 +40,12 @@ export function I18nProvider({ children }) {
     (key, vars) => {
       const own = overrides?.[lang]?.[key];
       let s = (own || undefined) ?? lookup(messages[lang], key) ?? (overrides?.ar?.[key] || undefined) ?? lookup(messages.ar, key) ?? key;
-      if (vars && typeof s === 'string') {
-        s = s.replace(/\{(\w+)\}/g, (_, k) => (vars[k] ?? ''));
-      }
+      if (typeof s !== 'string') return s;
+      if (s.includes('{site}')) s = s.replaceAll('{site}', siteName);
+      if (vars) s = s.replace(/\{(\w+)\}/g, (_, k) => (vars[k] ?? ''));
       return s;
     },
-    [lang, overrides],
+    [lang, overrides, siteName],
   );
 
   const value = useMemo(() => {
@@ -53,6 +56,7 @@ export function I18nProvider({ children }) {
     const rtf = new Intl.RelativeTimeFormat(meta.locale === 'ar-MR' ? 'ar-u-nu-latn' : meta.locale, { numeric: 'auto' });
     return {
       lang,
+      siteName,
       dir: meta.dir,
       setLang,
       t,
@@ -71,7 +75,7 @@ export function I18nProvider({ children }) {
         return rtf.format(0, 'minute');
       },
     };
-  }, [lang, meta, setLang, t]);
+  }, [lang, meta, setLang, t, siteName]);
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }

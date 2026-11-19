@@ -1,4 +1,4 @@
--- MauriMarket – PostgreSQL schema
+-- Souk Chinguetti (سوق شنقيط) – PostgreSQL schema
 -- All prices are stored in MRU (Mauritanian ouguiya, new).
 
 -- Uploaded images (stored in the database so they survive redeploys).

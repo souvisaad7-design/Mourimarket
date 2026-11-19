@@ -1,4 +1,4 @@
-# MauriMarket – Technical documentation (v1.0)
+# Souk Chinguetti – Technical documentation (v1.0)
 
 ## 1. Architecture
 

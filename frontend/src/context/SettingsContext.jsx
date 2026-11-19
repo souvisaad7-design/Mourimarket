@@ -10,15 +10,19 @@ export const DEFAULT_SETTINGS = {
   social: { facebook: '', instagram: '', tiktok: '', x: '', youtube: '' },
   announcement: { enabled: false, tone: 'gold', style: 'static', link: '' },
   features: { registration: true, autoApprove: false, paidUpgrades: false },
-  payment: { bankily: '', masrvi: '', sedad: '', accountName: 'MauriMarket' },
+  payment: { bankily: '', masrvi: '', sedad: '', accountName: 'سوق شنقيط' },
   menu: { header: null, footer: null, home: {} },
   texts: { ar: {}, fr: {}, en: {} },
 };
 
-export const DEFAULT_SITE_NAME = 'MauriMarket';
-let currentSiteName = DEFAULT_SITE_NAME;
-/** The site name for places outside React (the browser tab title). */
+let currentSiteName = 'سوق شنقيط';
+/** The site name for places outside React (the browser tab title); set by the i18n provider. */
 export const getSiteName = () => currentSiteName;
+export function setCurrentSiteName(name) {
+  if (!name || name === currentSiteName) return;
+  if (document.title.includes(currentSiteName)) document.title = document.title.replace(currentSiteName, name);
+  currentSiteName = name;
+}
 
 const SettingsContext = createContext({ settings: DEFAULT_SETTINGS, banners: [], reload: () => {}, setSettings: () => {}, setBanners: () => {} });
 
@@ -48,7 +52,7 @@ export function SettingsProvider({ children }) {
   }, [reload]);
 
   // Identity: colours, tab icon and name.
-  const { primaryColor, secondaryColor, logoUrl, siteName } = settings.appearance || {};
+  const { primaryColor, secondaryColor, logoUrl } = settings.appearance || {};
   useEffect(() => { applyColors({ primaryColor, secondaryColor }); }, [primaryColor, secondaryColor]);
   useEffect(() => {
     const icon = document.querySelector('link[rel="icon"]');
@@ -57,11 +61,6 @@ export function SettingsProvider({ children }) {
       if (logoUrl) icon.removeAttribute('type'); else icon.setAttribute('type', 'image/svg+xml');
     }
   }, [logoUrl]);
-  useEffect(() => {
-    const prev = currentSiteName;
-    currentSiteName = siteName || DEFAULT_SITE_NAME;
-    if (prev !== currentSiteName) document.title = document.title.replace(prev, currentSiteName);
-  }, [siteName]);
 
   const value = useMemo(() => ({ settings, banners, reload, setSettings, setBanners }), [settings, banners, reload]);
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

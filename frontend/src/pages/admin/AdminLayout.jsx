@@ -116,7 +116,7 @@ export function AdminLogin() {
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   useDocumentTitle(t('admin.loginTitle'));
-  const siteName = useSettings().settings.appearance?.siteName;
+  const { siteName: siteNameShown } = useI18n();
   const leaving = Boolean(location.state?.logout);
   useEffect(() => { if (leaving) logout(); }, [leaving, logout]);
   if (user?.role === 'admin' && !leaving) return <Navigate to={location.state?.from || '/admin'} replace />;
@@ -138,7 +138,7 @@ export function AdminLogin() {
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-2 text-white">
           <SiteMark className="h-14 w-14" />
-          <p className="text-lg font-bold">{siteName || 'MauriMarket'}</p>
+          <p className="text-lg font-bold">{siteNameShown}</p>
         </div>
         <form onSubmit={submit} className="card space-y-4 p-6" noValidate>
           <div>

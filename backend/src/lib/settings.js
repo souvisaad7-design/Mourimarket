@@ -64,7 +64,7 @@ export const defaults = () => ({
   social: { facebook: '', instagram: '', tiktok: '', x: '', youtube: '' },
   announcement: { enabled: false, tone: 'gold', style: 'static', link: '' },
   features: { registration: true, autoApprove: config.autoApprove, paidUpgrades: process.env.PAID_UPGRADES === 'true' },
-  payment: { bankily: '', masrvi: '', sedad: '', accountName: 'MauriMarket' },
+  payment: { bankily: '', masrvi: '', sedad: '', accountName: 'سوق شنقيط' },
   texts: { ar: {}, fr: {}, en: {} },
 });
 

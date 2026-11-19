@@ -139,7 +139,7 @@ export function AdminAppearance() {
       <PageTitle icon="star" title={t('admin.appearance')} subtitle={t('admin.appearanceHint')} />
       <Section title={t('admin.identity')} onSave={() => save('appearance', { appearance: s.appearance })} busy={busy === 'appearance'} error={errors.appearance}>
         <Field label={t('admin.siteName')} hint={t('admin.siteNameHint')} optional>
-          <input className="input" maxLength={40} placeholder="MauriMarket" value={a.siteName} onChange={set('appearance', 'siteName')} />
+          <input className="input" maxLength={40} placeholder={t('brand.name')} value={a.siteName} onChange={set('appearance', 'siteName')} />
         </Field>
         <Field label={t('admin.logo')} hint={t('admin.logoHint')} optional>
           <input ref={fileRef} type="file" accept="image/*" className="sr-only" onChange={pickLogo} tabIndex={-1} />
@@ -160,7 +160,7 @@ export function AdminAppearance() {
           <div className="flex flex-wrap items-center gap-3">
             <span className="rounded-xl px-4 py-2.5 text-sm font-semibold text-white" style={{ background: a.primaryColor || '#0f6a3d' }}>{t('nav.products')}</span>
             <span className="rounded-xl px-4 py-2.5 text-sm font-semibold text-ink" style={{ background: a.secondaryColor || '#fbc531' }}>{t('nav.post')}</span>
-            <span className="font-bold" style={{ color: a.primaryColor || '#0f6a3d' }}>{a.siteName || 'MauriMarket'}</span>
+            <span className="font-bold" style={{ color: a.primaryColor || '#0f6a3d' }}>{a.siteName || t('brand.name')}</span>
           </div>
           <p className="mt-2 text-[11px] text-slate-400">{t('admin.colorsApplyHint')}</p>
         </div>

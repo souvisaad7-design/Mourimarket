@@ -1,4 +1,4 @@
-# MauriMarket
+# Souk Chinguetti
 
 **سوقك الموريتاني في مكان واحد** — Mauritanian online marketplace (v1.0).
 

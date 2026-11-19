@@ -21,7 +21,7 @@ const ar = {
     browseCategories: 'تصفح حسب التصنيف', latest: 'أحدث الإعلانات', featuredStores: 'متاجر مميزة',
     ctaTitle: 'لديك شيء للبيع؟', ctaText: 'انشر إعلانك مجاناً في أقل من دقيقتين وابدأ في استقبال رسائل المشترين.',
     statsProducts: 'إعلان نشط', statsUsers: 'مستخدم', statsStores: 'متجر',
-    howTitle: 'كيف يعمل MauriMarket؟', how1: 'انشر إعلانك', how1Text: 'أضف الصور والسعر بالأوقية والمدينة.',
+    howTitle: 'كيف يعمل {site}؟', how1: 'انشر إعلانك', how1Text: 'أضف الصور والسعر بالأوقية والمدينة.',
     how2: 'تواصل مع المشتري', how2Text: 'استقبل الرسائل وأجب عن الاستفسارات داخل المنصة.',
     how3: 'اتفقا وتمّ البيع', how3Text: 'اتفقا على السعر ومكان التسليم والدفع مباشرة بينكما.',
   },
@@ -50,7 +50,7 @@ const ar = {
   },
   auth: {
     loginTitle: 'مرحباً بعودتك', loginSubtitle: 'سجّل الدخول لإدارة إعلاناتك ورسائلك', registerTitle: 'أنشئ حسابك',
-    registerSubtitle: 'انضم إلى MauriMarket وابدأ البيع والشراء', name: 'الاسم الكامل', email: 'البريد الإلكتروني',
+    registerSubtitle: 'انضم إلى {site} وابدأ البيع والشراء', name: 'الاسم الكامل', email: 'البريد الإلكتروني',
     phone: 'رقم الهاتف', password: 'كلمة المرور', confirmPassword: 'تأكيد كلمة المرور', accountType: 'نوع الحساب',
     individual: 'فرد', individualText: 'لبيع وشراء الأغراض الشخصية', merchant: 'تاجر', merchantText: 'متجر خاص وعرض منتجات تجارية',
     forgot: 'نسيت كلمة المرور؟', noAccount: 'ليس لديك حساب؟', haveAccount: 'لديك حساب بالفعل؟',
@@ -95,7 +95,7 @@ const ar = {
     },
   },
   store: {
-    title: 'المتاجر', subtitle: 'متاجر التجار الموثوقين على MauriMarket', empty: 'لا توجد متاجر بعد.', products: '{n} منتج',
+    title: 'المتاجر', subtitle: 'متاجر التجار الموثوقين على {site}', empty: 'لا توجد متاجر بعد.', products: '{n} منتج',
     settings: 'إعدادات المتجر', name: 'اسم المتجر', logo: 'شعار المتجر', description: 'وصف النشاط التجاري', phone: 'الهاتف',
     whatsapp: 'واتساب', email: 'البريد الإلكتروني', city: 'المدينة', create: 'إنشاء المتجر', view: 'عرض المتجر',
     merchantOnly: 'المتاجر متاحة لحسابات التجار فقط. يمكنك تغيير نوع حسابك من الملف الشخصي.', contact: 'معلومات التواصل',
@@ -159,7 +159,7 @@ const fr = {
     heroTitle: 'Achetez et vendez facilement en Mauritanie', heroSubtitle: 'Des milliers d’annonces de particuliers et de commerçants : véhicules, téléphones, immobilier, meubles et services — contactez directement le vendeur.',
     browseCategories: 'Parcourir par catégorie', latest: 'Dernières annonces', featuredStores: 'Boutiques à la une',
     ctaTitle: 'Vous avez quelque chose à vendre ?', ctaText: 'Publiez votre annonce gratuitement en moins de deux minutes et recevez les messages des acheteurs.',
-    statsProducts: 'annonces actives', statsUsers: 'utilisateurs', statsStores: 'boutiques', howTitle: 'Comment fonctionne MauriMarket ?',
+    statsProducts: 'annonces actives', statsUsers: 'utilisateurs', statsStores: 'boutiques', howTitle: 'Comment fonctionne {site} ?',
     how1: 'Publiez votre annonce', how1Text: 'Ajoutez photos, prix en MRU et ville.', how2: 'Échangez avec l’acheteur', how2Text: 'Recevez les messages et répondez sur la plateforme.',
     how3: 'Concluez la vente', how3Text: 'Convenez du prix, du lieu de remise et du paiement entre vous.',
   },
@@ -185,7 +185,7 @@ const fr = {
   },
   auth: {
     loginTitle: 'Bon retour', loginSubtitle: 'Connectez-vous pour gérer vos annonces et messages', registerTitle: 'Créez votre compte',
-    registerSubtitle: 'Rejoignez MauriMarket pour acheter et vendre', name: 'Nom complet', email: 'E-mail', phone: 'Téléphone', password: 'Mot de passe',
+    registerSubtitle: 'Rejoignez {site} pour acheter et vendre', name: 'Nom complet', email: 'E-mail', phone: 'Téléphone', password: 'Mot de passe',
     confirmPassword: 'Confirmer le mot de passe', accountType: 'Type de compte', individual: 'Particulier', individualText: 'Vendre et acheter des biens personnels',
     merchant: 'Commerçant', merchantText: 'Boutique dédiée et produits professionnels', forgot: 'Mot de passe oublié ?', noAccount: 'Pas encore de compte ?',
     haveAccount: 'Déjà un compte ?', forgotTitle: 'Mot de passe oublié', forgotText: 'Entrez votre e-mail, nous vous enverrons un lien de réinitialisation.',
@@ -223,7 +223,7 @@ const fr = {
     },
   },
   store: {
-    title: 'Boutiques', subtitle: 'Les boutiques des commerçants sur MauriMarket', empty: 'Aucune boutique.', products: '{n} produits', settings: 'Paramètres de la boutique',
+    title: 'Boutiques', subtitle: 'Les boutiques des commerçants sur {site}', empty: 'Aucune boutique.', products: '{n} produits', settings: 'Paramètres de la boutique',
     name: 'Nom de la boutique', logo: 'Logo', description: 'Description de l’activité', phone: 'Téléphone', whatsapp: 'WhatsApp', email: 'E-mail', city: 'Ville',
     create: 'Créer la boutique', view: 'Voir la boutique', merchantOnly: 'Les boutiques sont réservées aux comptes commerçants. Changez votre type de compte dans votre profil.',
     contact: 'Contact', listings: 'Produits de la boutique', owner: 'Propriétaire',
@@ -277,7 +277,7 @@ const en = {
     heroTitle: 'Buy and sell easily in Mauritania', heroSubtitle: 'Thousands of listings from individuals and merchants: vehicles, phones, real estate, furniture and services — talk directly to the seller.',
     browseCategories: 'Browse by category', latest: 'Latest listings', featuredStores: 'Featured stores', ctaTitle: 'Got something to sell?',
     ctaText: 'Post your ad for free in under two minutes and start receiving messages from buyers.', statsProducts: 'active listings', statsUsers: 'users',
-    statsStores: 'stores', howTitle: 'How MauriMarket works', how1: 'Post your ad', how1Text: 'Add photos, a price in MRU and your city.',
+    statsStores: 'stores', howTitle: 'How {site} works', how1: 'Post your ad', how1Text: 'Add photos, a price in MRU and your city.',
     how2: 'Chat with buyers', how2Text: 'Receive messages and answer questions on the platform.', how3: 'Close the deal', how3Text: 'Agree on price, hand-over place and payment between you.',
   },
   products: {
@@ -301,7 +301,7 @@ const en = {
     reasons: { scam: 'Scam or fraud', prohibited: 'Prohibited item', wrong_category: 'Wrong category', duplicate: 'Duplicate listing', offensive: 'Offensive content', other: 'Other' },
   },
   auth: {
-    loginTitle: 'Welcome back', loginSubtitle: 'Log in to manage your listings and messages', registerTitle: 'Create your account', registerSubtitle: 'Join MauriMarket to buy and sell',
+    loginTitle: 'Welcome back', loginSubtitle: 'Log in to manage your listings and messages', registerTitle: 'Create your account', registerSubtitle: 'Join {site} to buy and sell',
     name: 'Full name', email: 'Email', phone: 'Phone number', password: 'Password', confirmPassword: 'Confirm password', accountType: 'Account type',
     individual: 'Individual', individualText: 'Buy and sell personal items', merchant: 'Merchant', merchantText: 'Your own store and business listings',
     forgot: 'Forgot password?', noAccount: 'No account yet?', haveAccount: 'Already have an account?', forgotTitle: 'Reset your password',
@@ -338,7 +338,7 @@ const en = {
     },
   },
   store: {
-    title: 'Stores', subtitle: 'Merchant stores on MauriMarket', empty: 'No stores yet.', products: '{n} products', settings: 'Store settings', name: 'Store name',
+    title: 'Stores', subtitle: 'Merchant stores on {site}', empty: 'No stores yet.', products: '{n} products', settings: 'Store settings', name: 'Store name',
     logo: 'Logo', description: 'Business description', phone: 'Phone', whatsapp: 'WhatsApp', email: 'Email', city: 'City', create: 'Create store', view: 'View store',
     merchantOnly: 'Stores are for merchant accounts. You can change your account type in your profile.', contact: 'Contact', listings: 'Store products', owner: 'Owner',
   },
@@ -386,7 +386,7 @@ const v11 = {
     products: { sortRelevance: 'الأكثر صلة' },
     search: { categories: 'التصنيفات', listings: 'إعلانات', seeAll: 'كل النتائج لـ «{q}»' },
     product: {
-      share: 'مشاركة', copyLink: 'نسخ الرابط', linkCopied: 'تم نسخ الرابط', shareText: '{title} — {price} على MauriMarket',
+      share: 'مشاركة', copyLink: 'نسخ الرابط', linkCopied: 'تم نسخ الرابط', shareText: '{title} — {price} على {site}',
       photo: 'صورة {i} من {n}', zoom: 'تكبير الصورة', verifiedHint: 'تحققت الإدارة من هوية هذا البائع',
     },
     notifications: { types: {
@@ -399,7 +399,7 @@ const v11 = {
       featuredCount: 'إعلانات مميزة', verifiedCount: 'بائعون موثّقون', featuredTab: 'المميزة',
     },
     pwa: {
-      install: 'ثبّت التطبيق', installText: 'أضف MauriMarket إلى شاشتك الرئيسية وافتحه بلمسة واحدة كتطبيق.',
+      install: 'ثبّت التطبيق', installText: 'أضف {site} إلى شاشتك الرئيسية وافتحه بلمسة واحدة كتطبيق.',
       iosHint: 'اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية»', later: 'لاحقاً', offline: 'لا يوجد اتصال بالإنترنت',
     },
     theme: { label: 'المظهر', auto: 'تلقائي', light: 'فاتح', dark: 'داكن' },
@@ -415,7 +415,7 @@ const v11 = {
     products: { sortRelevance: 'Pertinence' },
     search: { categories: 'Catégories', listings: 'Annonces', seeAll: 'Tous les résultats pour « {q} »' },
     product: {
-      share: 'Partager', copyLink: 'Copier le lien', linkCopied: 'Lien copié', shareText: '{title} — {price} sur MauriMarket',
+      share: 'Partager', copyLink: 'Copier le lien', linkCopied: 'Lien copié', shareText: '{title} — {price} sur {site}',
       photo: 'Photo {i} sur {n}', zoom: 'Agrandir la photo', verifiedHint: 'L’identité de ce vendeur a été vérifiée',
     },
     notifications: { types: {
@@ -428,7 +428,7 @@ const v11 = {
       featuredCount: 'Annonces à la une', verifiedCount: 'Vendeurs vérifiés', featuredTab: 'À la une',
     },
     pwa: {
-      install: 'Installer l’app', installText: 'Ajoutez MauriMarket à votre écran d’accueil et ouvrez-le comme une application.',
+      install: 'Installer l’app', installText: 'Ajoutez {site} à votre écran d’accueil et ouvrez-le comme une application.',
       iosHint: 'Touchez Partager puis « Sur l’écran d’accueil »', later: 'Plus tard', offline: 'Pas de connexion Internet',
     },
     theme: { label: 'Thème', auto: 'Auto', light: 'Clair', dark: 'Sombre' },
@@ -444,7 +444,7 @@ const v11 = {
     products: { sortRelevance: 'Most relevant' },
     search: { categories: 'Categories', listings: 'Listings', seeAll: 'All results for “{q}”' },
     product: {
-      share: 'Share', copyLink: 'Copy link', linkCopied: 'Link copied', shareText: '{title} — {price} on MauriMarket',
+      share: 'Share', copyLink: 'Copy link', linkCopied: 'Link copied', shareText: '{title} — {price} on {site}',
       photo: 'Photo {i} of {n}', zoom: 'Enlarge photo', verifiedHint: 'This seller’s identity has been verified',
     },
     notifications: { types: {
@@ -457,7 +457,7 @@ const v11 = {
       featuredCount: 'Featured listings', verifiedCount: 'Verified sellers', featuredTab: 'Featured',
     },
     pwa: {
-      install: 'Install the app', installText: 'Add MauriMarket to your home screen and open it like an app.',
+      install: 'Install the app', installText: 'Add {site} to your home screen and open it like an app.',
       iosHint: 'Tap Share, then “Add to Home Screen”', later: 'Later', offline: 'No internet connection',
     },
     theme: { label: 'Theme', auto: 'Auto', light: 'Light', dark: 'Dark' },
@@ -490,16 +490,16 @@ const v12 = {
     },
     home: {
       allCategories: 'عرض جميع التصنيفات',
-      whyTitle: 'لماذا MauriMarket؟', why1: 'منصة موثوقة وآمنة', why2: 'سهولة في البحث والتصفح', why3: 'تواصل مباشر مع البائعين', why4: 'مناسب لجميع مدن موريتانيا',
+      whyTitle: 'لماذا {site}؟', why1: 'منصة موثوقة وآمنة', why2: 'سهولة في البحث والتصفح', why3: 'تواصل مباشر مع البائعين', why4: 'مناسب لجميع مدن موريتانيا',
       promoTitle: 'أعلن عن منتجاتك', promoTitle2: 'بكل سهولة', promoCta: 'إضافة إعلان',
-      stripPill: 'MauriMarket .. التسوق أسهل وأذكى',
+      stripPill: '{site} .. التسوق أسهل وأذكى',
       feat1: 'مجتمع كبير من المشترين والبائعين', feat2: 'تجربة سريعة وسهلة', feat3: 'حماية بياناتك الشخصية', feat4: 'مساعدة ونصائح للأمان',
     },
     product: { viewDetails: 'عرض التفاصيل', oldPrice: 'السعر قبل التخفيض' },
     form: { oldPrice: 'السعر قبل التخفيض (MRU)', oldPriceHelp: 'اختياري: يظهر إعلانك في «العروض الخاصة» مع نسبة التخفيض.' },
     fields: { old_price_higher: 'يجب أن يكون أعلى من السعر الحالي' },
     about: {
-      title: 'من نحن', intro: 'MauriMarket منصة موريتانية للبيع والشراء عبر الإنترنت، تجمع الأفراد والتجار في مكان واحد لعرض منتجاتهم وخدماتهم، وتمكّن المشترين من البحث والتواصل مباشرة مع البائعين.',
+      title: 'من نحن', intro: '{site} منصة موريتانية للبيع والشراء عبر الإنترنت، تجمع الأفراد والتجار في مكان واحد لعرض منتجاتهم وخدماتهم، وتمكّن المشترين من البحث والتواصل مباشرة مع البائعين.',
       missionTitle: 'رسالتنا', mission: 'تسهيل التجارة الإلكترونية في موريتانيا عبر منصة بسيطة ومنظمة وآمنة، بالأوقية الموريتانية وباللغات العربية والفرنسية والإنجليزية.',
       valuesTitle: 'ما يميزنا', v1: 'مراجعة كل إعلان قبل نشره', v2: 'بائعون موثّقون بعلامة ✓', v3: 'تقييمات مرتبطة بعمليات بيع حقيقية', v4: 'تواصل مباشر دون وسطاء',
       contactTitle: 'اتصل بنا', contactText: 'لأي استفسار أو اقتراح أو شكوى، تواصل معنا:', contactSoon: 'سيتم إضافة معلومات التواصل قريباً. يمكنك حالياً الإبلاغ عن أي إعلان مخالف بزر «الإبلاغ عن الإعلان».',
@@ -530,16 +530,16 @@ const v12 = {
     },
     home: {
       allCategories: 'Toutes les catégories',
-      whyTitle: 'Pourquoi MauriMarket ?', why1: 'Plateforme fiable et sûre', why2: 'Recherche facile', why3: 'Contact direct avec les vendeurs', why4: 'Pour toutes les villes de Mauritanie',
+      whyTitle: 'Pourquoi {site} ?', why1: 'Plateforme fiable et sûre', why2: 'Recherche facile', why3: 'Contact direct avec les vendeurs', why4: 'Pour toutes les villes de Mauritanie',
       promoTitle: 'Publiez vos produits', promoTitle2: 'en toute simplicité', promoCta: 'Ajouter une annonce',
-      stripPill: 'MauriMarket .. acheter plus simplement',
+      stripPill: '{site} .. acheter plus simplement',
       feat1: 'Une grande communauté', feat2: 'Rapide et simple', feat3: 'Vos données protégées', feat4: 'Aide et conseils de sécurité',
     },
     product: { viewDetails: 'Voir les détails', oldPrice: 'Prix avant remise' },
     form: { oldPrice: 'Prix avant remise (MRU)', oldPriceHelp: 'Facultatif : votre annonce apparaît dans les « Offres spéciales » avec le pourcentage de remise.' },
     fields: { old_price_higher: 'Doit être supérieur au prix actuel' },
     about: {
-      title: 'À propos', intro: 'MauriMarket est une plateforme mauritanienne d’achat et de vente en ligne qui réunit particuliers et commerçants et permet aux acheteurs de contacter directement les vendeurs.',
+      title: 'À propos', intro: '{site} est une plateforme mauritanienne d’achat et de vente en ligne qui réunit particuliers et commerçants et permet aux acheteurs de contacter directement les vendeurs.',
       missionTitle: 'Notre mission', mission: 'Faciliter le commerce en ligne en Mauritanie avec une plateforme simple, organisée et sûre, en MRU et en arabe, français et anglais.',
       valuesTitle: 'Nos atouts', v1: 'Chaque annonce est vérifiée', v2: 'Vendeurs vérifiés ✓', v3: 'Avis liés à de vraies ventes', v4: 'Contact direct, sans intermédiaire',
       contactTitle: 'Contact', contactText: 'Pour toute question, suggestion ou réclamation :', contactSoon: 'Les coordonnées seront ajoutées prochainement. Vous pouvez signaler une annonce avec le bouton « Signaler ».',
@@ -570,16 +570,16 @@ const v12 = {
     },
     home: {
       allCategories: 'All categories',
-      whyTitle: 'Why MauriMarket?', why1: 'Trusted and safe platform', why2: 'Easy search and browsing', why3: 'Direct contact with sellers', why4: 'For every city in Mauritania',
+      whyTitle: 'Why {site}?', why1: 'Trusted and safe platform', why2: 'Easy search and browsing', why3: 'Direct contact with sellers', why4: 'For every city in Mauritania',
       promoTitle: 'Advertise your products', promoTitle2: 'with ease', promoCta: 'Post an ad',
-      stripPill: 'MauriMarket .. easier, smarter shopping',
+      stripPill: '{site} .. easier, smarter shopping',
       feat1: 'A large community of buyers and sellers', feat2: 'Fast and easy', feat3: 'Your personal data protected', feat4: 'Help and safety tips',
     },
     product: { viewDetails: 'View details', oldPrice: 'Price before discount' },
     form: { oldPrice: 'Price before discount (MRU)', oldPriceHelp: 'Optional: your ad appears in “Special offers” with the discount percentage.' },
     fields: { old_price_higher: 'Must be higher than the current price' },
     about: {
-      title: 'About us', intro: 'MauriMarket is a Mauritanian online marketplace that brings individuals and merchants together and lets buyers contact sellers directly.',
+      title: 'About us', intro: '{site} is a Mauritanian online marketplace that brings individuals and merchants together and lets buyers contact sellers directly.',
       missionTitle: 'Our mission', mission: 'Make online trade in Mauritania simple, organised and safe — in MRU, in Arabic, French and English.',
       valuesTitle: 'What makes us different', v1: 'Every ad is reviewed', v2: 'Verified sellers ✓', v3: 'Reviews tied to real sales', v4: 'Direct contact, no middlemen',
       contactTitle: 'Contact us', contactText: 'For questions, suggestions or complaints:', contactSoon: 'Contact details will be added soon. Meanwhile you can report any listing with the “Report” button.',
@@ -643,11 +643,11 @@ const v14 = {
     profile: { phoneLogin: 'تدخل به إلى حسابك' },
     card: {
       title: 'بطاقة العضو', memberId: 'رقم العضوية', since: 'تاريخ الانضمام', scan: 'امسح لعرض الملف',
-      share: 'مشاركة بطاقتي', viewPublic: 'ملفي العام', shareText: 'ملف {name} على MauriMarket',
+      share: 'مشاركة بطاقتي', viewPublic: 'ملفي العام', shareText: 'ملف {name} على {site}',
       live: 'إعلانات نشطة', sold: 'مبيعات', rating: 'التقييم', favorites: 'في المفضلة',
     },
     seller: {
-      becomeTitle: 'هل تريد البيع على MauriMarket؟', becomeText: 'حسابك حالياً حساب مشتري: يمكنك التصفح والمراسلة والحفظ في المفضلة. حوّله إلى حساب بائع لتنشر إعلانات عن كل ما تبيعه.',
+      becomeTitle: 'هل تريد البيع على {site}؟', becomeText: 'حسابك حالياً حساب مشتري: يمكنك التصفح والمراسلة والحفظ في المفضلة. حوّله إلى حساب بائع لتنشر إعلانات عن كل ما تبيعه.',
       becomeAs: 'التحويل إلى {role}', switched: 'تم تحويل حسابك. يمكنك الآن نشر الإعلانات.', onlySellers: 'نشر الإعلانات متاح لحسابات البائعين والتجار فقط.',
     },
     admin: {
@@ -671,11 +671,11 @@ const v14 = {
     profile: { phoneLogin: 'Sert à vous connecter' },
     card: {
       title: 'Carte de membre', memberId: 'N° de membre', since: 'Membre depuis', scan: 'Scannez pour voir le profil',
-      share: 'Partager ma carte', viewPublic: 'Mon profil public', shareText: 'Profil de {name} sur MauriMarket',
+      share: 'Partager ma carte', viewPublic: 'Mon profil public', shareText: 'Profil de {name} sur {site}',
       live: 'Annonces actives', sold: 'Ventes', rating: 'Note', favorites: 'Favoris',
     },
     seller: {
-      becomeTitle: 'Vous voulez vendre sur MauriMarket ?', becomeText: 'Votre compte est un compte acheteur : vous pouvez parcourir, contacter et enregistrer des favoris. Passez en vendeur pour publier des annonces.',
+      becomeTitle: 'Vous voulez vendre sur {site} ?', becomeText: 'Votre compte est un compte acheteur : vous pouvez parcourir, contacter et enregistrer des favoris. Passez en vendeur pour publier des annonces.',
       becomeAs: 'Devenir {role}', switched: 'Compte modifié. Vous pouvez publier des annonces.', onlySellers: 'La publication d’annonces est réservée aux vendeurs et commerçants.',
     },
     admin: {
@@ -699,11 +699,11 @@ const v14 = {
     profile: { phoneLogin: 'Used to log in' },
     card: {
       title: 'Member card', memberId: 'Member ID', since: 'Member since', scan: 'Scan to view profile',
-      share: 'Share my card', viewPublic: 'My public profile', shareText: '{name}’s profile on MauriMarket',
+      share: 'Share my card', viewPublic: 'My public profile', shareText: '{name}’s profile on {site}',
       live: 'Active ads', sold: 'Sales', rating: 'Rating', favorites: 'Favorites',
     },
     seller: {
-      becomeTitle: 'Want to sell on MauriMarket?', becomeText: 'Your account is a buyer account: you can browse, message and save favorites. Switch to a seller account to post ads for everything you sell.',
+      becomeTitle: 'Want to sell on {site}?', becomeText: 'Your account is a buyer account: you can browse, message and save favorites. Switch to a seller account to post ads for everything you sell.',
       becomeAs: 'Become a {role}', switched: 'Account switched. You can post ads now.', onlySellers: 'Posting ads is only for seller and merchant accounts.',
     },
     admin: {
@@ -713,9 +713,9 @@ const v14 = {
     errors: { phone_taken: 'This phone number is already registered.', sellers_only: 'Only sellers can post ads. Switch to a seller account in your profile.' },
   },
 };
-deepMerge(ar, { home: { noListingsYet: 'لا توجد إعلانات بعد. كن أول من ينشر إعلاناً على MauriMarket!' } });
-deepMerge(fr, { home: { noListingsYet: 'Pas encore d’annonces. Soyez le premier à publier sur MauriMarket !' } });
-deepMerge(en, { home: { noListingsYet: 'No listings yet. Be the first to post on MauriMarket!' } });
+deepMerge(ar, { home: { noListingsYet: 'لا توجد إعلانات بعد. كن أول من ينشر إعلاناً على {site}!' } });
+deepMerge(fr, { home: { noListingsYet: 'Pas encore d’annonces. Soyez le premier à publier sur {site} !' } });
+deepMerge(en, { home: { noListingsYet: 'No listings yet. Be the first to post on {site}!' } });
 deepMerge(ar, { admin: { reviewNow: 'مراجعة الآن', recentActivity: 'آخر النشاطات', newListing: 'إعلان جديد', newUser: 'مستخدم جديد', by: 'بواسطة {name}', joinedThePlatform: 'انضم إلى المنصة', noActivity: 'لا توجد نشاطات بعد.' } });
 deepMerge(fr, { admin: { reviewNow: 'Examiner maintenant', recentActivity: 'Activité récente', newListing: 'Nouvelle annonce', newUser: 'Nouvel utilisateur', by: 'par {name}', joinedThePlatform: 'A rejoint la plateforme', noActivity: 'Aucune activité pour le moment.' } });
 deepMerge(en, { admin: { reviewNow: 'Review now', recentActivity: 'Latest activity', newListing: 'New listing', newUser: 'New user', by: 'by {name}', joinedThePlatform: 'Joined the platform', noActivity: 'No activity yet.' } });
@@ -1144,7 +1144,7 @@ const v19 = {
     admin: {
       siteSettings: 'إعدادات عامة', generalHint: 'خيارات التسجيل ونشر الإعلانات.',
       appearance: 'الهوية والمظهر', appearanceHint: 'اسم الموقع، والشعار، والألوان، ووضع الصيانة. يظهر كل تغيير للزوار فوراً.',
-      identity: 'هوية الموقع', siteName: 'اسم الموقع', siteNameHint: 'يظهر بجانب الشعار وفي عنوان المتصفح. اتركه فارغاً لـ MauriMarket.',
+      identity: 'هوية الموقع', siteName: 'اسم الموقع', siteNameHint: 'يظهر بجانب الشعار وفي عنوان المتصفح وفي كل نصوص الموقع. اتركه فارغاً لـ «سوق شنقيط».',
       logo: 'الشعار (Logo)', logoHint: 'صورة مربعة بخلفية شفافة (PNG) أفضل. تظهر أيضاً كأيقونة المتصفح.', useDefaultLogo: 'الشعار الأصلي',
       primaryColor: 'اللون الأساسي', secondaryColor: 'اللون الثانوي', colorHint: 'اضغط على المربع لاختيار اللون.', resetColor: 'الأصلي',
       colorsApplyHint: 'الأساسي: الأزرار والروابط والعناوين. الثانوي: زر «أضف إعلاناً» والنجوم والتمييز.',
@@ -1174,7 +1174,7 @@ const v19 = {
     admin: {
       siteSettings: 'Paramètres généraux', generalHint: 'Inscriptions et publication des annonces.',
       appearance: 'Identité et apparence', appearanceHint: 'Nom, logo, couleurs et mode maintenance. Visible immédiatement par les visiteurs.',
-      identity: 'Identité du site', siteName: 'Nom du site', siteNameHint: 'À côté du logo et dans l’onglet. Vide = MauriMarket.',
+      identity: 'Identité du site', siteName: 'Nom du site', siteNameHint: 'À côté du logo, dans l’onglet et dans tous les textes. Vide = « Souk Chinguetti ».',
       logo: 'Logo', logoHint: 'Image carrée, idéalement PNG transparent. Sert aussi d’icône d’onglet.', useDefaultLogo: 'Logo d’origine',
       primaryColor: 'Couleur principale', secondaryColor: 'Couleur secondaire', colorHint: 'Cliquez sur le carré pour choisir.', resetColor: 'D’origine',
       colorsApplyHint: 'Principale : boutons, liens, titres. Secondaire : « Publier », étoiles, mises en avant.',
@@ -1204,7 +1204,7 @@ const v19 = {
     admin: {
       siteSettings: 'General settings', generalHint: 'Sign-ups and listing publication.',
       appearance: 'Identity & appearance', appearanceHint: 'Site name, logo, colours and maintenance mode. Visitors see changes right away.',
-      identity: 'Site identity', siteName: 'Site name', siteNameHint: 'Next to the logo and in the browser tab. Empty = MauriMarket.',
+      identity: 'Site identity', siteName: 'Site name', siteNameHint: 'Next to the logo, in the browser tab and in every text. Empty = “Souk Chinguetti”.',
       logo: 'Logo', logoHint: 'A square image, ideally a transparent PNG. Also used as the tab icon.', useDefaultLogo: 'Original logo',
       primaryColor: 'Primary colour', secondaryColor: 'Secondary colour', colorHint: 'Click the square to pick a colour.', resetColor: 'Original',
       colorsApplyHint: 'Primary: buttons, links, headings. Secondary: “Post an ad”, stars and featured badges.',
@@ -1228,6 +1228,12 @@ const v19 = {
 deepMerge(ar, v19.ar);
 deepMerge(fr, v19.fr);
 deepMerge(en, v19.en);
+
+// ---------- v20: the site's name (Souk Chinguetti / سوق شنقيط) ----------
+// Texts say {site}; t() fills it with the admin's name (Admin → Identity) or this default.
+deepMerge(ar, { brand: { name: 'سوق شنقيط', nameA: 'سوق', nameB: 'شنقيط' } });
+deepMerge(fr, { brand: { name: 'Souk Chinguetti', nameA: 'Souk', nameB: 'Chinguetti' } });
+deepMerge(en, { brand: { name: 'Souk Chinguetti', nameA: 'Souk', nameB: 'Chinguetti' } });
 
 export const messages = { ar, fr, en };
 export const LANGS = [
