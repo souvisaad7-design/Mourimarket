@@ -94,12 +94,12 @@ export function Logo({ className = '', size = 'md', onDark = false }) {
   const { t, siteName, lang } = useI18n();
   const name = useSettings().settings.appearance?.siteName;
   return (
-    <Link to="/" className={`flex items-center gap-2 ${className}`} aria-label={siteName}>
-      <SiteMark className={big ? 'h-12 w-12' : 'h-10 w-10'} onDark={onDark} />
+    <Link to="/" className={`flex min-w-0 items-center gap-1.5 sm:gap-2 ${className}`} aria-label={siteName}>
+      <SiteMark className={big ? 'h-10 w-10 sm:h-12 sm:w-12' : 'h-10 w-10'} onDark={onDark} />
       {name ? (
-        <span className={`${big ? 'text-2xl' : 'text-xl'} max-w-[11rem] truncate font-bold tracking-tight sm:max-w-none ${onDark ? 'text-gold-400' : 'text-brand-800 dark-brand-text'}`}>{name}</span>
+        <span className={`${big ? 'text-base min-[360px]:text-lg min-[400px]:text-xl sm:text-2xl' : 'text-xl'} min-w-0 truncate font-bold tracking-tight sm:max-w-none ${onDark ? 'text-gold-400' : 'text-brand-800 dark-brand-text'}`}>{name}</span>
       ) : (
-        <span className={`${big ? 'text-2xl' : 'text-xl'} whitespace-nowrap font-bold ${lang === 'ar' ? '' : 'tracking-tight'}`}>
+        <span className={`${big ? 'text-base min-[360px]:text-lg min-[400px]:text-xl sm:text-2xl' : 'text-xl'} min-w-0 truncate whitespace-nowrap font-bold ${lang === 'ar' ? '' : 'tracking-tight'}`}>
           <span className={onDark ? 'text-gold-400' : 'text-brand-900 dark-brand-text'}>{t('brand.nameA')}</span>{' '}
           <span className={onDark ? 'text-gold-400' : 'text-brand-600'}>{t('brand.nameB')}</span>
         </span>

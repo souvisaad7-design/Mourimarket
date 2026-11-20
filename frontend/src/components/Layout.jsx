@@ -25,7 +25,7 @@ function QuickLang() {
   return (
     <button type="button" onClick={() => setLang(next)} lang={next}
       aria-label={next === 'fr' ? 'Français' : 'العربية'} title={next === 'fr' ? 'Français' : 'العربية'}
-      className="flex h-9 min-w-[2.5rem] items-center justify-center rounded-full border border-white/30 px-2.5 text-sm font-bold text-white hover:bg-white/10">
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/30 text-xs font-bold leading-none text-white hover:bg-white/10">
       {next === 'fr' ? 'FR' : 'ع'}
     </button>
   );
@@ -261,7 +261,7 @@ function Header() {
           </button>
           <Logo size="lg" onDark />
           {!inAdmin && <div className="mx-auto hidden w-full max-w-xl md:block"><SearchBar compact /></div>}
-          <div className="ms-auto flex items-center gap-1.5 sm:gap-2 md:ms-0">
+          <div className="ms-auto flex shrink-0 items-center gap-1 sm:gap-2 md:ms-0">
             <div className="hidden sm:block"><ThemeToggle /></div>
             {user ? (
               <>
