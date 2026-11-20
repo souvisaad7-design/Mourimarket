@@ -152,20 +152,20 @@ export default function HeroCarousel() {
       onFocus={() => { paused.current = true; }} onBlur={() => { paused.current = false; }}
       onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
     >
-      <div className="grid min-h-[180px] sm:min-h-[230px] md:min-h-[260px] md:grid-cols-[1.05fr_1fr]">
+      <div className="grid min-h-[132px] sm:min-h-[230px] md:min-h-[260px] md:grid-cols-[1.05fr_1fr]">
         {/* Text panel (first = right side in Arabic) */}
-        <div key={`t-${slide.key}`} className="relative flex animate-fade-in flex-col justify-center gap-2 overflow-hidden bg-gradient-to-bl from-brand-700 via-brand-800 to-brand-900 px-6 pb-9 pt-5 text-white sm:gap-3 sm:px-14 sm:pb-11 sm:pt-8 md:px-16">
+        <div key={`t-${slide.key}`} className="relative flex animate-fade-in flex-col items-start justify-center gap-1.5 overflow-hidden bg-gradient-to-bl from-brand-700 via-brand-800 to-brand-900 px-5 pb-7 pt-3.5 text-start text-white sm:gap-3 sm:px-14 sm:pb-12 sm:pt-8 md:px-16">
           {/* phones: the slide photo behind the text */}
           {slide.image && <img src={slide.image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30 md:hidden" />}
           <Skyline />
-          {slide.title && <h1 className="relative text-xl font-bold leading-snug text-white sm:text-[1.75rem] xl:text-[2rem]">{slide.title}</h1>}
-          {slide.text && <p className="relative text-sm text-white/85 sm:text-lg">{slide.text}</p>}
+          {slide.title && <h1 className="relative text-lg font-bold leading-snug text-white sm:text-[1.75rem] xl:text-[2rem]">{slide.title}</h1>}
+          {slide.text && <p className="relative text-[13px] leading-snug text-white/85 sm:text-lg">{slide.text}</p>}
           {slide.cta && (
-            <div className="relative mt-2">
+            <div className="relative mt-1 sm:mt-2">
               {external ? (
-                <a href={slide.to} target="_blank" rel="noreferrer" className="btn-accent rounded-full px-5 py-2.5 text-sm shadow-lg sm:px-7 sm:py-3 sm:text-base">{slide.cta}<Icon name="arrow" className="h-5 w-5 ltr:rotate-180" /></a>
+                <a href={slide.to} target="_blank" rel="noreferrer" className="btn-accent rounded-full px-4 py-2 text-sm shadow-lg sm:px-7 sm:py-3 sm:text-base">{slide.cta}<Icon name="arrow" className="h-5 w-5 ltr:rotate-180" /></a>
               ) : (
-                <Link to={slide.to} className="btn-accent rounded-full px-5 py-2.5 text-sm shadow-lg sm:px-7 sm:py-3 sm:text-base">
+                <Link to={slide.to} className="btn-accent rounded-full px-4 py-2 text-sm shadow-lg sm:px-7 sm:py-3 sm:text-base">
                   {slide.cta}<Icon name="arrow" className="h-5 w-5 ltr:rotate-180" />
                 </Link>
               )}
@@ -198,10 +198,10 @@ export default function HeroCarousel() {
         className={`absolute top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white p-2 text-ink shadow-md transition hover:scale-105 sm:block ${nextSide}`}>
         <Icon name={dir === 'rtl' ? 'chevronLeft' : 'chevron'} className="h-5 w-5" />
       </button>
-      <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-2" dir="ltr">
+      <div className="absolute inset-x-0 bottom-2.5 z-10 flex justify-center gap-2 sm:bottom-4" dir="ltr">
         {slides.map((s, i) => (
           <button key={s.key} type="button" onClick={() => go(i)} aria-label={`${i + 1} / ${count}`} aria-current={i === index}
-            className={`h-2.5 rounded-full transition-all ${i === index ? 'w-7 bg-white' : 'w-2.5 bg-white/50 hover:bg-white/80'}`} />
+            className={`h-2 rounded-full transition-all sm:h-2.5 ${i === index ? 'w-6 bg-gold-400 sm:w-7' : 'w-2 bg-white/50 hover:bg-white/80 sm:w-2.5'}`} />
         ))}
       </div>
       </>}

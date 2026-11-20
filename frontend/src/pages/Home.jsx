@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import HeroCarousel from '../components/HeroCarousel.jsx';
 import { ProductGrid, ProductGridSkeleton } from '../components/ProductCard.jsx';
-import { EmptyState, Icon, VerifiedBadge, useCityName } from '../components/ui.jsx';
+import { CategoryIcon, EmptyState, Icon, VerifiedBadge, useCityName } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { useSettings } from '../context/SettingsContext.jsx';
@@ -11,22 +11,26 @@ import { useApi, useDocumentTitle } from '../lib/hooks.js';
 export function CategoryTiles({ categories }) {
   const { tl } = useI18n();
   return (
-    <div className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-5 sm:overflow-visible sm:px-0 lg:grid-cols-9">
-      {categories.map((c) => (
-        <Link key={c.id} to={`/products?category=${c.slug}`}
-          className="group flex w-24 shrink-0 snap-start flex-col items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-slate-100/70 px-2 py-3 text-center sm:w-auto sm:gap-2 sm:py-4 transition hover:-translate-y-1 hover:border-brand-300 hover:bg-surface hover:shadow-md sm:w-auto">
-          <span className="text-4xl drop-shadow-sm transition group-hover:scale-110 sm:text-5xl" aria-hidden="true">{c.icon}</span>
-          <span className="text-xs font-bold leading-tight text-slate-800">{tl(c)}</span>
-        </Link>
-      ))}
+    <div className="relative">
+      <div className="no-scrollbar -mx-4 flex snap-x gap-2.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-5 sm:gap-3 sm:overflow-visible sm:px-0 lg:grid-cols-9">
+        {categories.map((c) => (
+          <Link key={c.id} to={`/products?category=${c.slug}`}
+            className="group flex w-[5.5rem] shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-2xl border border-slate-200 bg-slate-100/70 px-1.5 py-2 text-center transition hover:-translate-y-1 hover:border-brand-300 hover:bg-surface hover:shadow-md sm:w-auto sm:gap-2 sm:px-2 sm:py-4">
+            <span className="text-[2rem] leading-none drop-shadow-sm transition group-hover:scale-110 sm:text-5xl" aria-hidden="true"><CategoryIcon icon={c.icon} /></span>
+            <span className="text-[11px] font-bold leading-tight text-slate-800 sm:text-xs">{tl(c)}</span>
+          </Link>
+        ))}
+      </div>
+      {/* Phones: a soft fade on the far edge shows the row scrolls sideways */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 -end-4 w-16 from-slate-50 via-slate-50/60 to-transparent ltr:bg-gradient-to-l rtl:bg-gradient-to-r sm:hidden" />
     </div>
   );
 }
 
 function SectionTitle({ children, action }) {
   return (
-    <div className="mb-4 flex items-center justify-between gap-3">
-      <h2 className="relative pb-2 text-xl font-bold after:absolute after:bottom-0 after:start-0 after:h-1 after:w-3/4 after:rounded-full after:bg-brand-700">{children}</h2>
+    <div className="mb-3 flex items-center justify-between gap-3 sm:mb-4">
+      <h2 className="relative pb-1.5 text-lg font-bold sm:pb-2 sm:text-xl after:absolute after:bottom-0 after:start-0 after:h-1 after:w-3/4 after:rounded-full after:bg-brand-700">{children}</h2>
       {action}
     </div>
   );
@@ -152,7 +156,7 @@ export default function Home() {
   const show = { hero: true, categories: true, latest: true, promo: true, deals: true, cities: true, stores: true, features: true, ...useSettings().settings.menu?.home };
 
   return (
-    <div className="container-page space-y-7 py-4 sm:space-y-10 sm:py-5">
+    <div className="container-page space-y-3.5 py-3 sm:space-y-10 sm:py-5">
       {show.hero && <HeroCarousel />}
 
       {show.categories && <section>

@@ -277,3 +277,31 @@ export function PageHeader({ title, children }) {
     </div>
   );
 }
+
+/** A plain smartphone the size of an emoji (the 📱 emoji draws a crowded grid of apps). */
+function PhoneGlyph() {
+  return (
+    <svg viewBox="0 0 64 64" className="inline-block h-[1em] w-[1em] align-[-0.125em]" aria-hidden="true">
+      <defs>
+        <linearGradient id="mm-phone-screen" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#7cc4e8" />
+          <stop offset="1" stopColor="#2f6fb0" />
+        </linearGradient>
+      </defs>
+      <rect x="15" y="3" width="34" height="58" rx="8" fill="#2b3340" />
+      <rect x="15.8" y="3.8" width="32.4" height="56.4" rx="7.4" fill="none" stroke="#5b6573" strokeWidth="1.6" />
+      <rect x="19" y="9" width="26" height="45" rx="3.5" fill="url(#mm-phone-screen)" />
+      <path d="M19 30 L45 16 L45 22 L19 38 Z" fill="#fff" opacity="0.18" />
+      <rect x="27" y="5.6" width="10" height="2" rx="1" fill="#11161d" />
+      <rect x="27.5" y="56.5" width="9" height="1.6" rx="0.8" fill="#9aa3ae" />
+    </svg>
+  );
+}
+
+const SIMPLE_ICONS = { '📱': PhoneGlyph, '📲': PhoneGlyph };
+
+/** A category's icon (an emoji chosen by the admin), with a cleaner drawing where the emoji is too busy. */
+export function CategoryIcon({ icon }) {
+  const Simple = SIMPLE_ICONS[(icon || '').replace(/\uFE0F/g, '')];
+  return Simple ? <Simple /> : icon || null;
+}

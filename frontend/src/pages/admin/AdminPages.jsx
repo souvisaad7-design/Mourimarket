@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Avatar, CitySelect, EmptyState, ErrorBox, Field, Icon, Modal, Pagination, PhoneInput, Spinner, StatusBadge, VerifiedBadge, useCityName, useFieldError } from '../../components/ui.jsx';
+import { Avatar, CategoryIcon, CitySelect, EmptyState, ErrorBox, Field, Icon, Modal, Pagination, PhoneInput, Spinner, StatusBadge, VerifiedBadge, useCityName, useFieldError } from '../../components/ui.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useI18n } from '../../i18n/index.jsx';
 import { api, getToken } from '../../lib/api.js';
@@ -373,7 +373,7 @@ export function AdminCategories() {
       <ul className="card divide-y divide-slate-100">
         {categories.map((c) => (
           <li key={c.id} className="flex items-center gap-3 p-3">
-            <span className="text-2xl" aria-hidden="true">{c.icon}</span>
+            <span className="text-2xl" aria-hidden="true"><CategoryIcon icon={c.icon} /></span>
             <div className="min-w-0 flex-1">
               <p className="font-semibold">{c.name_ar} · {c.name_fr} · {c.name_en}</p>
               <p className="text-xs text-slate-500" dir="ltr">{c.slug} · {number(c.product_count)}</p>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ProductGrid, ProductGridSkeleton } from '../components/ProductCard.jsx';
-import { CitySelect, EmptyState, ErrorBox, Icon, Pagination } from '../components/ui.jsx';
+import { CategoryIcon, CitySelect, EmptyState, ErrorBox, Icon, Pagination } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
@@ -148,7 +148,7 @@ export default function Products() {
         <button onClick={() => update({ category: '' })} className={`badge shrink-0 px-3 py-1.5 text-sm ${!current.category ? 'bg-brand-700 text-white' : 'bg-surface text-slate-700 ring-1 ring-slate-200'}`}>{t('common.all')}</button>
         {categories.map((c) => (
           <button key={c.id} onClick={() => update({ category: c.slug })} className={`badge shrink-0 gap-1 px-3 py-1.5 text-sm ${current.category === c.slug ? 'bg-brand-700 text-white' : 'bg-surface text-slate-700 ring-1 ring-slate-200'}`}>
-            <span aria-hidden="true">{c.icon}</span>{tl(c)}
+            <span aria-hidden="true"><CategoryIcon icon={c.icon} /></span>{tl(c)}
           </button>
         ))}
       </div>

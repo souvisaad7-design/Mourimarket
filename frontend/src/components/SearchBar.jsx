@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
-import { CitySelect, Icon } from './ui.jsx';
+import { CategoryIcon, CitySelect, Icon } from './ui.jsx';
 
 /** Search box with live suggestions (listings + categories) while typing. */
 export function SearchBar({ initial = {}, large = false, compact = false }) {
@@ -80,7 +80,7 @@ export function SearchBar({ initial = {}, large = false, compact = false }) {
               <li key={o.key} role="option" aria-selected={active === i}>
                 <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={o.onPick}
                   className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-start text-sm ${active === i ? 'bg-slate-100' : 'hover:bg-slate-100'}`}>
-                  {o.icon ? <span aria-hidden="true">{o.icon}</span> : <Icon name="search" className="h-4 w-4 shrink-0 text-slate-400" />}
+                  {o.icon ? <span aria-hidden="true"><CategoryIcon icon={o.icon} /></span> : <Icon name="search" className="h-4 w-4 shrink-0 text-slate-400" />}
                   <span className="truncate">{o.label}</span>
                 </button>
               </li>

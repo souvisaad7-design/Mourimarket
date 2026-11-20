@@ -7,7 +7,7 @@ import { useI18n } from '../i18n/index.jsx';
 import { LANGS } from '../i18n/messages.js';
 import { InstallPrompt, OfflineBanner, ThemeToggle } from './AppChrome.jsx';
 import { SearchBar } from './SearchBar.jsx';
-import { Avatar, Icon, Logo, SiteMark } from './ui.jsx';
+import { Avatar, CategoryIcon, Icon, Logo, SiteMark } from './ui.jsx';
 
 function Badge({ n }) {
   if (!n) return null;
@@ -15,6 +15,47 @@ function Badge({ n }) {
     <span className="absolute -end-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[11px] font-bold text-white">
       {n > 99 ? '99+' : n}
     </span>
+  );
+}
+
+/** Phones: one tap between Arabic and French (English stays in the menu). */
+function QuickLang() {
+  const { lang, setLang } = useI18n();
+  const next = lang === 'ar' ? 'fr' : 'ar';
+  return (
+    <button type="button" onClick={() => setLang(next)} lang={next}
+      aria-label={next === 'fr' ? 'Français' : 'العربية'} title={next === 'fr' ? 'Français' : 'العربية'}
+      className="flex h-9 min-w-[2.5rem] items-center justify-center rounded-full border border-white/30 px-2.5 text-sm font-bold text-white hover:bg-white/10">
+      {next === 'fr' ? 'FR' : 'ع'}
+    </button>
+  );
+}
+
+/** Phones: "📍 All cities" under the search bar: opens the listings of one city. */
+function CityChip() {
+  const { t, lang } = useI18n();
+  const { meta } = useApp();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const current = location.pathname === '/products' ? new URLSearchParams(location.search).get('city') || '' : '';
+  const name = meta.cities.find((c) => c.key === current)?.[lang];
+  const choose = (key) => {
+    const params = location.pathname === '/products' ? new URLSearchParams(location.search) : new URLSearchParams();
+    if (key) params.set('city', key); else params.delete('city');
+    params.delete('page');
+    navigate(`/products${params.toString() ? `?${params}` : ''}`);
+  };
+  return (
+    <label className="relative mt-1.5 inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-full bg-white/10 pe-2.5 ps-3 text-xs font-semibold text-white ring-1 ring-white/20 hover:bg-white/15">
+      <span aria-hidden="true">📍</span>
+      <span>{name || t('common.allCities')}</span>
+      <Icon name="chevronDown" className="h-3.5 w-3.5 opacity-80" />
+      <select value={current} onChange={(e) => choose(e.target.value)} aria-label={t('common.allCities')}
+        className="absolute inset-0 cursor-pointer opacity-0 [&>option]:text-slate-900">
+        <option value="">{t('common.allCities')}</option>
+        {meta.cities.map((c) => <option key={c.key} value={c.key}>{c[lang]}</option>)}
+      </select>
+    </label>
   );
 }
 
@@ -167,7 +208,7 @@ function CategoriesMenu({ navCls }) {
         <div role="menu" className="card absolute start-0 top-full z-40 mt-2 grid w-[34rem] animate-fade-in grid-cols-3 gap-1 p-2">
           {categories.map((c) => (
             <Link key={c.id} role="menuitem" to={`/products?category=${c.slug}`} className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-brand-50">
-              <span className="text-xl" aria-hidden="true">{c.icon}</span>{tl(c)}
+              <span className="text-xl" aria-hidden="true"><CategoryIcon icon={c.icon} /></span>{tl(c)}
             </Link>
           ))}
           <Link to="/categories" className="col-span-3 mt-1 rounded-xl px-3 py-2 text-center text-sm font-semibold text-brand-700 hover:bg-brand-50">{t('home.allCategories')}</Link>
@@ -224,7 +265,9 @@ function Header() {
             <div className="hidden sm:block"><ThemeToggle /></div>
             {user ? (
               <>
-                <Link to="/messages" className="btn-ghost relative p-2" aria-label={t('nav.messages')} title={t('nav.messages')}>
+                {/* Phones have Messages in the bottom bar: the language button takes its place here */}
+                <div className="sm:hidden"><QuickLang /></div>
+                <Link to="/messages" className="btn-ghost relative hidden p-2 sm:inline-flex" aria-label={t('nav.messages')} title={t('nav.messages')}>
                   <Icon name="chat" /><Badge n={counts.messages} />
                 </Link>
                 <Link to="/notifications" className="btn-ghost relative p-2" aria-label={t('nav.notifications')} title={t('nav.notifications')}>
@@ -235,6 +278,7 @@ function Header() {
               </>
             ) : (
               <>
+                <div className="sm:hidden"><QuickLang /></div>
                 <Link to="/login" className="btn hidden rounded-full border-2 border-white/60 px-5 text-white hover:bg-white/10 sm:inline-flex">
                   <Icon name="user" className="h-4 w-4" />{t('nav.loginShort')}
                 </Link>
@@ -246,7 +290,7 @@ function Header() {
           </div>
         </div>
         {/* Phones: search under the logo row */}
-        {!inAdmin && <div className="container-page pb-3 md:hidden"><SearchBar compact /></div>}
+        {!inAdmin && <div className="container-page pb-2 md:hidden"><SearchBar compact /><CityChip /></div>}
         {/* Desktop navigation */}
         <nav className="hidden border-t border-white/10 lg:block">
           <div className="container-page flex items-center justify-center gap-2">
