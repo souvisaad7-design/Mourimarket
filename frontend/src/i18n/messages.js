@@ -1229,6 +1229,82 @@ deepMerge(ar, v19.ar);
 deepMerge(fr, v19.fr);
 deepMerge(en, v19.en);
 
+// ---------- v21: geolocation (near me, maps, distances) ----------
+const v21 = {
+  ar: {
+    geo: {
+      title: 'موقعي', prompt: 'حدّد موقعك لترى الإعلانات القريبة منك والمسافة إليها.', locateMe: 'تحديد موقعي', locating: 'جارٍ تحديد موقعك…',
+      updateLocation: 'تحديث موقعي', chooseManually: 'اختيار المدينة يدوياً', forget: 'مسح موقعي', youAreIn: 'موقعك الحالي', yourChoice: 'المكان الذي اخترته', located: 'تم تحديد موقعك',
+      chooseCity: 'اختر المدينة', chooseArea: 'المقاطعة', anyArea: 'كل المقاطعات', noAreas: 'المقاطعة (غير متاحة لهذه المدينة)', useThisPlace: 'استخدام هذا المكان',
+      privacy: 'موقعك يبقى على جهازك فقط، ولا نحفظه ولا نعرضه لأحد. نستخدمه تقريبياً (حوالي 1 كم) لحساب المسافات.',
+      error: {
+        denied: 'لم تسمح بالوصول إلى موقعك. يمكنك اختيار مدينتك ومقاطعتك يدوياً.', unavailable: 'تعذّر تحديد موقعك الآن (ضعف الإشارة أو انتهاء الوقت). حاول مرة أخرى أو اختر المدينة يدوياً.',
+        unsupported: 'متصفحك لا يدعم تحديد الموقع. اختر المدينة يدوياً.', outside: 'يبدو أنك خارج موريتانيا، لذلك لم نستخدم موقعك. يمكنك اختيار مدينة يدوياً.',
+      },
+      nearMe: 'الإعلانات القريبة مني', anyDistance: 'كل المسافات', withinKm: 'حتى {km} كم', locateFirst: 'حدّد موقعك أولاً لتفعيل هذا الفلتر.',
+      nearTitle: 'إعلانات قريبة منك (حتى {km} كم)', noneNearby: 'لا توجد إعلانات في حدود {km} كم منك.', widen: 'توسيع المسافة',
+      sortDistance: 'الأقرب أولاً', view: 'طريقة العرض', listView: 'قائمة', mapView: 'خريطة', openListing: 'فتح الإعلان', you: 'أنت هنا',
+      km: '{km} كم', kmFromYou: '{km} كم منك', distanceHint: 'المسافة التقريبية بينك وبين مكان الإعلان', locateForDistance: 'حدّد موقعك لمعرفة المسافة',
+      mapApproxNote: '{n} إعلان على الخريطة. الأماكن تقريبية إلا إذا اختار البائع إظهار موقعه الدقيق.',
+      itemLocation: 'موقع الإعلان', exactShown: 'اختار البائع إظهار الموقع الدقيق.', approxShown: 'الموقع تقريبي (حوالي 1 كم) لحماية خصوصية البائع.', cityOnly: 'لم يحدد البائع مكاناً على الخريطة: نعرض المدينة فقط.',
+      formHint: 'حدّد مكان المنتج أو الخدمة ليظهر إعلانك لمن هم قريبون منك. اضغط على الخريطة لوضع الدبوس، ويمكنك سحبه.',
+      useMyLocation: 'استخدم موقعي الحالي', removePin: 'إزالة الدبوس', pickOnMap: 'اضغط على الخريطة لتحديد المكان.', pinSet: 'تم تحديد المكان. اسحب الدبوس لتعديله.',
+      outOfArea: 'المكان يجب أن يكون داخل موريتانيا.', area: 'المقاطعة', district: 'الحي',
+      showExact: 'إظهار الموقع الدقيق للمشترين', showExactHint: 'إن لم تحدده، يرى المشترون منطقة تقريبية (حوالي 1 كم) فقط، والمسافة بخطوات نصف كيلومتر.',
+    },
+    admin: { cityCentre: 'مركز المدينة على الخريطة', latitude: 'خط العرض', longitude: 'خط الطول', cityCentreHint: 'يُستخدم لحساب المسافة للإعلانات التي لا تحمل دبوساً. اضغط على الخريطة لتحديده.' },
+  },
+  fr: {
+    geo: {
+      title: 'Ma position', prompt: 'Indiquez votre position pour voir les annonces proches et leur distance.', locateMe: 'Me localiser', locating: 'Localisation…',
+      updateLocation: 'Actualiser ma position', chooseManually: 'Choisir la ville', forget: 'Effacer ma position', youAreIn: 'Votre position', yourChoice: 'Le lieu choisi', located: 'Position trouvée',
+      chooseCity: 'Choisir la ville', chooseArea: 'Moughataa', anyArea: 'Toutes les moughataas', noAreas: 'Moughataa (non disponible ici)', useThisPlace: 'Utiliser ce lieu',
+      privacy: 'Votre position reste sur votre appareil : nous ne l’enregistrons ni ne la montrons. Elle sert, arrondie à ~1 km, à calculer les distances.',
+      error: {
+        denied: 'Accès à la position refusé. Vous pouvez choisir votre ville et votre moughataa.', unavailable: 'Position introuvable pour le moment. Réessayez ou choisissez la ville.',
+        unsupported: 'Votre navigateur ne permet pas la localisation. Choisissez la ville.', outside: 'Vous semblez hors de Mauritanie : position non utilisée. Choisissez une ville.',
+      },
+      nearMe: 'Annonces près de moi', anyDistance: 'Toutes distances', withinKm: 'Jusqu’à {km} km', locateFirst: 'Indiquez d’abord votre position.',
+      nearTitle: 'Près de vous (jusqu’à {km} km)', noneNearby: 'Aucune annonce à moins de {km} km.', widen: 'Élargir',
+      sortDistance: 'Les plus proches', view: 'Affichage', listView: 'Liste', mapView: 'Carte', openListing: 'Voir l’annonce', you: 'Vous êtes ici',
+      km: '{km} km', kmFromYou: 'à {km} km', distanceHint: 'Distance approximative entre vous et l’annonce', locateForDistance: 'Localisez-vous pour voir la distance',
+      mapApproxNote: '{n} annonces sur la carte. Les lieux sont approximatifs sauf si le vendeur montre le lieu exact.',
+      itemLocation: 'Emplacement', exactShown: 'Le vendeur montre le lieu exact.', approxShown: 'Lieu approximatif (~1 km) pour protéger le vendeur.', cityOnly: 'Pas de point sur la carte : seule la ville est indiquée.',
+      formHint: 'Indiquez où se trouve le produit ou le service pour apparaître aux acheteurs proches. Touchez la carte pour poser le repère, déplacez-le si besoin.',
+      useMyLocation: 'Utiliser ma position', removePin: 'Retirer le repère', pickOnMap: 'Touchez la carte pour choisir le lieu.', pinSet: 'Lieu défini. Déplacez le repère pour l’ajuster.',
+      outOfArea: 'Le lieu doit être en Mauritanie.', area: 'Moughataa', district: 'Quartier',
+      showExact: 'Montrer le lieu exact aux acheteurs', showExactHint: 'Sinon, les acheteurs voient une zone d’environ 1 km et une distance arrondie au demi-kilomètre.',
+    },
+    admin: { cityCentre: 'Centre de la ville', latitude: 'Latitude', longitude: 'Longitude', cityCentreHint: 'Sert aux distances des annonces sans repère. Touchez la carte pour le placer.' },
+  },
+  en: {
+    geo: {
+      title: 'My location', prompt: 'Share your location to see listings near you and how far they are.', locateMe: 'Locate me', locating: 'Locating…',
+      updateLocation: 'Update my location', chooseManually: 'Choose city manually', forget: 'Forget my location', youAreIn: 'You are in', yourChoice: 'Your chosen place', located: 'Location found',
+      chooseCity: 'Choose city', chooseArea: 'Moughataa', anyArea: 'All moughataas', noAreas: 'Moughataa (not available here)', useThisPlace: 'Use this place',
+      privacy: 'Your location stays on your device: we never store or show it. Rounded to ~1 km, it is only used to work out distances.',
+      error: {
+        denied: 'Location access was refused. You can choose your city and moughataa instead.', unavailable: 'Could not find your location right now. Try again or choose a city.',
+        unsupported: 'Your browser cannot share a location. Choose a city instead.', outside: 'You seem to be outside Mauritania, so your location was not used. Choose a city instead.',
+      },
+      nearMe: 'Listings near me', anyDistance: 'Any distance', withinKm: 'Within {km} km', locateFirst: 'Share your location first to use this filter.',
+      nearTitle: 'Near you (within {km} km)', noneNearby: 'No listings within {km} km of you.', widen: 'Search wider',
+      sortDistance: 'Nearest first', view: 'View', listView: 'List', mapView: 'Map', openListing: 'Open listing', you: 'You are here',
+      km: '{km} km', kmFromYou: '{km} km from you', distanceHint: 'Approximate distance between you and the listing', locateForDistance: 'Share your location to see the distance',
+      mapApproxNote: '{n} listings on the map. Places are approximate unless the seller shows the exact spot.',
+      itemLocation: 'Item location', exactShown: 'The seller shows the exact place.', approxShown: 'Approximate place (~1 km) to protect the seller’s privacy.', cityOnly: 'No map pin: only the city is shown.',
+      formHint: 'Mark where the item or service is so nearby buyers find it. Tap the map to drop the pin; drag it to adjust.',
+      useMyLocation: 'Use my current location', removePin: 'Remove pin', pickOnMap: 'Tap the map to choose the place.', pinSet: 'Place set. Drag the pin to adjust it.',
+      outOfArea: 'The place must be in Mauritania.', area: 'Moughataa', district: 'Neighbourhood',
+      showExact: 'Show the exact place to buyers', showExactHint: 'Otherwise buyers only see a ~1 km zone, and the distance in half-kilometre steps.',
+    },
+    admin: { cityCentre: 'City centre on the map', latitude: 'Latitude', longitude: 'Longitude', cityCentreHint: 'Used for the distance of listings without a pin. Tap the map to set it.' },
+  },
+};
+deepMerge(ar, v21.ar);
+deepMerge(fr, v21.fr);
+deepMerge(en, v21.en);
+
 // ---------- v20: the site's name (Souk Chinguetti / سوق شنقيط) ----------
 // Texts say {site}; t() fills it with the admin's name (Admin → Identity) or this default.
 deepMerge(ar, { brand: { name: 'سوق شنقيط', nameA: 'سوق', nameB: 'شنقيط' } });

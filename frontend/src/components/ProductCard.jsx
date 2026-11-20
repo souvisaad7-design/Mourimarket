@@ -51,7 +51,7 @@ export function discountPercent(product) {
 }
 
 export default function ProductCard({ product, onFavoriteChange }) {
-  const { t, price, ago } = useI18n();
+  const { t, price, ago, number } = useI18n();
   const { meta } = useApp();
   const cityName = useCityName();
   const sold = product.availability === 'sold';
@@ -80,6 +80,7 @@ export default function ProductCard({ product, onFavoriteChange }) {
         {off > 0 && <p className="-mt-1 text-xs text-slate-400 line-through"><span className="ltr-nums">{price(product.old_price)}</span></p>}
         <div className="mt-1 flex items-center justify-center gap-3 text-xs text-slate-500">
           <span className="flex items-center gap-1 truncate"><Icon name="pin" className="h-3.5 w-3.5 shrink-0" />{cityName(meta.cities, product.city)}</span>
+          {product.distance_km != null && <span className="shrink-0 font-semibold text-brand-700" title={t('geo.distanceHint')}>≈ {t('geo.km', { km: String(product.distance_km) })}</span>}
           <span className="shrink-0">{ago(product.created_at)}</span>
         </div>
         {(product.store_name || product.seller_verified) && (

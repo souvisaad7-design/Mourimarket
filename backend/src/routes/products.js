@@ -20,13 +20,34 @@ export const PRODUCT_SELECT = `
   c.slug AS category_slug, c.name_ar AS category_name_ar, c.name_fr AS category_name_fr, c.name_en AS category_name_en,
   (SELECT url FROM product_images i WHERE i.product_id = p.id ORDER BY sort_order, id LIMIT 1) AS cover_url,
   u.name AS seller_name, u.is_verified AS seller_verified, s.name AS store_name, s.slug AS store_slug,
-  (p.featured_until IS NOT NULL AND p.featured_until > now()) AS is_featured, p.featured_until`;
+  (p.featured_until IS NOT NULL AND p.featured_until > now()) AS is_featured, p.featured_until,
+  p.area, p.district, p.loc_exact,
+  -- Location for maps: the exact pin only if the seller allowed it, otherwise rounded to ~1 km;
+  -- listings without a pin fall back to their city centre.
+  CASE WHEN p.lat IS NULL THEN 'city' WHEN p.loc_exact THEN 'exact' ELSE 'approx' END AS loc_precision,
+  CASE WHEN p.lat IS NULL THEN ct.lat WHEN p.loc_exact THEN p.lat ELSE round(p.lat::numeric, 2)::float8 END AS map_lat,
+  CASE WHEN p.lat IS NULL THEN ct.lng WHEN p.loc_exact THEN p.lng ELSE round(p.lng::numeric, 2)::float8 END AS map_lng`;
 
 export const PRODUCT_FROM = `
   FROM products p
   JOIN categories c ON c.id = p.category_id
   JOIN users u ON u.id = p.seller_id
-  LEFT JOIN stores s ON s.id = p.store_id AND s.is_active`;
+  LEFT JOIN stores s ON s.id = p.store_id AND s.is_active
+  LEFT JOIN cities ct ON ct.key = p.city`;
+
+/**
+ * SQL for the distance (km) between a visitor and a listing. Uses the real pin, or the city
+ * centre when there is none. Rounded so it cannot be used to work out a hidden pin:
+ * 0.1 km when the seller shows the exact place, otherwise 0.5 km (and never under 0.5 km).
+ */
+export function distanceSql(latParam, lngParam) {
+  const raw = `mm_distance_km(${latParam}, ${lngParam}, COALESCE(p.lat, ct.lat), COALESCE(p.lng, ct.lng))`;
+  return {
+    raw,
+    shown: `CASE WHEN ${raw} IS NULL THEN NULL WHEN p.loc_exact THEN round(${raw}::numeric, 1)::float8
+                 ELSE GREATEST(0.5, round(${raw}::numeric * 2) / 2)::float8 END`,
+  };
+}
 
 const listSchema = z.object({
   q: z.string().trim().max(100).optional(),
@@ -35,7 +56,11 @@ const listSchema = z.object({
   minPrice: z.coerce.number().min(0).optional(),
   maxPrice: z.coerce.number().min(0).optional(),
   condition: z.enum(['new', 'used']).optional().or(z.literal('')),
-  sort: z.enum(['relevance', 'newest', 'oldest', 'price_asc', 'price_desc']).optional(),
+  sort: z.enum(['relevance', 'newest', 'oldest', 'price_asc', 'price_desc', 'distance']).optional(),
+  // The visitor's position (rounded by the browser) for distances and "near me".
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
+  radius: z.coerce.number().min(0.5).max(2000).optional(),
   featured: z.enum(['1', 'true']).optional(),
   deals: z.enum(['1', 'true']).optional(),
   availability: z.enum(['available', 'sold', 'all']).default('available'),
@@ -81,23 +106,38 @@ router.get('/', optionalAuth, async (req, res) => {
   if (f.seller) add('p.seller_id = ?', f.seller);
   if (f.store) add('s.slug = ?', f.store);
 
+  // Distance from the visitor, the "near me" radius and sorting by distance.
+  let distSelect = ', NULL::float8 AS distance_km';
+  let dist = null;
+  // The count query only takes the parameters its WHERE uses (the position only matters with a radius).
+  let countParams = null;
+  if (f.lat !== undefined && f.lng !== undefined) {
+    const before = params.length;
+    dist = distanceSql(push(f.lat), push(f.lng));
+    distSelect = `, ${dist.shown} AS distance_km`;
+    if (f.radius) where.push(`${dist.raw} <= ${push(f.radius)}`);
+    else countParams = params.slice(0, before);
+  }
+
   const whereSql = `WHERE ${where.join(' AND ')}`;
   const favSql = req.user
     ? `, EXISTS (SELECT 1 FROM favorites fv WHERE fv.product_id = p.id AND fv.user_id = ${Number(req.user.id)}) AS is_favorite`
     : ', false AS is_favorite';
 
   const sort = f.sort || (scoreSql ? 'relevance' : 'newest');
-  const orderBy = sort === 'relevance' && scoreSql
-    ? `${FEATURED_FIRST}, (${scoreSql}) DESC, p.created_at DESC`
-    : SORTS[sort === 'relevance' ? 'newest' : sort];
+  const orderBy = sort === 'distance' && dist
+    ? `${dist.shown} ASC NULLS LAST, p.created_at DESC` // by the distance people see (no finer order leaks)
+    : sort === 'relevance' && scoreSql
+      ? `${FEATURED_FIRST}, (${scoreSql}) DESC, p.created_at DESC`
+      : SORTS[sort === 'relevance' || sort === 'distance' ? 'newest' : sort];
 
   const [items, total] = await Promise.all([
     query(
-      `SELECT ${PRODUCT_SELECT} ${favSql} ${PRODUCT_FROM} ${whereSql}
+      `SELECT ${PRODUCT_SELECT} ${favSql} ${distSelect} ${PRODUCT_FROM} ${whereSql}
        ORDER BY ${orderBy} LIMIT ${limit} OFFSET ${offset}`,
       params,
     ),
-    query(`SELECT COUNT(*) AS n ${PRODUCT_FROM} ${whereSql}`, params),
+    query(`SELECT COUNT(*) AS n ${PRODUCT_FROM} ${whereSql}`, countParams || params),
   ]);
   res.json({ items: items.rows, total: total.rows[0].n, page, limit });
 });
@@ -152,15 +192,19 @@ function assertOwner(product, user) {
 router.get('/:id', optionalAuth, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (!id) throw notFound('product_not_found');
+  const from = parse(z.object({ lat: z.coerce.number().min(-90).max(90).optional(), lng: z.coerce.number().min(-180).max(180).optional() }), req.query);
+  const params = [id];
+  const dist = from.lat !== undefined && from.lng !== undefined ? distanceSql('$2', '$3') : null;
+  if (dist) params.push(from.lat, from.lng);
   const { rows } = await query(
-    `SELECT ${PRODUCT_SELECT}, p.description, p.rejection_reason, p.sold_to_id,
+    `SELECT ${PRODUCT_SELECT}, ${dist ? dist.shown : 'NULL::float8'} AS distance_km, p.lat AS pin_lat, p.lng AS pin_lng, p.description, p.rejection_reason, p.sold_to_id,
        u.phone AS seller_phone, u.city AS seller_city, u.created_at AS seller_since, u.avatar_url AS seller_avatar,
        u.account_type AS seller_account_type, u.is_active AS seller_active,
        s.logo_url AS store_logo,
        (SELECT ROUND(AVG(rating)::numeric, 1) FROM reviews r WHERE r.seller_id = p.seller_id) AS seller_rating,
        (SELECT COUNT(*) FROM reviews r WHERE r.seller_id = p.seller_id) AS seller_reviews_count
      ${PRODUCT_FROM} WHERE p.id = $1`,
-    [id],
+    params,
   );
   const product = rows[0];
   if (!product) throw notFound('product_not_found');
@@ -180,7 +224,12 @@ router.get('/:id', optionalAuth, async (req, res) => {
   product.is_favorite = fav.rowCount > 0;
   product.review = review.rows[0] || null;
   product.can_review = Boolean(req.user && product.sold_to_id === req.user.id && !review.rows[0]);
-  if (!isOwner) delete product.rejection_reason;
+  if (!isOwner) {
+    delete product.rejection_reason;
+    // The exact pin is for the seller's own edit form (and admins) only.
+    delete product.pin_lat;
+    delete product.pin_lng;
+  }
   delete product.seller_active;
   res.json({ product });
 });
@@ -197,7 +246,17 @@ const productSchema = z.object({
   categoryId: z.coerce.number().int().positive('required'),
   city: cityKey,
   condition: z.enum(['new', 'used']).default('used'),
-});
+  // Optional pin on the map (Mauritania and a margin around it), area and neighbourhood.
+  lat: z.preprocess(emptyToNull, z.coerce.number().min(14).max(28, 'out_of_area').nullable()).default(null),
+  lng: z.preprocess(emptyToNull, z.coerce.number().min(-18).max(-4, 'out_of_area').nullable()).default(null),
+  area: z.string().trim().max(80).optional().transform((v) => v || null),
+  district: z.string().trim().max(80).optional().transform((v) => v || null),
+  locExact: z.preprocess((v) => v === true || v === 'true' || v === '1' || v === 'on', z.boolean()).default(false),
+}).refine((d) => (d.lat === null) === (d.lng === null), { message: 'required', path: ['lat'] });
+
+function emptyToNull(v) {
+  return v === '' || v === undefined || v === null || v === 'null' ? null : v;
+}
 
 function checkOldPrice(data) {
   if (data.oldPrice !== undefined && data.oldPrice <= data.price) {
@@ -240,9 +299,11 @@ router.post('/', requireAuth, upload.array('images', MAX_IMAGES), async (req, re
     await assertCategory(data.categoryId, client);
     const storeId = await storeIdFor(sellerId, client);
     const { rows } = await client.query(
-      `INSERT INTO products (seller_id, category_id, store_id, title, description, price, old_price, city, condition, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, status, seller_id`,
-      [sellerId, data.categoryId, storeId, data.title, data.description, data.price, data.oldPrice ?? null, data.city, data.condition, status],
+      `INSERT INTO products (seller_id, category_id, store_id, title, description, price, old_price, city, condition, status,
+         lat, lng, area, district, loc_exact)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id, status, seller_id`,
+      [sellerId, data.categoryId, storeId, data.title, data.description, data.price, data.oldPrice ?? null, data.city, data.condition, status,
+        data.lat, data.lng, data.area, data.district, data.locExact],
     );
     for (const [i, file] of files.entries()) {
       await client.query('INSERT INTO product_images (product_id, url, sort_order) VALUES ($1, $2, $3)', [
@@ -289,10 +350,11 @@ router.put('/:id', requireAuth, upload.array('images', MAX_IMAGES), async (req, 
       `UPDATE products SET title = $1, description = $2, price = $3, category_id = $4, city = $5, condition = $6,
          status = CASE WHEN $7 THEN status ELSE 'pending' END,
          rejection_reason = CASE WHEN $7 THEN rejection_reason ELSE NULL END,
-         old_price = $9,
+         old_price = $9, lat = $10, lng = $11, area = $12, district = $13, loc_exact = $14,
          updated_at = now()
        WHERE id = $8`,
-      [data.title, data.description, data.price, data.categoryId, data.city, data.condition, keepApproved, product.id, data.oldPrice ?? null],
+      [data.title, data.description, data.price, data.categoryId, data.city, data.condition, keepApproved, product.id, data.oldPrice ?? null,
+        data.lat, data.lng, data.area, data.district, data.locExact],
     );
     return del.rows.map((r) => r.url);
   });

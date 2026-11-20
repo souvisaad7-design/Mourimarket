@@ -159,3 +159,11 @@
 /* …except inside the light drop-down menu for phones. */
 .site-header .on-light .btn-ghost { color: rgb(var(--slate-700)); }
 .site-header .on-light .btn-ghost:hover { background-color: rgb(var(--slate-100)); }
+
+/* Map pins and popups (Leaflet). */
+.mm-pin { background: none; border: 0; filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.3)); }
+.mm-map .leaflet-popup-content { font-family: inherit; margin: 10px 12px; }
+.mm-popup strong { color: rgb(15 23 42); }
+.mm-popup span { color: rgb(71 85 105); font-size: 12px; }
+.mm-popup a { color: rgb(var(--brand-700)); font-weight: 700; }
+.mm-map .leaflet-control-attribution { font-size: 10px; }

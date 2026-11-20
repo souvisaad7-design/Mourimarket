@@ -13,6 +13,7 @@ import { useApi } from '../../lib/hooks.js';
 import { compressImage } from '../../lib/image.js';
 import { pickLang } from '../../lib/localized.js';
 import { BUILTIN_LINKS, DEFAULT_FOOTER, DEFAULT_HEADER, HOME_SECTIONS } from '../../lib/menus.js';
+import MapView, { MAURITANIA } from '../../components/MapView.jsx';
 import ProductForm from '../ProductForm.jsx';
 
 const emptyL = () => ({ ar: '', fr: '', en: '' });
@@ -216,7 +217,7 @@ export function AdminBanner() {
 
 // ---------- Cities / wilayas (table `cities`) ----------
 
-const emptyCity = () => ({ id: null, key: '', nameAr: '', nameFr: '', nameEn: '', isActive: true, sortOrder: 0 });
+const emptyCity = () => ({ id: null, key: '', nameAr: '', nameFr: '', nameEn: '', isActive: true, sortOrder: 0, lat: '', lng: '' });
 
 export function AdminCities() {
   const { t, number } = useI18n();
@@ -229,7 +230,7 @@ export function AdminCities() {
   const done = (msg) => { notify(msg); reload(); reloadMeta(); };
   const open = (c) => {
     setFormError(null);
-    setEditing(c ? { id: c.id, key: c.key, nameAr: c.name_ar, nameFr: c.name_fr, nameEn: c.name_en, isActive: c.is_active, sortOrder: c.sort_order } : { ...emptyCity(), sortOrder: ((data?.items?.at(-1)?.sort_order) || 0) + 10 });
+    setEditing(c ? { id: c.id, key: c.key, nameAr: c.name_ar, nameFr: c.name_fr, nameEn: c.name_en, isActive: c.is_active, sortOrder: c.sort_order, lat: c.lat ?? '', lng: c.lng ?? '' } : { ...emptyCity(), sortOrder: ((data?.items?.at(-1)?.sort_order) || 0) + 10 });
   };
   const submit = async (e) => {
     e.preventDefault();
@@ -242,7 +243,7 @@ export function AdminCities() {
     } catch (err) { setFormError(err); } finally { setBusy(false); }
   };
   const toggle = async (c) => {
-    await api(`/admin/cities/${c.id}`, { method: 'PUT', body: { key: c.key, nameAr: c.name_ar, nameFr: c.name_fr, nameEn: c.name_en, isActive: !c.is_active, sortOrder: c.sort_order } });
+    await api(`/admin/cities/${c.id}`, { method: 'PUT', body: { key: c.key, nameAr: c.name_ar, nameFr: c.name_fr, nameEn: c.name_en, isActive: !c.is_active, sortOrder: c.sort_order, lat: c.lat ?? '', lng: c.lng ?? '' } });
     done(t('common.changesSaved'));
   };
   const remove = async (c) => {
@@ -293,6 +294,17 @@ export function AdminCities() {
               </Field>
               <Field label={t('admin.sortOrder')}><input className="input" type="number" min="0" dir="ltr" value={editing.sortOrder} onChange={(e) => setEditing({ ...editing, sortOrder: e.target.value })} /></Field>
             </div>
+            <fieldset>
+              <legend className="label">{t('admin.cityCentre')}</legend>
+              <div className="grid grid-cols-2 gap-3">
+                <input className="input" dir="ltr" inputMode="decimal" placeholder="18.0858" aria-label={t('admin.latitude')} value={editing.lat} onChange={(e) => setEditing({ ...editing, lat: e.target.value })} />
+                <input className="input" dir="ltr" inputMode="decimal" placeholder="-15.9785" aria-label={t('admin.longitude')} value={editing.lng} onChange={(e) => setEditing({ ...editing, lng: e.target.value })} />
+              </div>
+              <p className="mt-1 text-[11px] text-slate-500">{t('admin.cityCentreHint')}</p>
+              <div className="mt-2"><MapView className="h-48" center={editing.lat !== '' ? [Number(editing.lat), Number(editing.lng)] : MAURITANIA.center} zoom={editing.lat !== '' ? 11 : 5}
+                picker={editing.lat !== '' && editing.lng !== '' ? { lat: Number(editing.lat), lng: Number(editing.lng) } : null}
+                onPick={(lat, lng) => setEditing((ed) => ({ ...ed, lat: lat.toFixed(4), lng: lng.toFixed(4) }))} label={t('admin.cityCentre')} /></div>
+            </fieldset>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editing.isActive} onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })} />{t('admin.cityActive')}</label>
             <button className="btn-primary w-full" disabled={busy}><Icon name="check" className="h-4 w-4" />{busy ? t('common.loading') : t('common.saveChanges')}</button>
           </form>

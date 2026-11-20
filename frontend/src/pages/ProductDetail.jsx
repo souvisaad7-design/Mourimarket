@@ -6,6 +6,8 @@ import { Avatar, ErrorBox, Field, Icon, Modal, Spinner, Stars, VerifiedBadge, us
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
+import MapView from '../components/MapView.jsx';
+import { useGeo } from '../context/LocationContext.jsx';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
 
 function ReportModal({ productId, open, onClose }) {
@@ -186,7 +188,8 @@ export default function ProductDetail() {
   const { user, meta } = useApp();
   const cityName = useCityName();
   const [reportOpen, setReportOpen] = useState(false);
-  const { data, loading, error, reload } = useApi(`/products/${id}`);
+  const { query: here } = useGeo();
+  const { data, loading, error, reload } = useApi(`/products/${id}${here ? `?lat=${here.lat}&lng=${here.lng}` : ''}`, undefined, [id, here?.lat, here?.lng]);
   const product = data?.product;
   const similar = useApi(product ? `/products?category=${product.category_slug}&limit=5` : null, undefined, [product?.id]);
   useDocumentTitle(product?.title);
@@ -227,6 +230,7 @@ export default function ProductDetail() {
               <div><dt className="text-slate-500">{t('product.postedOn')}</dt><dd className="font-medium">{date(product.created_at)}</dd></div>
             </dl>
           </div>
+          <ListingLocation product={product} here={here} />
           {product.review && (
             <div className="card p-5">
               <div className="flex items-center gap-2"><Stars value={product.review.rating} /><span className="badge bg-emerald-100 text-emerald-800">{t('review.verified')}</span></div>
@@ -303,5 +307,36 @@ export default function ProductDetail() {
       <ReportModal productId={product.id} open={reportOpen} onClose={() => setReportOpen(false)} />
       <MobileActionBar product={product} />
     </div>
+  );
+}
+
+/**
+ * Where the item is: area / neighbourhood / city, the distance from the visitor, and a map.
+ * Unless the seller chose to show the exact place, the map only shows a ~1 km zone.
+ */
+function ListingLocation({ product, here }) {
+  const { t, number } = useI18n();
+  const { meta } = useApp();
+  const cityName = useCityName();
+  if (product.map_lat == null) return null;
+  const exact = product.loc_precision === 'exact';
+  const place = [product.district, product.area, cityName(meta.cities, product.city)].filter(Boolean).join('، ');
+  return (
+    <section className="card space-y-3 p-5" aria-labelledby="loc-title">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 id="loc-title" className="flex items-center gap-2 text-lg font-bold"><Icon name="pin" className="h-5 w-5 text-brand-700" />{t('geo.itemLocation')}</h2>
+          <p className="mt-1 text-sm text-slate-700">{place}</p>
+        </div>
+        {product.distance_km != null ? (
+          <span className="badge bg-gold-400 px-3 py-1.5 text-sm text-ink">≈ {t('geo.kmFromYou', { km: String(product.distance_km) })}</span>
+        ) : !here && <span className="text-xs text-slate-500">{t('geo.locateForDistance')}</span>}
+      </div>
+      <MapView className="h-64" center={[product.map_lat, product.map_lng]} zoom={13}
+        markers={exact ? [{ id: product.id, lat: product.map_lat, lng: product.map_lng, title: product.title }] : []}
+        area={exact ? null : { lat: product.map_lat, lng: product.map_lng, radius: product.loc_precision === 'city' ? 4000 : 1000 }}
+        me={here ? { ...here, title: t('geo.you') } : null} label={t('geo.itemLocation')} />
+      <p className="text-xs text-slate-500">🔒 {exact ? t('geo.exactShown') : product.loc_precision === 'city' ? t('geo.cityOnly') : t('geo.approxShown')}</p>
+    </section>
   );
 }

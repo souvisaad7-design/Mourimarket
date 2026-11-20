@@ -32,3 +32,19 @@ export const FEATURE_PLANS = [
   { days: 30, price: 600 },
 ];
 export const PAYMENT_METHODS = ['bankily', 'masrvi', 'sedad', 'other'];
+
+// Moughataas of Nouakchott (approximate centres), used to name the area of a position
+// when the map service is not reachable, and offered when picking a place by hand.
+export const AREAS = {
+  nouakchott: [
+    { key: 'tevragh-zeina', ar: 'تفرغ زينة', fr: 'Tevragh Zeina', en: 'Tevragh Zeina', lat: 18.104, lng: -15.975 },
+    { key: 'ksar', ar: 'لكصر', fr: 'Ksar', en: 'Ksar', lat: 18.108, lng: -15.950 },
+    { key: 'sebkha', ar: 'السبخة', fr: 'Sebkha', en: 'Sebkha', lat: 18.073, lng: -15.985 },
+    { key: 'el-mina', ar: 'الميناء', fr: 'El Mina', en: 'El Mina', lat: 18.045, lng: -15.978 },
+    { key: 'arafat', ar: 'عرفات', fr: 'Arafat', en: 'Arafat', lat: 18.050, lng: -15.942 },
+    { key: 'dar-naim', ar: 'دار النعيم', fr: 'Dar Naïm', en: 'Dar Naim', lat: 18.118, lng: -15.917 },
+    { key: 'toujounine', ar: 'توجنين', fr: 'Toujounine', en: 'Toujounine', lat: 18.072, lng: -15.893 },
+    { key: 'teyarett', ar: 'تيارت', fr: 'Teyarett', en: 'Teyarett', lat: 18.140, lng: -15.950 },
+    { key: 'riyad', ar: 'الرياض', fr: 'Riyad', en: 'Riyad', lat: 18.000, lng: -15.950 },
+  ],
+};

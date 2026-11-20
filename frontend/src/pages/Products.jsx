@@ -5,8 +5,13 @@ import { CitySelect, EmptyState, ErrorBox, Icon, Pagination } from '../component
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
+import LocationBar from '../components/LocationBar.jsx';
+import MapView, { MAURITANIA } from '../components/MapView.jsx';
+import { useGeo } from '../context/LocationContext.jsx';
 
-const FILTER_KEYS = ['q', 'category', 'city', 'minPrice', 'maxPrice', 'condition', 'sort', 'availability', 'featured', 'deals', 'page'];
+// `near` is the radius in km around the visitor; their position itself never goes in the URL.
+const FILTER_KEYS = ['q', 'category', 'city', 'minPrice', 'maxPrice', 'condition', 'sort', 'availability', 'featured', 'deals', 'near', 'view', 'page'];
+const RADII = ['2', '5', '10', '25', '50'];
 
 /** All listings + search results. Every filter lives in the URL so results are shareable. */
 export default function Products() {
@@ -19,14 +24,24 @@ export default function Products() {
   const [draft, setDraft] = useState(current);
   useEffect(() => { setDraft(Object.fromEntries(FILTER_KEYS.map((k) => [k, params.get(k) || '']))); }, [params]);
 
-  const apiParams = new URLSearchParams({ limit: '24' });
-  for (const k of FILTER_KEYS) if (current[k]) apiParams.set(k, current[k]);
+  const { query: here } = useGeo();
+  const near = here ? current.near : '';
+  const mapView = current.view === 'map';
+  const apiParams = new URLSearchParams({ limit: mapView ? '60' : '24' });
+  for (const k of FILTER_KEYS) if (current[k] && !['near', 'view'].includes(k)) apiParams.set(k, current[k]);
+  if (here) { apiParams.set('lat', here.lat); apiParams.set('lng', here.lng); }
+  if (near) {
+    apiParams.set('radius', near);
+    if (!current.sort) apiParams.set('sort', 'distance');
+  }
+  if (current.sort === 'distance' && !here) apiParams.delete('sort');
   const { data, loading, error } = useApi(`/products?${apiParams}`);
 
   const category = categories.find((c) => c.slug === current.category);
   const title = current.q ? t('products.searchFor', { q: current.q })
     : current.featured ? t('home.featured')
     : current.deals ? `🔥 ${t('nav.offers')}`
+    : near ? t('geo.nearTitle', { km: near })
     : category ? tl(category) : t('products.title');
   useDocumentTitle(title);
 
@@ -98,7 +113,12 @@ export default function Products() {
         <div className="flex items-center gap-2">
           <button className="btn-outline lg:hidden" onClick={() => setShowFilters(!showFilters)}><Icon name="filter" className="h-4 w-4" />{t('common.filters')}</button>
           <label className="sr-only" htmlFor="sort">{t('products.sort')}</label>
-          <select id="sort" className="input w-auto" value={current.sort || (current.q ? 'relevance' : 'newest')} onChange={(e) => update({ sort: e.target.value })}>
+          <div className="flex rounded-xl bg-surface p-1 ring-1 ring-slate-200" role="group" aria-label={t('geo.view')}>
+            <button type="button" onClick={() => update({ view: '' })} aria-pressed={!mapView} className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold ${!mapView ? 'bg-brand-700 text-white' : 'text-slate-600'}`}><Icon name="grid" className="me-1 inline h-3.5 w-3.5" />{t('geo.listView')}</button>
+            <button type="button" onClick={() => update({ view: 'map' })} aria-pressed={mapView} className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold ${mapView ? 'bg-brand-700 text-white' : 'text-slate-600'}`}><Icon name="pin" className="me-1 inline h-3.5 w-3.5" />{t('geo.mapView')}</button>
+          </div>
+          <select id="sort" className="input w-auto" value={current.sort || (near ? 'distance' : current.q ? 'relevance' : 'newest')} onChange={(e) => update({ sort: e.target.value })}>
+            {here && <option value="distance">{t('geo.sortDistance')}</option>}
             {current.q && <option value="relevance">{t('products.sortRelevance')}</option>}
             <option value="newest">{t('products.sortNewest')}</option>
             <option value="oldest">{t('products.sortOldest')}</option>
@@ -106,6 +126,22 @@ export default function Products() {
             <option value="price_desc">{t('products.sortPriceDesc')}</option>
           </select>
         </div>
+      </div>
+
+      <LocationBar className="mb-3" />
+      {/* "Near me": only once we know where the visitor is */}
+      <div className="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label={t('geo.nearMe')}>
+        <span className="text-sm font-bold text-slate-700"><span aria-hidden="true">📍 </span>{t('geo.nearMe')}:</span>
+        {here ? (
+          <>
+            <button type="button" onClick={() => update({ near: '' })} aria-pressed={!near} className={`badge px-3 py-1.5 text-sm ${!near ? 'bg-brand-700 text-white' : 'bg-surface text-slate-700 ring-1 ring-slate-200'}`}>{t('geo.anyDistance')}</button>
+            {RADII.map((r) => (
+              <button key={r} type="button" onClick={() => update({ near: r })} aria-pressed={near === r} className={`badge px-3 py-1.5 text-sm ${near === r ? 'bg-brand-700 text-white' : 'bg-surface text-slate-700 ring-1 ring-slate-200'}`}>
+                {t('geo.withinKm', { km: r })}
+              </button>
+            ))}
+          </>
+        ) : <span className="text-xs text-slate-500">{t('geo.locateFirst')}</span>}
       </div>
 
       <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
@@ -122,13 +158,37 @@ export default function Products() {
         <section>
           <ErrorBox error={error} />
           {loading ? <ProductGridSkeleton /> : data?.items?.length ? (
-            <>
-              <ProductGrid items={data.items} />
-              <Pagination page={data.page} total={data.total} limit={data.limit} onPage={(p) => update({ page: String(p) })} />
-            </>
-          ) : !error && <EmptyState icon="search" title={t('products.noResults')} />}
+            mapView ? (
+              <ResultsMap items={data.items} here={here} />
+            ) : (
+              <>
+                <ProductGrid items={data.items} />
+                <Pagination page={data.page} total={data.total} limit={data.limit} onPage={(p) => update({ page: String(p) })} />
+              </>
+            )
+          ) : !error && (
+            <EmptyState icon="search" title={near ? t('geo.noneNearby', { km: near }) : t('products.noResults')}>
+              {near && <button type="button" className="btn-outline" onClick={() => update({ near: String(Math.min(2000, Number(near) * 4)) })}>{t('geo.widen')}</button>}
+            </EmptyState>
+          )}
         </section>
       </div>
+    </div>
+  );
+}
+
+/** The results on a map (approximate places unless the seller showed the exact one). */
+function ResultsMap({ items, here }) {
+  const { t, price } = useI18n();
+  const markers = items.filter((p) => p.map_lat != null).map((p) => ({
+    id: p.id, lat: p.map_lat, lng: p.map_lng, title: p.title, href: `/products/${p.id}`, linkLabel: t('geo.openListing'),
+    subtitle: `${price(p.price)}${p.distance_km != null ? ` · ≈ ${t('geo.km', { km: p.distance_km })}` : ''}`,
+  }));
+  return (
+    <div className="space-y-2">
+      <MapView className="h-[60vh] min-h-[340px]" center={MAURITANIA.center} zoom={MAURITANIA.zoom} markers={markers}
+        me={here ? { ...here, title: t('geo.you') } : null} label={t('geo.mapView')} />
+      <p className="text-xs text-slate-500">{t('geo.mapApproxNote', { n: markers.length })}</p>
     </div>
   );
 }

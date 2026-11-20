@@ -5,7 +5,9 @@ import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
 import { compressImage, formatBytes } from '../lib/image.js';
-import { useDocumentTitle } from '../lib/hooks.js';
+import MapView, { MAURITANIA } from '../components/MapView.jsx';
+import { useGeo } from '../context/LocationContext.jsx';
+import { useApi, useDocumentTitle } from '../lib/hooks.js';
 
 const MAX_IMAGES = 8;
 
@@ -20,6 +22,8 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
   const { categories, meta, user, notify } = useApp();
   const navigate = useNavigate();
   const [form, setForm] = useState({ title: '', description: '', price: '', oldPrice: '', categoryId: '', city: user.city || '', condition: 'used' });
+  // Where the item is: optional pin, moughataa and neighbourhood (see the "Location" section).
+  const [loc, setLoc] = useState({ lat: null, lng: null, area: '', district: '', locExact: false });
   const [existing, setExisting] = useState([]);
   const [removeIds, setRemoveIds] = useState([]);
   // New photos: { key, file, originalSize, status: 'processing' | 'ready' | 'error' }.
@@ -39,6 +43,7 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
         oldPrice: product.old_price ? String(product.old_price) : '',
         categoryId: String(product.category_id), city: product.city, condition: product.condition,
       });
+      setLoc({ lat: product.pin_lat ?? null, lng: product.pin_lng ?? null, area: product.area || '', district: product.district || '', locExact: Boolean(product.loc_exact) });
       setExisting(product.images);
     }).catch(setError).finally(() => setLoading(false));
   }, [editing, id]);
@@ -81,6 +86,8 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
     try {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
+      fd.append('lat', loc.lat ?? ''); fd.append('lng', loc.lng ?? '');
+      fd.append('area', loc.area); fd.append('district', loc.district); fd.append('locExact', loc.locExact ? 'true' : 'false');
       if (sellerId) fd.append('sellerId', String(sellerId));
       removeIds.forEach((rid) => fd.append('removeImageIds', rid));
       for (const item of ready) fd.append('images', item.file);
@@ -203,6 +210,8 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
           </Field>
         </section>
 
+        <LocationSection city={form.city} onCity={(c) => setForm((f) => ({ ...f, city: c }))} loc={loc} setLoc={setLoc} error={fieldError('lat')} />
+
         {/* Listings an admin posts go live at once, so the review note does not apply. */}
         {user.role !== 'admin' && <p className="text-sm text-slate-500">{t('form.reviewNote')}</p>}
         <button className="btn-primary w-full py-3 text-base sm:w-auto sm:px-10" disabled={busy || processing}>
@@ -210,5 +219,70 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
         </button>
       </form>
     </div>
+  );
+}
+
+/**
+ * "Location of the item": pin on the map (click or drag), "use my position", moughataa and
+ * neighbourhood. Buyers only see the exact pin if the seller ticks the box; otherwise ~1 km.
+ */
+function LocationSection({ city, onCity, loc, setLoc, error }) {
+  const { t, lang } = useI18n();
+  const { meta } = useApp();
+  const { locate, status } = useGeo();
+  const areas = useApi('/geo/areas');
+  const cityRow = meta.cities.find((c) => c.key === city);
+  const known = (areas.data?.areas || {})[city] || [];
+  const hasPin = loc.lat != null;
+  const center = hasPin ? [loc.lat, loc.lng] : cityRow?.lat != null ? [cityRow.lat, cityRow.lng] : MAURITANIA.center;
+  const round6 = (n) => Math.round(n * 1e6) / 1e6;
+  const pick = (lat, lng) => setLoc((l) => ({ ...l, lat: round6(lat), lng: round6(lng) }));
+
+  // Use the seller's current position: pin + city / moughataa / neighbourhood.
+  const useMine = async () => {
+    const here = await new Promise((resolve) => {
+      if (!('geolocation' in navigator)) { resolve(null); return; }
+      navigator.geolocation.getCurrentPosition((p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }), () => resolve(null), { enableHighAccuracy: true, timeout: 12000 });
+    });
+    if (!here) { locate(); return; } // shows the "permission refused" message through the shared state
+    pick(here.lat, here.lng);
+    try {
+      const place = await api('/geo/reverse', { method: 'POST', body: { lat: here.lat, lng: here.lng, lang } });
+      if (place.city && place.inMauritania) onCity(place.city.key);
+      setLoc((l) => ({ ...l, area: place.area ? (place.area[lang] || place.area.ar) : l.area, district: place.district || l.district }));
+    } catch { /* names are optional */ }
+  };
+
+  return (
+    <section className="card space-y-4 p-5" aria-labelledby="loc-h">
+      <div>
+        <h2 id="loc-h" className="flex items-center gap-2 text-lg font-bold"><Icon name="pin" className="h-5 w-5 text-brand-700" />{t('geo.itemLocation')} <span className="text-xs font-normal text-slate-400">({t('common.optional')})</span></h2>
+        <p className="mt-1 text-sm text-slate-500">{t('geo.formHint')}</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn-accent" onClick={useMine} disabled={status === 'locating'}><span aria-hidden="true">📍</span>{t('geo.useMyLocation')}</button>
+        {hasPin && <button type="button" className="btn-ghost text-rose-600" onClick={() => setLoc((l) => ({ ...l, lat: null, lng: null }))}>{t('geo.removePin')}</button>}
+      </div>
+      {status === 'denied' && <p role="alert" className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">{t('geo.error.denied')} {t('geo.pickOnMap')}</p>}
+      <MapView className="h-72" center={center} zoom={hasPin ? 15 : cityRow ? 12 : 5} picker={hasPin ? { lat: loc.lat, lng: loc.lng } : null} onPick={pick} label={t('geo.pickOnMap')} />
+      <p className="text-xs text-slate-500">{hasPin ? t('geo.pinSet') : t('geo.pickOnMap')}</p>
+      {error && <p className="text-xs text-rose-600">{t('geo.outOfArea')}</p>}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label={t('geo.area')} optional>
+          <input className="input" list="mm-areas" maxLength={80} value={loc.area} onChange={(e) => setLoc({ ...loc, area: e.target.value })} placeholder={known[0]?.[lang] || ''} />
+          <datalist id="mm-areas">{known.map((a) => <option key={a.key} value={a[lang] || a.ar} />)}</datalist>
+        </Field>
+        <Field label={t('geo.district')} optional>
+          <input className="input" maxLength={80} value={loc.district} onChange={(e) => setLoc({ ...loc, district: e.target.value })} />
+        </Field>
+      </div>
+      <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-3 text-sm">
+        <input type="checkbox" className="mt-0.5 h-4 w-4 accent-brand-700" checked={loc.locExact} disabled={!hasPin} onChange={(e) => setLoc({ ...loc, locExact: e.target.checked })} />
+        <span>
+          <span className="block font-semibold">{t('geo.showExact')}</span>
+          <span className="text-xs text-slate-500">{t('geo.showExactHint')}</span>
+        </span>
+      </label>
+    </section>
   );
 }

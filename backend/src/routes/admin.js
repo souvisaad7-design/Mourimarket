@@ -768,6 +768,8 @@ const citySchema = z.object({
   nameEn: z.string().trim().max(80).optional(),
   isActive: z.boolean().default(true),
   sortOrder: z.coerce.number().int().min(0).max(100000).default(0),
+  lat: z.preprocess((v) => (v === '' || v == null ? null : v), z.coerce.number().min(-90).max(90).nullable()).default(null),
+  lng: z.preprocess((v) => (v === '' || v == null ? null : v), z.coerce.number().min(-180).max(180).nullable()).default(null),
 });
 
 async function saveCity(req, res, id) {
@@ -775,12 +777,12 @@ async function saveCity(req, res, id) {
   try {
     const { rows } = id
       ? await query(
-        `UPDATE cities SET name_ar = $1, name_fr = $2, name_en = $3, is_active = $4, sort_order = $5 WHERE id = $6 RETURNING *`,
-        [d.nameAr, d.nameFr || d.nameAr, d.nameEn || d.nameFr || d.nameAr, d.isActive, d.sortOrder, id],
+        `UPDATE cities SET name_ar = $1, name_fr = $2, name_en = $3, is_active = $4, sort_order = $5, lat = $7, lng = $8 WHERE id = $6 RETURNING *`,
+        [d.nameAr, d.nameFr || d.nameAr, d.nameEn || d.nameFr || d.nameAr, d.isActive, d.sortOrder, id, d.lat, d.lng],
       )
       : await query(
-        `INSERT INTO cities (key, name_ar, name_fr, name_en, is_active, sort_order) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [d.key, d.nameAr, d.nameFr || d.nameAr, d.nameEn || d.nameFr || d.nameAr, d.isActive, d.sortOrder],
+        `INSERT INTO cities (key, name_ar, name_fr, name_en, is_active, sort_order, lat, lng) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [d.key, d.nameAr, d.nameFr || d.nameAr, d.nameEn || d.nameFr || d.nameAr, d.isActive, d.sortOrder, d.lat, d.lng],
       );
     if (!rows[0]) throw notFound('city_not_found');
     invalidateCities();

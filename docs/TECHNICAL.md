@@ -93,6 +93,14 @@ The browser loads `GET /api/settings` (settings + visible banners) and `GET /api
 
 **Row-level security**: RLS is on for every table. On Supabase, `site_settings`, `banners`, `categories`, `cities` and published `pages` have a `public_read` SELECT policy for the `anon` / `authenticated` roles and no write policy, so Supabase's public API can read them but never change them. All writes go through this app's API, which connects as the table owner and requires an admin token (`requireAdmin`) for every `/api/admin/*` route.
 
+**Geolocation (near me, maps, distances)**
+
+- *Listings*: `products.lat/lng` (optional pin), `area` (moughataa), `district` (neighbourhood), `loc_exact`. The API never returns the raw pin to buyers: `map_lat/map_lng` are exact only when `loc_exact`, otherwise rounded to 2 decimals (~1 km); `loc_precision` is `exact`, `approx` or `city` (no pin → city centre). The seller and admins get `pin_lat/pin_lng` on the listing detail to edit it.
+- *Distance*: `mm_distance_km()` (SQL haversine). `GET /api/products?lat&lng` adds `distance_km` (pin or city centre), `&radius=` keeps listings within N km, `&sort=distance` orders by it. Distances to hidden pins are rounded to 0.5 km (never below 0.5) so they can't be used to find the pin; sorting uses the shown value. `GET /api/products/:id?lat&lng` returns the distance too.
+- *Visitor position*: asked with the browser's Geolocation API only when the visitor presses «📍 تحديد موقعي». It is kept on the device (`localStorage`, rounded to ~100 m), sent to the API rounded to ~1 km and never stored server-side; the radius goes in the URL, never the coordinates. Visitors who refuse pick a city / moughataa by hand (distances then use its centre).
+- *Place names*: `POST /api/geo/reverse {lat,lng,lang}` (rate-limited, coordinates rounded to ~100 m) returns the nearest city (`cities.lat/lng`), the Nouakchott moughataa (`AREAS` in `lib/constants.js`) and, when OpenStreetMap's Nominatim answers within 2.5 s, the neighbourhood. `GET /api/geo/areas` lists the moughataas for manual choice.
+- *Maps*: Leaflet + OpenStreetMap tiles (`components/MapLeaflet.jsx`, loaded on demand). Used in the product list (map view), the listing page (exact pin or ~1 km circle), the listing form (click / drag to place the pin) and Admin → Cities (city centre). The CSP allows `tile.openstreetmap.org` images.
+
 **Shaping the public site** (all from the panel, no deploy):
 - **Banners** (`/admin/banner`, table `banners`, `GET/PUT /admin/banners`): up to 10 slides, each with an uploaded image, title/text/button in AR/FR/EN, link and on/off. No slides = the built-in four.
 - **Menus & links** (`/admin/menus`, settings `menu`): ordered top-menu and footer lists of built-in links (`frontend/src/lib/menus.js`) or custom links (to a page, a path or an https site); `null` = the built-in lists. `menu.home` shows/hides each home-page section.

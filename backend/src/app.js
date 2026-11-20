@@ -16,6 +16,7 @@ import productRoutes from './routes/products.js';
 import { getSettings } from './lib/settings.js';
 import { optionalAuth } from './middleware/auth.js';
 import publicRoutes from './routes/public.js';
+import geoRoutes from './routes/geo.js';
 
 export function createApp() {
   const app = express();
@@ -25,7 +26,8 @@ export function createApp() {
     contentSecurityPolicy: {
       directives: {
         // blob: is needed for local previews of photos before upload.
-        'img-src': ["'self'", 'data:', 'blob:'],
+        // OpenStreetMap tiles for the maps (Leaflet).
+        'img-src': ["'self'", 'data:', 'blob:', 'https://tile.openstreetmap.org', 'https://*.tile.openstreetmap.org'],
         'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
       },
@@ -47,6 +49,9 @@ export function createApp() {
     message: { error: 'too_many_requests' },
   });
 
+  // API answers depend on who asks: never let a browser or proxy cache them
+  // (routes that are safe to cache set their own Cache-Control).
+  app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
   // Maintenance mode (Admin → Identity & appearance): visitors can read, only admins can change things.
   app.use('/api', async (req, res, next) => {
@@ -64,6 +69,7 @@ export function createApp() {
   app.use('/api/auth', authRoutes);
   app.use('/api/products', productRoutes);
   app.use('/api/admin', adminRoutes);
+  app.use('/api/geo', geoRoutes);
   app.use('/api', publicRoutes);
   app.use('/api', accountRoutes);
   app.use('/api', (_req, res) => res.status(404).json({ error: 'not_found' }));

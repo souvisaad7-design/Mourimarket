@@ -6,6 +6,7 @@ import { applyTheme } from './components/AppChrome.jsx';
 import { AppProvider } from './context/AppContext.jsx';
 import { I18nProvider } from './i18n/index.jsx';
 import { SettingsProvider } from './context/SettingsContext.jsx';
+import { LocationProvider } from './context/LocationContext.jsx';
 import './index.css';
 
 applyTheme();
@@ -21,7 +22,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <SettingsProvider>
         <I18nProvider>
           <AppProvider>
-            <App />
+            <LocationProvider>
+              <App />
+            </LocationProvider>
           </AppProvider>
         </I18nProvider>
       </SettingsProvider>

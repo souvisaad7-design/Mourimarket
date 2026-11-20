@@ -5,6 +5,7 @@ import { EmptyState, Icon, VerifiedBadge, useCityName } from '../components/ui.j
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { useSettings } from '../context/SettingsContext.jsx';
+import { useGeo } from '../context/LocationContext.jsx';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
 
 export function CategoryTiles({ categories }) {
@@ -139,7 +140,9 @@ export default function Home() {
   const cityName = useCityName();
   useDocumentTitle(t('brand.tagline'));
   const featured = useApi('/products?featured=1&limit=4');
-  const latest = useApi('/products?limit=12&sort=newest');
+  const { query: here } = useGeo();
+  // With a known position the cards also show how far each listing is.
+  const latest = useApi(`/products?limit=12&sort=newest${here ? `&lat=${here.lat}&lng=${here.lng}` : ''}`, undefined, [here?.lat, here?.lng]);
   const deals = useApi('/products?deals=1&limit=4');
   const stores = useApi('/stores');
   const cities = useApi('/stats/cities');

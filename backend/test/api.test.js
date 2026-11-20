@@ -792,3 +792,83 @@ describe('admin: identity, maintenance, prices, cities', () => {
     assert.equal((await call(`/api/admin/cities/${unused.data.city.id}`, { method: 'DELETE', token: admin })).status, 200);
   });
 });
+
+describe('geolocation', () => {
+  const NKC = { lat: 18.0858, lng: -15.9785 }; // Nouakchott centre
+  let seller; let productId;
+  before(async () => { seller = await login('mohamed@example.mr'); });
+  const form = (extra) => {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries({ title: 'دراجة نارية مستعملة', description: 'دراجة نارية بحالة جيدة جداً', price: '30000', city: 'nouakchott', condition: 'used', categoryId: '1', ...extra })) fd.append(k, String(v));
+    fd.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+    return fd;
+  };
+
+  it('saves a listing pin, area and neighbourhood; hides the exact pin from the public', async () => {
+    const r = await call('/api/products', { method: 'POST', token: seller, form: form({ lat: '18.10437', lng: '-15.97521', area: 'تفرغ زينة', district: 'حي النصر', locExact: 'false' }) });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    productId = r.data.product.id;
+    const { rows } = await pool.query('SELECT lat, lng, area, district, loc_exact FROM products WHERE id = $1', [productId]);
+    assert.equal(rows[0].lat, 18.10437);
+    assert.equal(rows[0].district, 'حي النصر');
+    assert.equal(rows[0].loc_exact, false);
+    await pool.query("UPDATE products SET status = 'approved' WHERE id = $1", [productId]);
+    const pub = (await call(`/api/products/${productId}`)).data.product;
+    assert.equal(pub.loc_precision, 'approx');
+    assert.equal(pub.map_lat, 18.1, 'rounded to ~1 km');
+    assert.equal(pub.map_lng, -15.98);
+    assert.equal(pub.pin_lat, undefined, 'exact pin hidden from buyers');
+    assert.equal(pub.area, 'تفرغ زينة');
+    const own = (await call(`/api/products/${productId}`, { token: seller })).data.product;
+    assert.equal(own.pin_lat, 18.10437, 'the seller sees the exact pin to edit it');
+  });
+
+  it('shows the exact pin only when the seller allows it', async () => {
+    const fd = form({ lat: '18.10437', lng: '-15.97521', area: 'تفرغ زينة', district: '', locExact: 'true' });
+    fd.append('removeImageIds', '0');
+    assert.equal((await call(`/api/products/${productId}`, { method: 'PUT', token: seller, form: fd })).status, 200);
+    await pool.query("UPDATE products SET status = 'approved' WHERE id = $1", [productId]);
+    const pub = (await call(`/api/products/${productId}`)).data.product;
+    assert.equal(pub.loc_precision, 'exact');
+    assert.equal(pub.map_lat, 18.10437);
+  });
+
+  it('rejects pins outside Mauritania or half a pin', async () => {
+    assert.equal((await call('/api/products', { method: 'POST', token: seller, form: form({ lat: '48.85', lng: '2.35' }) })).status, 400);
+    assert.equal((await call('/api/products', { method: 'POST', token: seller, form: form({ lat: '18.1', lng: '' }) })).status, 400);
+  });
+
+  it('distance, "near me" radius and sorting by distance', async () => {
+    const near = (await call(`/api/products?lat=${NKC.lat}&lng=${NKC.lng}&radius=10&sort=distance&limit=60`)).data;
+    assert.ok(near.items.length > 0);
+    assert.ok(near.items.every((p) => p.distance_km !== null && p.distance_km <= 10.5), 'all within the radius');
+    const d = near.items.map((p) => p.distance_km);
+    assert.deepEqual(d, [...d].sort((a, b) => a - b), 'nearest first');
+    assert.ok(near.items.every((p) => p.loc_precision === 'exact' || p.distance_km * 2 === Math.round(p.distance_km * 2)), 'hidden pins: 0.5 km steps');
+    const all = (await call(`/api/products?lat=${NKC.lat}&lng=${NKC.lng}&limit=60`)).data;
+    assert.ok(Number(all.total) > Number(near.total), 'listings in other cities are outside 10 km');
+    const far = all.items.find((p) => p.city === 'nouadhibou');
+    if (far) assert.ok(far.distance_km > 320 && far.distance_km < 350, `Nouadhibou is ~335 km away in a straight line, got ${far.distance_km}`);
+    const noPos = (await call('/api/products?limit=5')).data.items;
+    assert.ok(noPos.every((p) => p.distance_km === null));
+    const detail = (await call(`/api/products/${productId}?lat=${NKC.lat}&lng=${NKC.lng}`)).data.product;
+    assert.ok(detail.distance_km > 1 && detail.distance_km < 4, `about 2 km, got ${detail.distance_km}`);
+  });
+
+  it('reverse geocoding: city and moughataa from our data, rate-limited POST', async () => {
+    const r = await call('/api/geo/reverse', { method: 'POST', body: { lat: 18.1043, lng: -15.9752, lang: 'ar' } });
+    assert.equal(r.status, 200);
+    assert.equal(r.data.city.key, 'nouakchott');
+    assert.equal(r.data.area.ar, 'تفرغ زينة');
+    assert.equal(r.data.inMauritania, true);
+    const ndb = (await call('/api/geo/reverse', { method: 'POST', body: { lat: 20.93, lng: -17.03 } })).data;
+    assert.equal(ndb.city.key, 'nouadhibou');
+    assert.equal((await call('/api/geo/reverse', { method: 'POST', body: { lat: 'x', lng: 1 } })).status, 400);
+    const paris = (await call('/api/geo/reverse', { method: 'POST', body: { lat: 48.85, lng: 2.35 } })).data;
+    assert.equal(paris.inMauritania, false);
+    const areas = (await call('/api/geo/areas')).data.areas;
+    assert.ok(areas.nouakchott.some((a) => a.key === 'arafat'));
+    const meta = (await call('/api/meta')).data.cities;
+    assert.ok(meta.find((c) => c.key === 'nouakchott').lat > 18);
+  });
+});

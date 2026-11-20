@@ -379,3 +379,37 @@ BEGIN
   END IF;
 END
 $rls$;
+
+-- ---------- Geolocation ----------
+-- Where a listing is. The exact point is only shown to buyers when the seller chooses
+-- (loc_exact); otherwise the API rounds it to about 1 km.
+ALTER TABLE products ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS area VARCHAR(80);       -- moughataa / department
+ALTER TABLE products ADD COLUMN IF NOT EXISTS district VARCHAR(80);   -- neighbourhood
+ALTER TABLE products ADD COLUMN IF NOT EXISTS loc_exact BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE products DROP CONSTRAINT IF EXISTS products_lat_lng_check;
+ALTER TABLE products ADD CONSTRAINT products_lat_lng_check
+  CHECK ((lat IS NULL AND lng IS NULL) OR (lat BETWEEN -90 AND 90 AND lng BETWEEN -180 AND 180));
+CREATE INDEX IF NOT EXISTS idx_products_lat_lng ON products(lat, lng) WHERE lat IS NOT NULL;
+
+-- City centres: distance for listings without a pin, and "my city" when the visitor
+-- picks it by hand instead of sharing their position.
+ALTER TABLE cities ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION;
+ALTER TABLE cities ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION;
+UPDATE cities c SET lat = v.lat, lng = v.lng FROM (VALUES
+  ('nouakchott', 18.0858, -15.9785), ('nouadhibou', 20.9310, -17.0347), ('rosso', 16.5138, -15.8050),
+  ('kaedi', 16.1503, -13.5047), ('kiffa', 16.6166, -11.4044), ('zouerate', 22.7354, -12.4792),
+  ('atar', 20.5170, -13.0499), ('selibaby', 15.1585, -12.1843), ('nema', 16.6170, -7.2500),
+  ('aioun', 16.6611, -9.6149), ('aleg', 17.0530, -13.9137), ('akjoujt', 19.7469, -14.3853),
+  ('tidjikja', 18.5564, -11.4271), ('boutilimit', 17.5500, -14.7000)
+) AS v(key, lat, lng)
+WHERE c.key = v.key AND c.lat IS NULL;
+
+-- Great-circle distance in km (NULL when a point is missing).
+CREATE OR REPLACE FUNCTION mm_distance_km(lat1 double precision, lng1 double precision, lat2 double precision, lng2 double precision)
+RETURNS double precision LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $fn$
+  SELECT 6371 * 2 * asin(sqrt(
+    power(sin(radians(lat2 - lat1) / 2), 2) +
+    cos(radians(lat1)) * cos(radians(lat2)) * power(sin(radians(lng2 - lng1) / 2), 2)))
+$fn$;

@@ -182,6 +182,10 @@ async function main() {
     // Verified merchants and a few featured listings.
     await client.query('UPDATE users SET is_verified = true WHERE id = ANY($1::int[])', [[userIds[2], userIds[4]]]);
     await client.query("UPDATE users SET merchant_status = 'approved' WHERE account_type = 'merchant' AND merchant_status IS NULL");
+    // Demo pins: a point within ~3 km of each listing's city centre (some shown exactly).
+    await client.query(`UPDATE products p SET lat = ct.lat + (random() - 0.5) * 0.05, lng = ct.lng + (random() - 0.5) * 0.05,
+                          loc_exact = (p.id % 3 = 0)
+                        FROM cities ct WHERE ct.key = p.city AND ct.lat IS NOT NULL AND p.lat IS NULL`);
     await client.query(
       `UPDATE products SET featured_until = now() + interval '14 days' WHERE id = ANY($1::int[])`,
       [[productIds[0], productIds[4], productIds[8], productIds[12]]],

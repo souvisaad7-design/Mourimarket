@@ -22,11 +22,14 @@ export function AppProvider({ children }) {
     if (!getToken()) { setUser(null); return null; }
     try {
       const { user: u } = await api('/auth/me');
-      setUser(u);
-      return u;
-    } catch {
-      setToken(null);
-      setUser(null);
+      setUser(u || null);
+      return u || null;
+    } catch (err) {
+      // Only an invalid or disabled session signs the user out; a network hiccup keeps them in.
+      if (err.status === 401 || err.status === 403) {
+        setToken(null);
+        setUser(null);
+      }
       return null;
     }
   }, []);
