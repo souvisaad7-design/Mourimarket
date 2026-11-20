@@ -58,8 +58,8 @@ export function SettingsProvider({ children }) {
   useEffect(() => {
     const icon = document.querySelector('link[rel="icon"]');
     if (icon) {
-      icon.setAttribute('href', logoUrl || '/favicon.svg');
-      if (logoUrl) icon.removeAttribute('type'); else icon.setAttribute('type', 'image/svg+xml');
+      icon.setAttribute('href', logoUrl || '/favicon.png');
+      if (logoUrl) icon.removeAttribute('type'); else icon.setAttribute('type', 'image/png');
     }
   }, [logoUrl]);
 

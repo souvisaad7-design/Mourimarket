@@ -73,24 +73,14 @@ export function VerifiedBadge({ small = false, label }) {
   );
 }
 
-/** Brand mark: a green shopping bag with a gold star and swoosh. */
+/**
+ * Brand mark: the Souk Chinguetti bag with its Moorish door (line art from the official logo).
+ * Gold on the dark-green header and in dark mode, green on light backgrounds.
+ */
 export function LogoMark({ className = 'h-10 w-10', onDark = false }) {
-  // On the dark-green header the bag is sand / beige so it stays visible.
-  const id = onDark ? 'mm-bag-light' : 'mm-bag';
-  return (
-    <svg viewBox="0 0 64 64" className={`shrink-0 ${className}`} aria-hidden="true">
-      <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" style={{ stopColor: onDark ? '#ecdfbc' : 'rgb(var(--brand-500))' }} />
-          <stop offset="1" style={{ stopColor: onDark ? 'rgb(var(--gold-400))' : 'rgb(var(--brand-900))' }} />
-        </linearGradient>
-      </defs>
-      <path d="M22 24v-6a10 10 0 0 1 20 0v6" fill="none" style={{ stroke: onDark ? '#ecdfbc' : 'rgb(var(--brand-800))' }} strokeWidth="4.5" strokeLinecap="round" />
-      <path d="M11 22h42l-3.2 31.5A6 6 0 0 1 43.8 59H20.2a6 6 0 0 1-6-5.5z" fill={`url(#${id})`} />
-      <path d="M32 31.5l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L32 46.3l-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9z" style={{ fill: onDark ? 'rgb(var(--brand-900))' : 'rgb(var(--gold-400))' }} />
-      <path d="M6 51c14 7 33 5 52-11" fill="none" style={{ stroke: 'rgb(var(--gold-400))' }} strokeWidth="3.5" strokeLinecap="round" />
-    </svg>
-  );
+  const img = (src, extra = '') => <img src={src} alt="" aria-hidden="true" draggable="false" className={`mm-logo shrink-0 object-contain ${extra} ${className}`} />;
+  if (onDark) return img('/logo-mark.png');
+  return <>{img('/logo-mark-green.png', 'mm-logo-light')}{img('/logo-mark.png', 'mm-logo-dark')}</>;
 }
 
 /** The site's mark: the admin's uploaded logo, or the built-in bag. */
@@ -104,13 +94,13 @@ export function Logo({ className = '', size = 'md', onDark = false }) {
   const { t, siteName, lang } = useI18n();
   const name = useSettings().settings.appearance?.siteName;
   return (
-    <Link to="/" className={`flex items-center gap-1.5 ${className}`} aria-label={siteName}>
+    <Link to="/" className={`flex items-center gap-2 ${className}`} aria-label={siteName}>
       <SiteMark className={big ? 'h-12 w-12' : 'h-10 w-10'} onDark={onDark} />
       {name ? (
-        <span className={`${big ? 'text-2xl' : 'text-xl'} max-w-[11rem] truncate font-bold tracking-tight sm:max-w-none ${onDark ? 'text-[#ecdfbc]' : 'text-brand-800 dark-brand-text'}`}>{name}</span>
+        <span className={`${big ? 'text-2xl' : 'text-xl'} max-w-[11rem] truncate font-bold tracking-tight sm:max-w-none ${onDark ? 'text-gold-400' : 'text-brand-800 dark-brand-text'}`}>{name}</span>
       ) : (
         <span className={`${big ? 'text-2xl' : 'text-xl'} whitespace-nowrap font-bold ${lang === 'ar' ? '' : 'tracking-tight'}`}>
-          <span className={onDark ? 'text-[#ecdfbc]' : 'text-brand-900 dark-brand-text'}>{t('brand.nameA')}</span>{' '}
+          <span className={onDark ? 'text-gold-400' : 'text-brand-900 dark-brand-text'}>{t('brand.nameA')}</span>{' '}
           <span className={onDark ? 'text-gold-400' : 'text-brand-600'}>{t('brand.nameB')}</span>
         </span>
       )}

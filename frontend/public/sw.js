@@ -4,14 +4,14 @@
  * - Page navigations: network-first, falling back to the cached app shell.
  * - API calls are never cached (always fresh data).
  */
-const VERSION = 'mm-v1.1.0';
+const VERSION = 'mm-v1.2.0';
 const SHELL = `${VERSION}-shell`;
 const STATIC = `${VERSION}-static`;
 const IMAGES = `${VERSION}-images`;
 const MAX_IMAGES = 120;
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(SHELL).then((c) => c.addAll(['/', '/manifest.webmanifest', '/favicon.svg'])).then(() => self.skipWaiting()));
+  event.waitUntil(caches.open(SHELL).then((c) => c.addAll(['/', '/manifest.webmanifest', '/favicon.png', '/logo-mark.png', '/logo-mark-green.png'])).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {
