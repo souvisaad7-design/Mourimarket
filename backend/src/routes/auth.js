@@ -182,7 +182,8 @@ router.put('/me/password', requireAuth, async (req, res) => {
     await bcrypt.hash(data.newPassword, 12),
     req.user.id,
   ]);
-  res.json({ ok: true });
+  // Other devices are signed out; this one gets a new session (issued after the change).
+  res.json({ ok: true, token: signToken(req.user) });
 });
 
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
@@ -207,8 +208,8 @@ router.post('/forgot-password', async (req, res) => {
     );
     const link = `${config.corsOrigin}/reset-password?token=${token}`;
     // No mail provider is wired in v1: the link is logged. Plug an SMTP/SMS service in here.
-    console.log(`[password-reset] user ${user.id}: ${link}`);
-    if (!config.isProd) response.devResetLink = link;
+    if (config.isProd) console.log(`[password-reset] requested for user ${user.id}`);
+    else { console.log(`[password-reset] user ${user.id}: ${link}`); response.devResetLink = link; }
   }
   // Same answer whether or not the account exists, so accounts can't be enumerated.
   res.json(response);

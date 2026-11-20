@@ -8,7 +8,7 @@ import { notify } from '../lib/notify.js';
 import { normalizePhone } from '../lib/phone.js';
 import { getSettings, saveSettings } from '../lib/settings.js';
 import { assertCity, cityKey, getCities, invalidateCities } from '../lib/cities.js';
-import { requireAdmin, requireAuth } from '../middleware/auth.js';
+import { requireAdmin, requireAuth, signToken } from '../middleware/auth.js';
 import { removeUploads, saveFile, sendFile, upload } from '../middleware/upload.js';
 import { PRODUCT_FROM, PRODUCT_SELECT } from './products.js';
 
@@ -479,7 +479,7 @@ router.put('/account', async (req, res) => {
      WHERE id = $4 RETURNING id, name, email, role`,
     [data.name ?? null, data.email ?? null, hash, req.user.id],
   );
-  res.json({ user: rows[0], passwordChanged: Boolean(hash) });
+  res.json({ user: rows[0], passwordChanged: Boolean(hash), token: hash ? signToken(rows[0]) : undefined });
 });
 
 // ---------- Users: edit details, delete ----------
@@ -723,7 +723,7 @@ router.delete('/pages/:id', async (req, res) => {
 // ---------- Banners (home page slider) ----------
 
 const LB = (max) => z.object({ ar: z.string().trim().max(max).default(''), fr: z.string().trim().max(max).default(''), en: z.string().trim().max(max).default('') });
-const bannerHref = z.string().trim().max(300).refine((v) => v.startsWith('/') || /^https:\/\//i.test(v), 'link');
+const bannerHref = z.string().trim().max(300).refine((v) => /^\/(?![/\\])/.test(v) || /^https:\/\//i.test(v), 'link');
 const bannerImage = z.string().trim().max(300).refine((v) => v === '' || /^\/uploads\/f\/\d+$/.test(v) || /^https:\/\//i.test(v), 'image');
 const bannerSchema = z.object({
   title: LB(120), subtitle: LB(200), cta: LB(40), link: bannerHref, imageUrl: bannerImage.default(''), isActive: z.boolean().default(true),

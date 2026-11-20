@@ -505,3 +505,18 @@ ALTER TABLE couriers         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_events     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE delivery_ratings ENABLE ROW LEVEL SECURITY;
+
+-- ---------- Security hardening ----------
+-- Sessions issued before a password change are rejected (see middleware/auth.js).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ;
+CREATE OR REPLACE FUNCTION mm_password_changed() RETURNS trigger
+LANGUAGE plpgsql SET search_path = public, pg_temp AS $fn$
+BEGIN
+  IF NEW.password_hash IS DISTINCT FROM OLD.password_hash THEN NEW.password_changed_at := now(); END IF;
+  RETURN NEW;
+END $fn$;
+DROP TRIGGER IF EXISTS users_password_changed ON users;
+CREATE TRIGGER users_password_changed BEFORE UPDATE OF password_hash ON users FOR EACH ROW EXECUTE FUNCTION mm_password_changed();
+-- Functions run with a fixed search_path (Supabase advisor 0011).
+ALTER FUNCTION mm_normalize(text) SET search_path = public, pg_temp;
+ALTER FUNCTION mm_distance_km(double precision, double precision, double precision, double precision) SET search_path = public, pg_temp;

@@ -7,13 +7,14 @@ import { FEATURE_PLANS, VERIFY_PRICE } from './constants.js';
 import { badRequest } from './http.js';
 
 const text = (max = 200) => z.string().trim().max(max);
+const internal = (v) => /^\/(?![/\\])/.test(v);
 const url = z.string().trim().max(300).refine((v) => v === '' || /^https:\/\/[^\s]+$/i.test(v), 'https_url');
 const langTexts = z.record(z.string().regex(/^[a-zA-Z0-9_.]{1,80}$/), z.string().max(2000))
   .refine((o) => Object.keys(o).length <= 600, 'too_many');
 
 const L = (max = 200) => z.object({ ar: text(max), fr: text(max), en: text(max) });
 // A link inside the site ("/products?deals=1") or to another site (https://…).
-const href = z.string().trim().max(300).refine((v) => v === '' || v.startsWith('/') || /^https:\/\//i.test(v), 'link');
+const href = z.string().trim().max(300).refine((v) => v === '' || internal(v) || /^https:\/\//i.test(v), 'link');
 const imageUrl = z.string().trim().max(300).refine((v) => v === '' || /^\/uploads\/f\/\d+$/.test(v) || /^https:\/\//i.test(v), 'image');
 const BUILTIN_LINKS = ['home', 'products', 'categories', 'stores', 'offers', 'about', 'help', 'safety', 'sell'];
 const menuItem = z.discriminatedUnion('type', [
@@ -56,7 +57,7 @@ export const SECTIONS = {
     enabled: z.boolean(),
     tone: z.enum(['brand', 'gold', 'rose']),
     style: z.enum(['static', 'marquee']),
-    link: z.string().trim().max(300).refine((v) => v === '' || v.startsWith('/') || /^https:\/\//i.test(v), 'link'),
+    link: z.string().trim().max(300).refine((v) => v === '' || internal(v) || /^https:\/\//i.test(v), 'link'),
   }),
   features: z.object({ registration: z.boolean(), autoApprove: z.boolean(), paidUpgrades: z.boolean() }),
   payment: z.object({ bankily: text(40), masrvi: text(40), sedad: text(40), accountName: text(80) }),

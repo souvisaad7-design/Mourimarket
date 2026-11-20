@@ -6,6 +6,7 @@ import { forbidden, unauthorized } from '../lib/http.js';
 export function signToken(user) {
   return jwt.sign({ sub: user.id, role: user.role }, config.jwtSecret, {
     expiresIn: config.jwtExpiresIn,
+    algorithm: 'HS256',
   });
 }
 
@@ -15,16 +16,21 @@ async function loadUser(req) {
   if (scheme !== 'Bearer' || !token) return null;
   let payload;
   try {
-    payload = jwt.verify(token, config.jwtSecret);
+    payload = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] });
   } catch {
     throw unauthorized('invalid_token');
   }
   const { rows } = await query(
-    'SELECT id, name, email, role, account_type, is_active FROM users WHERE id = $1',
+    'SELECT id, name, email, role, account_type, is_active, password_changed_at FROM users WHERE id = $1',
     [payload.sub],
   );
   const user = rows[0];
   if (!user) throw unauthorized('invalid_token');
+  // A password change (or reset) ends every session opened before it.
+  if (user.password_changed_at && payload.iat < Math.floor(new Date(user.password_changed_at).getTime() / 1000)) {
+    throw unauthorized('session_expired');
+  }
+  delete user.password_changed_at;
   if (!user.is_active) throw forbidden('account_disabled');
   return user;
 }

@@ -203,6 +203,8 @@ describe('MauriMarket API', () => {
   });
 
   it('disabled accounts cannot log in', async () => {
+    // the password reset above ended the old session: sign in again
+    token = (await call('/api/auth/login', { method: 'POST', body: { email, password: 'newpass123' } })).data.token;
     const u = (await call('/api/auth/me', { token })).data.user;
     await call(`/api/admin/users/${u.id}`, { method: 'PATCH', token: adminToken, body: { isActive: false } });
     assert.equal((await call('/api/auth/login', { method: 'POST', body: { email, password: 'newpass123' } })).status, 403);
@@ -371,8 +373,10 @@ describe('v1.3: phone login, buyers vs sellers, admin password reset', () => {
     const r = await call(`/api/admin/users/${buyerId}/reset-password`, { method: 'POST', token: admin });
     assert.equal(r.status, 200);
     assert.ok(r.data.password.length >= 10);
-    assert.equal((await call('/api/auth/login', { method: 'POST', body: { identifier: digits, password: r.data.password } })).status, 200);
-    const notAdmin = await call(`/api/admin/users/${buyerId}/reset-password`, { method: 'POST', token: buyerToken });
+    const fresh = await call('/api/auth/login', { method: 'POST', body: { identifier: digits, password: r.data.password } });
+    assert.equal(fresh.status, 200);
+    assert.equal((await call('/api/auth/me', { token: buyerToken })).status, 401, 'the reset ends the old session');
+    const notAdmin = await call(`/api/admin/users/${buyerId}/reset-password`, { method: 'POST', token: fresh.data.token });
     assert.equal(notAdmin.status, 403);
   });
 });
@@ -1038,5 +1042,48 @@ describe('delivery service', () => {
     await call('/api/admin/settings', { method: 'PUT', token: admin, body: { delivery: { ...s.delivery, enabled: false } } });
     assert.equal((await call('/api/orders/quote', { method: 'POST', token: buyer, body: { productId: pid, city: 'nouakchott' } })).data.error, 'delivery_disabled');
     await call('/api/admin/settings', { method: 'PUT', token: admin, body: { delivery: s.delivery } });
+  });
+});
+
+describe('security hardening', () => {
+  it('a password change signs out other sessions; this device gets a fresh token', async () => {
+    const phone = `4${String(Date.now()).slice(-7)}`;
+    const reg = await call('/api/auth/register', { method: 'POST', body: { name: 'Sec Test', phone, password: 'OldPass123' } });
+    const oldToken = reg.data.token;
+    await new Promise((r) => setTimeout(r, 1100)); // tokens carry second-precision timestamps
+    const ch = await call('/api/auth/me/password', { method: 'PUT', token: oldToken, body: { currentPassword: 'OldPass123', newPassword: 'NewPass123' } });
+    assert.equal(ch.status, 200);
+    assert.ok(ch.data.token);
+    const stale = await call('/api/auth/me', { token: oldToken });
+    assert.equal(stale.status, 401);
+    assert.equal(stale.data.error, 'session_expired');
+    assert.equal((await call('/api/auth/me', { token: ch.data.token })).status, 200);
+  });
+
+  it('rejects unsigned and tampered tokens', async () => {
+    const enc = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const none = `${enc({ alg: 'none', typ: 'JWT' })}.${enc({ sub: 1, role: 'admin', iat: Math.floor(Date.now() / 1000) })}.`;
+    assert.equal((await call('/api/admin/stats', { token: none })).status, 401);
+    const real = await login('buyer@example.mr');
+    const [h, , sig] = real.split('.');
+    const forged = `${h}.${enc({ sub: 1, role: 'admin', iat: Math.floor(Date.now() / 1000) })}.${sig}`;
+    assert.equal((await call('/api/admin/stats', { token: forged })).status, 401);
+  });
+
+  it('admin links cannot point to another site disguised as an internal path', async () => {
+    const admin = await login('admin@maurimarket.mr', 'Admin12345');
+    for (const link of ['//evil.example', '/\\evil.example', 'javascript:alert(1)', 'http://plain.example']) {
+      const r = await call('/api/admin/settings', { method: 'PUT', token: admin, body: { announcement: { enabled: false, tone: 'gold', style: 'static', link } } });
+      assert.equal(r.status, 400, link);
+    }
+    assert.equal((await call('/api/admin/settings', { method: 'PUT', token: admin, body: { announcement: { enabled: false, tone: 'gold', style: 'static', link: '/products' } } })).status, 200);
+  });
+
+  it('no stack traces or SQL details leak on bad input', async () => {
+    const r = await call('/api/products?minPrice=abc&sort=1;DROP');
+    assert.equal(r.status, 400);
+    assert.deepEqual(Object.keys(r.data).sort(), ['error', 'fields']);
+    const j = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{bad' });
+    assert.deepEqual(await j.json(), { error: 'invalid_json' });
   });
 });

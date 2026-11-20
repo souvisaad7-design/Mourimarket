@@ -64,7 +64,20 @@ export function createApp() {
       return res.status(503).json({ error: 'maintenance' });
     } catch (err) { return next(err); }
   });
-  app.use('/api/auth/login', authLimiter);
+  // Per-account limit as well, so guessing one account's password from many IPs is also slowed down.
+  const accountLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: config.isProd ? 10 : 1000,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    keyGenerator: (req) => `acct:${String(req.body?.identifier ?? req.body?.phone ?? req.body?.email ?? '').trim().toLowerCase().slice(0, 160)}`,
+    skip: (req) => req.method !== 'POST',
+    message: { error: 'too_many_requests' },
+  });
+  app.use('/api/auth/login', authLimiter, accountLimiter);
+  app.use('/api/auth/reset-password', authLimiter);
+  app.use('/api/auth/me/password', authLimiter);
+  app.use('/api/admin/account', authLimiter);
   app.use('/api/auth/register', authLimiter);
   app.use('/api/auth/forgot-password', authLimiter);
   app.use('/api/auth', authRoutes);

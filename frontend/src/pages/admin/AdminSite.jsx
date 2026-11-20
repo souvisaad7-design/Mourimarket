@@ -7,7 +7,7 @@ import { useApp } from '../../context/AppContext.jsx';
 import { useSettings } from '../../context/SettingsContext.jsx';
 import { useI18n } from '../../i18n/index.jsx';
 import { LANGS, messages } from '../../i18n/messages.js';
-import { api } from '../../lib/api.js';
+import { api, setToken } from '../../lib/api.js';
 import { pickLang } from '../../lib/localized.js';
 import { useApi } from '../../lib/hooks.js';
 import { useImageUpload } from './AdminContent.jsx';
@@ -441,7 +441,8 @@ export function AdminAccount() {
     setBusy(true);
     setError(null);
     try {
-      const { passwordChanged } = await api('/admin/account', { method: 'PUT', body: { name: form.name, email: form.email, currentPassword: form.currentPassword, newPassword: form.newPassword } });
+      const { passwordChanged, token } = await api('/admin/account', { method: 'PUT', body: { name: form.name, email: form.email, currentPassword: form.currentPassword, newPassword: form.newPassword } });
+      if (token) setToken(token); // other devices are signed out, this one stays signed in
       await refreshUser();
       setForm((f) => ({ ...f, currentPassword: '', newPassword: '', confirm: '' }));
       notify(passwordChanged ? t('admin.accountSavedPassword') : t('common.saved'));

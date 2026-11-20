@@ -3,7 +3,7 @@ import ProfileCard from '../components/ProfileCard.jsx';
 import { Avatar, CitySelect, ErrorBox, Field, PageHeader, PhoneInput, useFieldError } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
-import { api } from '../lib/api.js';
+import { api, setToken } from '../lib/api.js';
 import { compressImage } from '../lib/image.js';
 import MerchantStatus from '../components/MerchantStatus.jsx';
 import { useDocumentTitle } from '../lib/hooks.js';
@@ -82,7 +82,8 @@ function PasswordForm() {
     e.preventDefault();
     setError(null);
     try {
-      await api('/auth/me/password', { method: 'PUT', body: form });
+      const { token } = await api('/auth/me/password', { method: 'PUT', body: form });
+      if (token) setToken(token); // other devices are signed out, this one stays signed in
       setForm({ currentPassword: '', newPassword: '' });
       notify(t('profile.passwordChanged'));
     } catch (err) { setError(err); }
