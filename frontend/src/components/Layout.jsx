@@ -74,6 +74,8 @@ function UserMenu() {
             <Link className={item} to="/dashboard"><Icon name="grid" className="h-4 w-4" />{user.account_type === 'buyer' ? t('nav.myAccount') : t('nav.dashboard')}</Link>
             <Link className={item} to="/profile"><Icon name="shield" className="h-4 w-4" />{t('card.title')}</Link>
             {user.account_type === 'merchant' && <Link className={item} to="/dashboard/store"><Icon name="store" className="h-4 w-4" />{t('nav.myStore')}</Link>}
+            <Link className={item} to="/orders"><span className="w-4 text-center" aria-hidden="true">📦</span>{t('delivery.nav.orders')}</Link>
+            <Link className={item} to="/courier"><span className="w-4 text-center" aria-hidden="true">🛵</span>{t('delivery.nav.courier')}</Link>
             <Link className={item} to="/favorites"><Icon name="heart" className="h-4 w-4" />{t('nav.favorites')}</Link>
             <Link className={item} to="/profile"><Icon name="user" className="h-4 w-4" />{t('nav.profile')}</Link>
             {user.role === 'admin' && <Link className={item} to="/admin"><Icon name="shield" className="h-4 w-4" />{t('nav.admin')}</Link>}
@@ -268,7 +270,7 @@ function Header() {
 function Footer() {
   const { t, tl, lang, siteName } = useI18n();
   const { categories } = useApp();
-  const { menu } = useSettings().settings;
+  const { menu, delivery } = useSettings().settings;
   const custom = menu?.footer;
   const links = (custom || DEFAULT_FOOTER).map((it) => resolveLink(it, t, lang)).filter(Boolean);
   return (
@@ -298,6 +300,7 @@ function Footer() {
                   : <Link className="hover:text-brand-700" to={l.to}>{l.key === 'products' ? t('nav.products') : l.label}</Link>}
               </li>
             ))}
+            {delivery?.enabled && <li><Link className="font-semibold text-brand-700 hover:text-brand-900" to="/courier">🛵 {t('delivery.nav.join')}</Link></li>}
           </ul>
         </div>
       </div>

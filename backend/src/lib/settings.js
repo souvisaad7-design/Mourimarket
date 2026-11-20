@@ -31,6 +31,15 @@ export const SECTIONS = {
     secondaryColor: z.string().trim().refine((v) => v === '' || /^#[0-9a-f]{6}$/i.test(v), 'color'),
   }),
   maintenance: z.object({ enabled: z.boolean(), message: L(500) }),
+  // Delivery prices (MRU): base + per km, never under the minimum; extra when crossing cities.
+  delivery: z.object({
+    enabled: z.boolean(),
+    baseFee: z.number().int().min(0).max(1_000_000),
+    perKm: z.number().int().min(0).max(100_000),
+    minFee: z.number().int().min(0).max(1_000_000),
+    interCityFee: z.number().int().min(0).max(1_000_000),
+    maxKm: z.number().int().min(1).max(2000),
+  }),
   pricing: z.object({
     verifyPrice: z.number().int().min(0).max(10_000_000),
     featurePlans: z.array(z.object({ days: z.number().int().min(1).max(365), price: z.number().int().min(0).max(10_000_000) }))
@@ -58,6 +67,7 @@ export const defaults = () => ({
   // Empty values / null menus mean "use the built-in ones".
   appearance: { siteName: '', logoUrl: '', primaryColor: '', secondaryColor: '' },
   maintenance: { enabled: false, message: { ar: '', fr: '', en: '' } },
+  delivery: { enabled: true, baseFee: 100, perKm: 20, minFee: 150, interCityFee: 500, maxKm: 600 },
   pricing: { verifyPrice: VERIFY_PRICE, featurePlans: FEATURE_PLANS },
   menu: { header: null, footer: null, home: Object.fromEntries(HOME_SECTIONS.map((k) => [k, true])) },
   contact: { email: '', whatsapp: '', phone: '', address: '' },

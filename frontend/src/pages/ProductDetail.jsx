@@ -9,6 +9,8 @@ import { api } from '../lib/api.js';
 import MapView from '../components/MapView.jsx';
 import { useGeo } from '../context/LocationContext.jsx';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
+import { useSettings } from '../context/SettingsContext.jsx';
+import { OrderDeliveryButton } from './Delivery.jsx';
 
 function ReportModal({ productId, open, onClose }) {
   const { t } = useI18n();
@@ -162,8 +164,10 @@ function ShareBar({ product }) {
 function MobileActionBar({ product }) {
   const { t, price } = useI18n();
   const { user } = useApp();
+  const { settings } = useSettings();
   const navigate = useNavigate();
   if (user?.id === product.seller_id || product.availability === 'sold') return null;
+  const delivery = settings.delivery?.enabled;
   const phone = (product.seller_phone || '').replace(/[^\d+]/g, '');
   const message = () => {
     if (!user) return navigate('/login', { state: { from: `/products/${product.id}` } });
@@ -176,7 +180,8 @@ function MobileActionBar({ product }) {
       <div className="flex items-center gap-2">
         <p className="me-auto min-w-0 truncate text-lg font-bold text-brand-800"><span className="ltr-nums">{price(product.price)}</span></p>
         {phone && <a href={`tel:${phone}`} className="btn-outline px-3" aria-label={t('product.call')}><Icon name="phone" className="h-5 w-5" /></a>}
-        <button type="button" onClick={message} className="btn-primary"><Icon name="chat" className="h-4 w-4" />{t('product.contactSeller')}</button>
+        {delivery && <Link to={user ? `/checkout/${product.id}` : '/login'} state={user ? undefined : { from: `/checkout/${product.id}` }} className="btn-accent px-3" aria-label={t('delivery.cta.button')}><span aria-hidden="true">🛵</span><span className="hidden min-[400px]:inline">{t('delivery.cta.short')}</span></Link>}
+        <button type="button" onClick={message} className="btn-primary"><Icon name="chat" className="h-4 w-4" />{delivery ? <span className="hidden min-[400px]:inline">{t('product.contactSeller')}</span> : t('product.contactSeller')}</button>
       </div>
     </div>
   );
@@ -262,6 +267,7 @@ export default function ProductDetail() {
           </div>
 
           {product.can_review && <ReviewForm productId={product.id} onDone={reload} />}
+          <OrderDeliveryButton product={product} />
           <ContactBox product={product} />
 
           <div className="card p-4">

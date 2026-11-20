@@ -16,6 +16,9 @@ const NAV = [
     ['listings', 'listings', 'image', 'pending_products'], ['merchants', 'merchantsTab', 'store', 'pending_merchants'],
     ['reports', 'reports', 'flag', 'open_reports'], ['requests', 'requests', 'star', 'pending_upgrades'],
   ]],
+  ['delivery', [
+    ['orders', 'deliveryOrders', 'grid', 'pending_orders'], ['couriers', 'deliveryCouriers', 'users', 'pending_couriers'], ['delivery', 'deliveryPricing', 'globe'],
+  ]],
   ['manage', [
     ['users', 'users', 'user'], ['stores', 'stores', 'store'], ['categories', 'categories', 'filter'], ['cities', 'cities', 'pin'],
     ['reviews', 'reviews', 'star'], ['files', 'files', 'image'],
@@ -275,7 +278,7 @@ export function AdminOverview() {
     ['featured', t('admin.featuredCount'), totals.featured_products], ['verified', t('admin.verifiedCount'), totals.verified_users],
     ['all', t('admin.totalListings'), totals.products], ['sold', t('dashboard.soldCount'), totals.sold_products],
     ['stores', t('admin.stores'), totals.stores], ['messages', t('admin.messagesCount'), totals.messages],
-    ['views', t('admin.totalViews'), totals.views], ['new', t('admin.newUsers7d'), totals.new_users_7d],
+    ['views', t('admin.totalViews'), totals.views], ['orders', t('admin.openOrders'), totals.open_orders], ['delivered', t('admin.deliveredOrders'), totals.delivered_orders], ['new', t('admin.newUsers7d'), totals.new_users_7d],
   ];
 
   return (
@@ -286,6 +289,8 @@ export function AdminOverview() {
         <QueueCard to="/admin/merchants" label={t('admin.merchantRequests')} count={totals.pending_merchants} tone="violet" />
         {meta.upgrades && <QueueCard to="/admin/requests" label={t('admin.pendingUpgrades')} count={totals.pending_upgrades} tone="sky" />}
         <QueueCard to="/admin/reports" label={t('admin.openReports')} count={totals.open_reports} tone="rose" />
+        <QueueCard to="/admin/orders?status=pending" label={t('admin.pendingOrders')} count={totals.pending_orders} tone="amber" />
+        <QueueCard to="/admin/couriers" label={t('admin.pendingCouriers')} count={totals.pending_couriers} tone="violet" />
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {tiles.map(([k, label, v]) => (

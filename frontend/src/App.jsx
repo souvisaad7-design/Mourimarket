@@ -37,6 +37,10 @@ const [AdminCategories, AdminListings, AdminMerchants, AdminReports, AdminStores
 const [AdminAccount, AdminFiles, AdminReviews, AdminSettings, AdminSitemap, AdminTexts, AdminAppearance, AdminAlerts, AdminPayments] =
   ['AdminAccount', 'AdminFiles', 'AdminReviews', 'AdminSettings', 'AdminSitemap', 'AdminTexts', 'AdminAppearance', 'AdminAlerts', 'AdminPayments'].map((n) => lazyNamed(adminSite, n));
 import StoreSettings from './pages/StoreSettings.jsx';
+import { Checkout, Courier, OrderDetail, Orders, RedirectToCourier } from './pages/Delivery.jsx';
+const adminDelivery = () => import('./pages/admin/AdminDelivery.jsx');
+const [AdminOrders, AdminCouriers] = ['AdminOrders', 'AdminCouriers'].map((n) => lazyNamed(adminDelivery, n));
+const AdminDeliveryPricing = lazyNamed(adminSite, 'AdminDeliveryPricing');
 
 function RequireAuth({ children, admin = false }) {
   const { user, ready } = useApp();
@@ -103,6 +107,11 @@ export default function App() {
         <Route path="messages" element={<RequireAuth><Messages /></RequireAuth>} />
         <Route path="messages/:id" element={<RequireAuth><Messages /></RequireAuth>} />
         <Route path="notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
+        <Route path="checkout/:productId" element={<RequireAuth><Checkout /></RequireAuth>} />
+        <Route path="orders" element={<RequireAuth><Orders /></RequireAuth>} />
+        <Route path="orders/:id" element={<RequireAuth><OrderDetail /></RequireAuth>} />
+        <Route path="courier" element={<RequireAuth><Courier /></RequireAuth>} />
+        <Route path="delivery/join" element={<RedirectToCourier />} />
 
         <Route path="*" element={<NotFound />} />
       </Route>
@@ -131,6 +140,9 @@ export default function App() {
         <Route path="pages" element={<AdminCustomPages />} />
         <Route path="listings/new" element={<AdminNewListing />} />
         <Route path="account" element={<AdminAccount />} />
+        <Route path="orders" element={<AdminOrders />} />
+        <Route path="couriers" element={<AdminCouriers />} />
+        <Route path="delivery" element={<AdminDeliveryPricing />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
         <Route path="stores" element={<AdminStores />} />
       </Route>

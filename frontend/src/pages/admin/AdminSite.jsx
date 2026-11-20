@@ -291,6 +291,49 @@ export function AdminPayments() {
   );
 }
 
+// ---------- Delivery prices ----------
+
+/** Same formula as the server (backend/src/lib/delivery.js). */
+const feeFor = (d, km, interCity) => Math.ceil((Math.max(d.minFee, d.baseFee + d.perKm * km) + (interCity ? d.interCityFee : 0)) / 10) * 10;
+
+export function AdminDeliveryPricing() {
+  const { t, price } = useI18n();
+  const { s, put, loading, error } = useSettingsDraft();
+  const { save, busy, errors } = useSaveSettings();
+  if (loading || !s) return error ? <ErrorBox error={error} /> : <Spinner />;
+  const d = s.delivery;
+  const num = (key) => (e) => put('delivery', { [key]: Math.max(0, parseInt(e.target.value, 10) || 0) });
+  const fields = [['baseFee', 'MRU'], ['perKm', 'MRU / km'], ['minFee', 'MRU'], ['interCityFee', 'MRU'], ['maxKm', 'km']];
+  const examples = [[2, false], [5, false], [12, false], [450, true]];
+  return (
+    <div className="max-w-3xl space-y-6">
+      <PageTitle icon="globe" title={t('delivery.admin.pricing')} subtitle={t('delivery.admin.pricingHint')} />
+      <Section title={t('delivery.admin.pricing')} busy={busy === 'delivery'} error={errors.delivery} onSave={() => save('delivery', { delivery: d })}>
+        <Toggle checked={d.enabled} onChange={(v) => put('delivery', { enabled: v })} label={t('delivery.admin.enabled')} hint={t('delivery.admin.enabledHint')} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          {fields.map(([k, unit]) => (
+            <Field key={k} label={t(`delivery.admin.f.${k}`)} hint={t(`delivery.admin.f.${k}Hint`)}>
+              <div className="flex items-center gap-2"><input className="input" type="number" min={k === 'maxKm' ? 1 : 0} dir="ltr" value={d[k]} onChange={num(k)} /><span className="shrink-0 text-xs text-slate-500">{unit}</span></div>
+            </Field>
+          ))}
+        </div>
+        <div className="rounded-xl bg-brand-50 p-4">
+          <p className="mb-2 text-sm font-bold text-brand-900 dark-brand-text">{t('delivery.admin.examples')}</p>
+          <ul className="grid gap-1 text-sm sm:grid-cols-2">
+            {examples.map(([km, inter]) => (
+              <li key={km} className="flex justify-between gap-2 rounded-lg bg-surface px-3 py-1.5">
+                <span>{t('delivery.cost.distance', { km: String(km) })}{inter ? ` · ${t('delivery.cost.interCity')}` : ''}</span>
+                <strong className="ltr-nums">{km > d.maxKm ? '—' : price(feeFor(d, km, inter))}</strong>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[11px] text-slate-500">{t('delivery.admin.formula')}</p>
+        </div>
+      </Section>
+    </div>
+  );
+}
+
 // ---------- Site texts (override any text, in every language) ----------
 
 const flatten = (obj, prefix = '') => Object.entries(obj).flatMap(([k, v]) => (

@@ -413,3 +413,95 @@ RETURNS double precision LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $fn$
     power(sin(radians(lat2 - lat1) / 2), 2) +
     cos(radians(lat1)) * cos(radians(lat2)) * power(sin(radians(lng2 - lng1) / 2), 2)))
 $fn$;
+
+-- ---------- Delivery service ----------
+-- Delivery partners: any user can apply; an admin approves.
+CREATE TABLE IF NOT EXISTS couriers (
+  id              SERIAL PRIMARY KEY,
+  user_id         INT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  status          TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'suspended')),
+  phone           VARCHAR(20) NOT NULL,
+  city            VARCHAR(40) NOT NULL,
+  vehicle         TEXT NOT NULL CHECK (vehicle IN ('motorbike', 'car', 'bicycle', 'tricycle', 'foot')),
+  note            TEXT,
+  admin_note      TEXT,
+  is_available    BOOLEAN NOT NULL DEFAULT TRUE,
+  share_location  BOOLEAN NOT NULL DEFAULT FALSE,   -- the courier's consent to be tracked
+  last_lat        DOUBLE PRECISION,
+  last_lng        DOUBLE PRECISION,
+  last_seen_at    TIMESTAMPTZ,
+  reviewed_by     INT REFERENCES users(id) ON DELETE SET NULL,
+  reviewed_at     TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_couriers_status_city ON couriers(status, city);
+
+-- Orders with delivery (cash on delivery). Prices are copied at order time.
+CREATE TABLE IF NOT EXISTS orders (
+  id              SERIAL PRIMARY KEY,
+  product_id      INT REFERENCES products(id) ON DELETE SET NULL,
+  product_title   VARCHAR(140) NOT NULL,
+  buyer_id        INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  seller_id       INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  courier_id      INT REFERENCES couriers(id) ON DELETE SET NULL,
+  status          TEXT NOT NULL DEFAULT 'pending'
+                  CHECK (status IN ('pending', 'accepted', 'preparing', 'picked_up', 'on_the_way', 'delivered', 'cancelled')),
+  item_price      BIGINT NOT NULL,
+  delivery_fee    BIGINT NOT NULL,
+  total           BIGINT NOT NULL,
+  payment_method  TEXT NOT NULL DEFAULT 'cod' CHECK (payment_method IN ('cod')),
+  distance_km     NUMERIC(7, 1),
+  -- Delivery address (private: buyer, assigned courier and admins only)
+  city            VARCHAR(40) NOT NULL,
+  area            VARCHAR(80),
+  district        VARCHAR(80),
+  address         VARCHAR(300),
+  phone           VARCHAR(20) NOT NULL,
+  lat             DOUBLE PRECISION,
+  lng             DOUBLE PRECISION,
+  -- Pick-up point (the listing's place at order time)
+  pickup_city     VARCHAR(40),
+  pickup_lat      DOUBLE PRECISION,
+  pickup_lng      DOUBLE PRECISION,
+  note            VARCHAR(500),
+  cancel_reason   VARCHAR(300),
+  cancelled_by    TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  delivered_at    TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_orders_buyer ON orders(buyer_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_seller ON orders(seller_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_courier ON orders(courier_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status, created_at DESC);
+-- One open order per buyer and listing.
+CREATE UNIQUE INDEX IF NOT EXISTS orders_one_open_per_buyer ON orders(product_id, buyer_id)
+  WHERE status NOT IN ('delivered', 'cancelled');
+
+-- Every status change, for the order timeline.
+CREATE TABLE IF NOT EXISTS order_events (
+  id          SERIAL PRIMARY KEY,
+  order_id    INT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  status      TEXT NOT NULL,
+  actor_id    INT REFERENCES users(id) ON DELETE SET NULL,
+  actor_role  TEXT,
+  note        VARCHAR(300),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_order_events_order ON order_events(order_id, id);
+
+-- The buyer rates the delivery once it is done.
+CREATE TABLE IF NOT EXISTS delivery_ratings (
+  id          SERIAL PRIMARY KEY,
+  order_id    INT NOT NULL UNIQUE REFERENCES orders(id) ON DELETE CASCADE,
+  courier_id  INT REFERENCES couriers(id) ON DELETE SET NULL,
+  buyer_id    INT REFERENCES users(id) ON DELETE SET NULL,
+  rating      SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  comment     VARCHAR(500),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE couriers         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE orders           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE order_events     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE delivery_ratings ENABLE ROW LEVEL SECURITY;

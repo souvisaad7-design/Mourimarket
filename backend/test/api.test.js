@@ -872,3 +872,171 @@ describe('geolocation', () => {
     assert.ok(meta.find((c) => c.key === 'nouakchott').lat > 18);
   });
 });
+
+describe('delivery service', () => {
+  let seller; let buyer; let courierTok; let other; let admin; let productId; let orderId; let courierId;
+  const NKC_PIN = { lat: 18.0735, lng: -15.9582 }; // a point a few km from the listing
+  before(async () => {
+    [seller, buyer, courierTok, other, admin] = await Promise.all([login('mohamed@example.mr'), login('buyer@example.mr'), login('sidi@example.mr'), login('fatimetou@example.mr'), login('admin@maurimarket.mr', 'Admin12345')]);
+    const fd = new FormData();
+    for (const [k, v] of Object.entries({ title: 'ثلاجة للتوصيل', description: 'ثلاجة بحالة ممتازة للبيع', price: '12000', city: 'nouakchott', condition: 'used', categoryId: '1', lat: '18.1043', lng: '-15.9752', area: 'تفرغ زينة' })) fd.append(k, v);
+    fd.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+    productId = (await call('/api/products', { method: 'POST', token: seller, form: fd })).data.product.id;
+    await pool.query("UPDATE products SET status = 'approved' WHERE id = $1", [productId]);
+  });
+  const order = (id, tok) => call(`/api/orders/${id}`, { token: tok }).then((r) => r);
+  const move = (id, tok, status, note) => call(`/api/orders/${id}/status`, { method: 'POST', token: tok, body: { status, note } });
+
+  it('quotes item + delivery by distance, inter-city surcharge, and refuses own product', async () => {
+    assert.equal((await call('/api/orders/quote', { method: 'POST', body: { productId, city: 'nouakchott' } })).status, 401);
+    const q = (await call('/api/orders/quote', { method: 'POST', token: buyer, body: { productId, city: 'nouakchott', ...NKC_PIN } })).data;
+    assert.equal(q.itemPrice, 12000);
+    assert.ok(q.distanceKm > 2 && q.distanceKm < 8, `km ${q.distanceKm}`);
+    assert.equal(q.deliveryFee, Math.ceil(Math.max(150, 100 + 20 * q.distanceKm) / 10) * 10);
+    assert.equal(q.total, 12000 + q.deliveryFee);
+    assert.equal(q.deliverable, true);
+    const area = (await call('/api/orders/quote', { method: 'POST', token: buyer, body: { productId, city: 'nouakchott', area: 'arafat' } })).data;
+    assert.ok(area.distanceKm > 0, 'moughataa centre used without a pin');
+    const far = (await call('/api/orders/quote', { method: 'POST', token: buyer, body: { productId, city: 'nouadhibou' } })).data;
+    assert.equal(far.interCity, true);
+    assert.ok(far.deliveryFee >= 500 + 100 + 20 * 300, `inter-city fee ${far.deliveryFee}`);
+    const own = await call('/api/orders/quote', { method: 'POST', token: seller, body: { productId, city: 'nouakchott' } });
+    assert.equal(own.data.error, 'own_product');
+  });
+
+  it('creates a cash-on-delivery order, once, and tells the seller', async () => {
+    const bad = await call('/api/orders', { method: 'POST', token: buyer, body: { productId, city: 'nouakchott', phone: '12' } });
+    assert.equal(bad.data.fields.phone, 'invalid_phone');
+    const r = await call('/api/orders', { method: 'POST', token: buyer, body: { productId, city: 'nouakchott', area: 'tevragh-zeina', district: 'حي النصر', address: 'قرب المسجد، المنزل الأزرق', phone: '22334455', note: 'اتصل قبل الوصول', ...NKC_PIN } });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    orderId = r.data.order.id;
+    assert.equal(r.data.order.status, 'pending');
+    const dup = await call('/api/orders', { method: 'POST', token: buyer, body: { productId, city: 'nouakchott', phone: '22334455' } });
+    assert.equal(dup.status, 409);
+    const { rows } = await pool.query('SELECT payment_method, item_price, delivery_fee, total, phone FROM orders WHERE id = $1', [orderId]);
+    assert.equal(rows[0].payment_method, 'cod');
+    assert.equal(Number(rows[0].total), Number(rows[0].item_price) + Number(rows[0].delivery_fee));
+    const n = await pool.query("SELECT 1 FROM notifications WHERE type = 'order_new' AND user_id = (SELECT seller_id FROM orders WHERE id = $1)", [orderId]);
+    assert.equal(n.rowCount, 1);
+  });
+
+  it('protects the address: seller sees area only, strangers see nothing', async () => {
+    const b = (await order(orderId, buyer)).data.order;
+    assert.equal(b.address, 'قرب المسجد، المنزل الأزرق');
+    assert.deepEqual(b.next, ['cancelled']);
+    const s = (await order(orderId, seller)).data.order;
+    assert.equal(s.address, undefined);
+    assert.equal(s.phone, undefined);
+    assert.equal(s.lat, undefined);
+    assert.equal(s.district, 'حي النصر');
+    assert.deepEqual(s.next.sort(), ['accepted', 'cancelled']);
+    assert.equal((await order(orderId, other)).status, 404);
+    assert.equal((await order(orderId, admin)).data.order.phone, '+22222334455');
+  });
+
+  it('enforces who can move the order', async () => {
+    assert.equal((await move(orderId, buyer, 'accepted')).status, 403);
+    assert.equal((await move(orderId, other, 'accepted')).status, 404);
+    assert.equal((await move(orderId, seller, 'delivered')).data.error, 'invalid_transition');
+    assert.equal((await move(orderId, seller, 'accepted')).status, 200);
+    assert.equal((await move(orderId, seller, 'picked_up')).status, 403, 'only the courier picks up');
+    assert.equal((await move(orderId, seller, 'preparing')).status, 200);
+    assert.equal((await move(orderId, buyer, 'cancelled')).status, 403, 'too late for the buyer once prepared');
+  });
+
+  it('couriers apply, admin approves, then they claim deliveries in their city', async () => {
+    assert.equal((await call('/api/couriers/available', { token: courierTok })).status, 403);
+    const ap = await call('/api/couriers/apply', { method: 'POST', token: courierTok, body: { phone: '46001122', city: 'nouakchott', vehicle: 'motorbike', note: 'خبرة سنتين' } });
+    assert.equal(ap.status, 201, JSON.stringify(ap.data));
+    courierId = ap.data.courier.id;
+    assert.equal((await call('/api/couriers/apply', { method: 'POST', token: courierTok, body: { phone: '46001122', city: 'nouakchott', vehicle: 'car' } })).status, 409);
+    assert.equal((await call('/api/couriers/me', { token: courierTok })).data.courier.status, 'pending');
+    const list = (await call('/api/admin/couriers', { token: admin })).data;
+    assert.ok(list.items.some((c) => c.id === courierId));
+    assert.equal((await call(`/api/admin/couriers/${courierId}`, { method: 'PATCH', token: admin, body: { status: 'rejected' } })).data.fields.note, 'required');
+    assert.equal((await call(`/api/admin/couriers/${courierId}`, { method: 'PATCH', token: courierTok, body: { status: 'approved' } })).status, 403);
+    assert.equal((await call(`/api/admin/couriers/${courierId}`, { method: 'PATCH', token: admin, body: { status: 'approved' } })).status, 200);
+    const avail = (await call('/api/couriers/available', { token: courierTok })).data.items;
+    const mine = avail.find((o) => o.id === orderId);
+    assert.ok(mine, 'the prepared order is offered');
+    assert.equal(mine.address, undefined, 'no customer address before claiming');
+    assert.equal(mine.phone, undefined);
+    assert.equal((await call(`/api/orders/${orderId}/claim`, { method: 'POST', token: courierTok })).status, 200);
+    assert.equal((await call(`/api/orders/${orderId}/claim`, { method: 'POST', token: courierTok })).status, 409, 'cannot be taken twice');
+    const c = (await order(orderId, courierTok)).data.order;
+    assert.equal(c.address, 'قرب المسجد، المنزل الأزرق', 'the assigned courier gets the address');
+    assert.deepEqual(c.next, ['picked_up']);
+  });
+
+  it('tracks the courier only with consent and only while on the way', async () => {
+    assert.equal((await call('/api/couriers/me/location', { method: 'POST', token: courierTok, body: { lat: 18.09, lng: -15.97 } })).data.error, 'location_sharing_off');
+    await call('/api/couriers/me', { method: 'PATCH', token: courierTok, body: { shareLocation: true } });
+    assert.equal((await call('/api/couriers/me/location', { method: 'POST', token: courierTok, body: { lat: 18.09, lng: -15.97 } })).data.stored, false, 'nothing kept before pick-up');
+    assert.equal((await move(orderId, courierTok, 'picked_up')).status, 200);
+    assert.equal((await move(orderId, courierTok, 'on_the_way')).status, 200);
+    assert.equal((await call('/api/couriers/me/location', { method: 'POST', token: courierTok, body: { lat: 18.09, lng: -15.97 } })).data.stored, true);
+    const b = (await order(orderId, buyer)).data.order;
+    assert.equal(b.courier_location.lat, 18.09);
+    assert.equal((await order(orderId, seller)).data.order.courier_location, null, 'the seller does not track the courier');
+    await call('/api/couriers/me', { method: 'PATCH', token: courierTok, body: { shareLocation: false } });
+    assert.equal((await order(orderId, buyer)).data.order.courier_location, null, 'consent withdrawn: position gone');
+    const { rows } = await pool.query('SELECT last_lat FROM couriers WHERE id = $1', [courierId]);
+    assert.equal(rows[0].last_lat, null);
+  });
+
+  it('delivers: product sold, timeline complete, everyone notified, buyer rates once', async () => {
+    assert.equal((await call(`/api/orders/${orderId}/rate`, { method: 'POST', token: buyer, body: { rating: 5 } })).data.error, 'cannot_rate');
+    assert.equal((await move(orderId, courierTok, 'delivered')).status, 200);
+    const o = (await order(orderId, buyer)).data.order;
+    assert.equal(o.status, 'delivered');
+    assert.ok(o.delivered_at);
+    assert.deepEqual(o.events.map((e) => e.status), ['pending', 'accepted', 'preparing', 'courier_assigned', 'picked_up', 'on_the_way', 'delivered']);
+    assert.equal(o.can_rate, true);
+    const p = (await pool.query('SELECT availability, sold_to_id FROM products WHERE id = $1', [productId])).rows[0];
+    assert.equal(p.availability, 'sold');
+    const statusNotes = await pool.query("SELECT user_id FROM notifications WHERE type = 'order_status' AND data->>'status' = 'delivered' AND data->>'id' = $1", [String(orderId)]);
+    assert.equal(statusNotes.rowCount, 2, 'buyer and seller (not the courier who did it)');
+    assert.equal((await call(`/api/orders/${orderId}/rate`, { method: 'POST', token: seller, body: { rating: 1 } })).status, 404);
+    assert.equal((await call(`/api/orders/${orderId}/rate`, { method: 'POST', token: buyer, body: { rating: 5, comment: 'سريع ولطيف' } })).status, 201);
+    assert.equal((await call(`/api/orders/${orderId}/rate`, { method: 'POST', token: buyer, body: { rating: 4 } })).status, 409);
+    const me = (await call('/api/couriers/me', { token: courierTok })).data.courier;
+    assert.equal(Number(me.stats.delivered), 1);
+    assert.equal(Number(me.stats.rating), 5);
+    assert.equal(me.last_lat, undefined);
+    const hist = (await call('/api/orders?as=buyer', { token: buyer })).data.items;
+    assert.ok(hist.some((x) => x.id === orderId && x.status === 'delivered'), 'order history');
+    assert.equal((await move(orderId, admin, 'cancelled', 'x')).data.error, 'invalid_transition');
+    assert.equal((await call('/api/orders', { method: 'POST', token: buyer, body: { productId, city: 'nouakchott', phone: '22334455' } })).data.error, 'product_sold');
+  });
+
+  it('cancellation with reason, admin monitoring, assignment and pricing', async () => {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries({ title: 'مكيف للبيع', description: 'مكيف هواء بحالة جيدة', price: '9000', city: 'nouakchott', condition: 'used', categoryId: '1' })) fd.append(k, v);
+    fd.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+    const pid = (await call('/api/products', { method: 'POST', token: seller, form: fd })).data.product.id;
+    await pool.query("UPDATE products SET status = 'approved' WHERE id = $1", [pid]);
+    const oid = (await call('/api/orders', { method: 'POST', token: buyer, body: { productId: pid, city: 'nouakchott', area: 'arafat', phone: '22334455' } })).data.order.id;
+    assert.equal((await move(oid, seller, 'cancelled')).data.fields.note, 'required');
+    await move(oid, seller, 'accepted');
+    assert.equal((await call(`/api/admin/orders/${oid}/assign`, { method: 'PATCH', token: admin, body: { courierId } })).status, 200);
+    assert.equal((await order(oid, courierTok)).status, 200);
+    const all = (await call('/api/admin/orders?status=open', { token: admin })).data;
+    assert.ok(all.items.some((x) => x.id === oid && x.courier_name));
+    assert.equal(all.counts.delivered >= 1, true);
+    assert.equal((await call(`/api/admin/orders?q=%23${oid}`, { token: admin })).data.items[0].id, oid);
+    assert.equal((await call('/api/admin/orders', { token: seller })).status, 403);
+    assert.equal((await move(oid, buyer, 'cancelled')).status, 200, 'the buyer can still cancel before preparation');
+    const o = (await order(oid, admin)).data.order;
+    assert.equal(o.cancelled_by, 'buyer');
+    const stats = (await call('/api/admin/stats', { token: admin })).data.totals;
+    assert.ok('open_orders' in stats && 'pending_couriers' in stats);
+    // pricing from the admin panel
+    const s = (await call('/api/admin/settings', { token: admin })).data.settings;
+    assert.equal((await call('/api/admin/settings', { method: 'PUT', token: admin, body: { delivery: { ...s.delivery, baseFee: 300, minFee: 0, perKm: 0 } } })).status, 200);
+    const q = (await call('/api/orders/quote', { method: 'POST', token: buyer, body: { productId: pid, city: 'nouakchott' } })).data;
+    assert.equal(q.deliveryFee, 300);
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { delivery: { ...s.delivery, enabled: false } } });
+    assert.equal((await call('/api/orders/quote', { method: 'POST', token: buyer, body: { productId: pid, city: 'nouakchott' } })).data.error, 'delivery_disabled');
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { delivery: s.delivery } });
+  });
+});

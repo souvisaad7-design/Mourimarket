@@ -34,6 +34,11 @@ router.get('/stats', async (_req, res) => {
       (SELECT COUNT(*) FROM users WHERE is_verified) AS verified_users,
       (SELECT COUNT(*) FROM upgrade_requests WHERE status = 'pending') AS pending_upgrades,
       (SELECT COUNT(*) FROM users WHERE merchant_status = 'pending') AS pending_merchants,
+      (SELECT COUNT(*) FROM orders WHERE status NOT IN ('delivered', 'cancelled')) AS open_orders,
+      (SELECT COUNT(*) FROM orders WHERE status = 'pending') AS pending_orders,
+      (SELECT COUNT(*) FROM orders WHERE status = 'delivered') AS delivered_orders,
+      (SELECT COUNT(*) FROM couriers WHERE status = 'pending') AS pending_couriers,
+      (SELECT COUNT(*) FROM couriers WHERE status = 'approved') AS active_couriers,
       (SELECT COALESCE(SUM(views), 0) FROM products) AS views`),
     query(`SELECT c.slug, c.name_ar, c.name_fr, c.name_en, COUNT(p.id) AS n
            FROM categories c LEFT JOIN products p ON p.category_id = c.id AND p.status = 'approved'
@@ -801,11 +806,107 @@ router.delete('/cities/:id', async (req, res) => {
   const c = (await query('SELECT key FROM cities WHERE id = $1', [id])).rows[0];
   if (!c) throw notFound('city_not_found');
   const { rows } = await query(
-    `SELECT (SELECT COUNT(*) FROM products WHERE city = $1) + (SELECT COUNT(*) FROM users WHERE city = $1) + (SELECT COUNT(*) FROM stores WHERE city = $1) AS n`,
+    `SELECT (SELECT COUNT(*) FROM products WHERE city = $1) + (SELECT COUNT(*) FROM users WHERE city = $1) + (SELECT COUNT(*) FROM stores WHERE city = $1) + (SELECT COUNT(*) FROM couriers WHERE city = $1) AS n`,
     [c.key],
   );
   if (Number(rows[0].n) > 0) throw conflict('city_in_use');
   await query('DELETE FROM cities WHERE id = $1', [id]);
   invalidateCities();
   res.json({ ok: true });
+});
+
+// ---------- Delivery: orders and delivery partners ----------
+
+/** GET /admin/orders?status=&q= – every delivery order (status changes go through POST /api/orders/:id/status). */
+router.get('/orders', async (req, res) => {
+  const { limit, offset, page } = pagination(req.query, { defaultLimit: 30 });
+  const params = [];
+  const where = [];
+  if (req.query.status === 'open') where.push("o.status NOT IN ('delivered', 'cancelled')");
+  else if (['pending', 'accepted', 'preparing', 'picked_up', 'on_the_way', 'delivered', 'cancelled'].includes(req.query.status)) {
+    params.push(req.query.status); where.push(`o.status = $${params.length}`);
+  }
+  const q = String(req.query.q || '').trim().slice(0, 80);
+  if (q) {
+    params.push(`%${q}%`, q.replace(/^#/, ''));
+    const n = params.length - 1;
+    where.push(`(o.product_title ILIKE $${n} OR b.name ILIKE $${n} OR s.name ILIKE $${n} OR o.phone ILIKE $${n} OR o.id::text = $${n + 1})`);
+  }
+  const w = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const from = `FROM orders o JOIN users b ON b.id = o.buyer_id JOIN users s ON s.id = o.seller_id
+    LEFT JOIN couriers c ON c.id = o.courier_id LEFT JOIN users cu ON cu.id = c.user_id`;
+  const [items, total, counts] = await Promise.all([
+    query(`SELECT o.id, o.product_id, o.product_title, o.status, o.item_price, o.delivery_fee, o.total, o.distance_km, o.city, o.area, o.district,
+             o.pickup_city, o.courier_id, o.created_at, o.updated_at, b.name AS buyer_name, s.name AS seller_name, cu.name AS courier_name
+           ${from} ${w} ORDER BY o.created_at DESC LIMIT ${limit} OFFSET ${offset}`, params),
+    query(`SELECT COUNT(*) AS n ${from} ${w}`, params),
+    query('SELECT status, COUNT(*) AS n FROM orders GROUP BY status'),
+  ]);
+  res.json({ items: items.rows, total: total.rows[0].n, page, limit, counts: Object.fromEntries(counts.rows.map((c) => [c.status, Number(c.n)])) });
+});
+
+/** PATCH /admin/orders/:id/assign { courierId | null } – give an open order to an approved courier. */
+router.patch('/orders/:id/assign', async (req, res) => {
+  const d = parse(z.object({ courierId: z.coerce.number().int().positive().nullable() }), req.body);
+  const id = parseInt(req.params.id, 10) || 0;
+  const result = await tx(async (client) => {
+    const o = (await client.query('SELECT o.*, c.user_id AS courier_user_id FROM orders o LEFT JOIN couriers c ON c.id = o.courier_id WHERE o.id = $1 FOR UPDATE OF o', [id])).rows[0];
+    if (!o) throw notFound('order_not_found');
+    if (['picked_up', 'on_the_way', 'delivered', 'cancelled'].includes(o.status)) throw badRequest('cannot_reassign');
+    let courier = null;
+    if (d.courierId) {
+      courier = (await client.query("SELECT c.id, c.user_id, u.name FROM couriers c JOIN users u ON u.id = c.user_id WHERE c.id = $1 AND c.status = 'approved' AND u.is_active", [d.courierId])).rows[0];
+      if (!courier) throw badRequest('courier_not_available');
+      if ([o.buyer_id, o.seller_id].includes(courier.user_id)) throw badRequest('courier_is_party');
+    }
+    await client.query('UPDATE orders SET courier_id = $1, updated_at = now() WHERE id = $2', [courier?.id ?? null, id]);
+    await client.query('INSERT INTO order_events (order_id, status, actor_id, actor_role, note) VALUES ($1, $2, $3, $4, $5)',
+      [id, courier ? 'courier_assigned' : 'courier_removed', req.user.id, 'admin', courier?.name ?? null]);
+    const link = `/orders/${id}`;
+    if (courier) {
+      await notify(courier.user_id, 'order_assigned', { id, title: o.product_title }, link, client);
+      for (const uid of [o.buyer_id, o.seller_id]) await notify(uid, 'order_courier', { id, title: o.product_title, name: courier.name }, link, client);
+    }
+    if (o.courier_user_id && o.courier_user_id !== courier?.user_id) await notify(o.courier_user_id, 'order_unassigned', { id, title: o.product_title }, '/courier', client);
+    return { courierId: courier?.id ?? null };
+  });
+  res.json(result);
+});
+
+/** GET /admin/couriers?status= – delivery partner applications and partners. */
+router.get('/couriers', async (req, res) => {
+  const status = ['pending', 'approved', 'rejected', 'suspended', 'all'].includes(req.query.status) ? req.query.status : 'pending';
+  const [items, counts] = await Promise.all([
+    query(
+      `SELECT c.id, c.user_id, c.status, c.phone, c.city, c.vehicle, c.note, c.admin_note, c.is_available, c.share_location, c.created_at, c.reviewed_at,
+         u.name, u.email, u.avatar_url, u.is_active, rv.name AS reviewed_by_name,
+         (SELECT COUNT(*) FROM orders o WHERE o.courier_id = c.id AND o.status = 'delivered') AS delivered,
+         (SELECT COUNT(*) FROM orders o WHERE o.courier_id = c.id AND o.status NOT IN ('delivered', 'cancelled')) AS active,
+         (SELECT ROUND(AVG(rating)::numeric, 1) FROM delivery_ratings r WHERE r.courier_id = c.id) AS rating
+       FROM couriers c JOIN users u ON u.id = c.user_id LEFT JOIN users rv ON rv.id = c.reviewed_by
+       ${status === 'all' ? '' : 'WHERE c.status = $1'}
+       ORDER BY ${status === 'pending' ? 'c.created_at ASC' : 'c.created_at DESC'} LIMIT 200`,
+      status === 'all' ? [] : [status],
+    ),
+    query('SELECT status, COUNT(*) AS n FROM couriers GROUP BY status'),
+  ]);
+  res.json({ items: items.rows, counts: Object.fromEntries(counts.rows.map((c) => [c.status, Number(c.n)])) });
+});
+
+/** PATCH /admin/couriers/:id { status: approved|rejected|suspended, note } */
+router.patch('/couriers/:id', async (req, res) => {
+  const d = parse(z.object({ status: z.enum(['approved', 'rejected', 'suspended']), note: z.string().trim().max(500).optional() }), req.body);
+  if (d.status !== 'approved' && !d.note) throw badRequest('validation_error', { note: 'required' });
+  const id = parseInt(req.params.id, 10) || 0;
+  const { rows } = await query(
+    `UPDATE couriers SET status = $1, admin_note = $2, reviewed_by = $3, reviewed_at = now(),
+       share_location = CASE WHEN $1 = 'approved' THEN share_location ELSE false END,
+       last_lat = CASE WHEN $1 = 'approved' THEN last_lat ELSE NULL END,
+       last_lng = CASE WHEN $1 = 'approved' THEN last_lng ELSE NULL END
+     WHERE id = $4 RETURNING id, user_id, status`,
+    [d.status, d.status === 'approved' ? null : d.note, req.user.id, id],
+  );
+  if (!rows[0]) throw notFound('courier_not_found');
+  await notify(rows[0].user_id, `courier_${d.status}`, { reason: d.note || null }, d.status === 'approved' ? '/courier' : '/delivery/join');
+  res.json({ courier: rows[0] });
 });

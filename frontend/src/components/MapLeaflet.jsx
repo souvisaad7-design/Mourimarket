@@ -88,7 +88,7 @@ export default function MapLeaflet({ center, zoom = 12, markers = [], me = null,
       pin.on('dragend', () => { const p = pin.getLatLng(); pickRef.current?.(p.lat, p.lng); });
       m.setView([picker.lat, picker.lng], Math.max(m.getZoom(), 14));
     } else if (bounds.length > 1) {
-      m.fitBounds(bounds, { padding: [36, 36], maxZoom: 14 });
+      m.fitBounds(bounds, { paddingTopLeft: [40, 56], paddingBottomRight: [40, 24], maxZoom: 14 });
     } else if (bounds.length === 1) {
       m.setView(bounds[0], area ? 13 : Math.max(zoom, 13));
     }

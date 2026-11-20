@@ -17,6 +17,7 @@ import { getSettings } from './lib/settings.js';
 import { optionalAuth } from './middleware/auth.js';
 import publicRoutes from './routes/public.js';
 import geoRoutes from './routes/geo.js';
+import orderRoutes from './routes/orders.js';
 
 export function createApp() {
   const app = express();
@@ -70,6 +71,7 @@ export function createApp() {
   app.use('/api/products', productRoutes);
   app.use('/api/admin', adminRoutes);
   app.use('/api/geo', geoRoutes);
+  app.use('/api', orderRoutes);
   app.use('/api', publicRoutes);
   app.use('/api', accountRoutes);
   app.use('/api', (_req, res) => res.status(404).json({ error: 'not_found' }));
