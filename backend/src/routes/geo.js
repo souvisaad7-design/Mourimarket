@@ -1,18 +1,18 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import { limiter } from '../lib/rateLimit.js';
 import { z } from 'zod';
 import { AREAS } from '../lib/constants.js';
 import { parse } from '../lib/http.js';
 import { reverseGeocode } from '../lib/geo.js';
 
 const router = Router();
-const limiter = rateLimit({ windowMs: 60 * 1000, limit: 30, standardHeaders: 'draft-7', legacyHeaders: false, message: { error: 'too_many_requests' } });
+const reverseLimiter = limiter('geo-reverse', { windowMs: 60 * 1000, limit: 30 });
 
 /**
  * POST /api/geo/reverse { lat, lng, lang } – city, moughataa and neighbourhood of a position.
  * A POST, so the coordinates stay out of URLs and access logs; nothing is stored.
  */
-router.post('/reverse', limiter, async (req, res) => {
+router.post('/reverse', reverseLimiter, async (req, res) => {
   const d = parse(z.object({
     lat: z.coerce.number().min(-90).max(90),
     lng: z.coerce.number().min(-180).max(180),

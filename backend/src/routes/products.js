@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { limiter } from '../lib/rateLimit.js';
 import { z } from 'zod';
 import { config } from '../config.js';
 import { query, tx } from '../db.js';
@@ -279,7 +280,10 @@ async function assertCategory(id, client) {
 }
 
 /** POST /api/products – create a listing (multipart, field "images"). */
-router.post('/', requireAuth, upload.array('images', MAX_IMAGES), async (req, res) => {
+// Anti-spam: at most 20 new listings per hour per account (admins are not limited).
+const postLimiter = limiter('listings-post', { windowMs: 60 * 60 * 1000, limit: 20, keyGenerator: (req) => String(req.user.id), skip: (req) => req.user?.role === 'admin' });
+
+router.post('/', requireAuth, postLimiter, upload.array('images', MAX_IMAGES), async (req, res) => {
   // Buyers browse and message; only seller accounts can post listings.
   // An admin can post for anyone (sellerId) and the listing goes live at once.
   const isAdmin = req.user.role === 'admin';

@@ -2,12 +2,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import cors from 'cors';
 import express from 'express';
-import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import multer from 'multer';
 import { config } from './config.js';
 import { HttpError } from './lib/http.js';
+import { limiter } from './lib/rateLimit.js';
 import { serveFile } from './middleware/upload.js';
 import accountRoutes from './routes/account.js';
 import adminRoutes from './routes/admin.js';
@@ -42,13 +42,7 @@ export function createApp() {
   app.use('/uploads', express.static(config.uploadDir, { maxAge: '30d', immutable: true }));
 
   // Brute-force protection on credential endpoints.
-  const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: config.isProd ? 30 : 1000,
-    standardHeaders: 'draft-7',
-    legacyHeaders: false,
-    message: { error: 'too_many_requests' },
-  });
+  const authLimiter = limiter('auth', { windowMs: 15 * 60 * 1000, limit: config.isProd ? 30 : 1000 });
 
   // API answers depend on who asks: never let a browser or proxy cache them
   // (routes that are safe to cache set their own Cache-Control).
@@ -65,14 +59,11 @@ export function createApp() {
     } catch (err) { return next(err); }
   });
   // Per-account limit as well, so guessing one account's password from many IPs is also slowed down.
-  const accountLimiter = rateLimit({
+  const accountLimiter = limiter('login-account', {
     windowMs: 15 * 60 * 1000,
     limit: config.isProd ? 10 : 1000,
-    standardHeaders: 'draft-7',
-    legacyHeaders: false,
-    keyGenerator: (req) => `acct:${String(req.body?.identifier ?? req.body?.phone ?? req.body?.email ?? '').trim().toLowerCase().slice(0, 160)}`,
+    keyGenerator: (req) => String(req.body?.identifier ?? req.body?.phone ?? req.body?.email ?? '').trim().toLowerCase().slice(0, 160),
     skip: (req) => req.method !== 'POST',
-    message: { error: 'too_many_requests' },
   });
   app.use('/api/auth/login', authLimiter, accountLimiter);
   app.use('/api/auth/reset-password', authLimiter);

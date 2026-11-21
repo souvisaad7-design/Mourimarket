@@ -1,6 +1,5 @@
 // Delivery orders (cash on delivery) and delivery partners (couriers).
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { query, tx } from '../db.js';
 import { assertCity, cityKey } from '../lib/cities.js';
@@ -9,11 +8,13 @@ import { badRequest, conflict, forbidden, notFound, parse } from '../lib/http.js
 import { notify } from '../lib/notify.js';
 import { normalizePhone } from '../lib/phone.js';
 import { getSettings } from '../lib/settings.js';
+import { limiter } from '../lib/rateLimit.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 router.use(['/orders', '/couriers'], requireAuth);
-const writeLimiter = rateLimit({ windowMs: 60 * 1000, limit: 40, keyGenerator: (req) => `o${req.user.id}`, standardHeaders: 'draft-7', legacyHeaders: false, message: { error: 'too_many_requests' } });
+const writeLimiter = limiter('orders-write', { windowMs: 60 * 1000, limit: 40, keyGenerator: (req) => String(req.user.id) });
+const quoteLimiter = limiter('orders-quote', { windowMs: 60 * 1000, limit: 60, keyGenerator: (req) => String(req.user.id) });
 
 const emptyToNull = (v) => (v === '' || v === undefined || v === null ? null : v);
 const coord = (min, max) => z.preprocess(emptyToNull, z.coerce.number().min(min).max(max).nullable()).default(null);
@@ -45,7 +46,7 @@ async function deliverySettings() {
 }
 
 /** POST /api/orders/quote – item price, delivery fee and total before confirming. */
-router.post('/orders/quote', async (req, res) => {
+router.post('/orders/quote', quoteLimiter, async (req, res) => {
   const d = parse(destSchema, req.body);
   await assertCity(d.city);
   const pricing = await deliverySettings();
@@ -305,7 +306,7 @@ router.patch('/couriers/me', async (req, res) => {
 });
 
 /** POST /api/couriers/me/location { lat, lng } – live position while delivering (only with consent). */
-router.post('/couriers/me/location', rateLimit({ windowMs: 60 * 1000, limit: 20, keyGenerator: (req) => `l${req.user.id}`, standardHeaders: 'draft-7', legacyHeaders: false }), async (req, res) => {
+router.post('/couriers/me/location', limiter('courier-location', { windowMs: 60 * 1000, limit: 20, keyGenerator: (req) => String(req.user.id) }), async (req, res) => {
   const d = parse(z.object({ lat: z.coerce.number().min(-90).max(90), lng: z.coerce.number().min(-180).max(180) }), req.body);
   const c = await courierOf(req.user.id);
   if (!c || c.status !== 'approved') throw forbidden('not_a_courier');

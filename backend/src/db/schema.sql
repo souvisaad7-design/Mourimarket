@@ -520,3 +520,24 @@ CREATE TRIGGER users_password_changed BEFORE UPDATE OF password_hash ON users FO
 -- Functions run with a fixed search_path (Supabase advisor 0011).
 ALTER FUNCTION mm_normalize(text) SET search_path = public, pg_temp;
 ALTER FUNCTION mm_distance_km(double precision, double precision, double precision, double precision) SET search_path = public, pg_temp;
+
+-- Shared rate-limit counters (lib/rateLimit.js). Keys are SHA-256 hashes.
+CREATE TABLE IF NOT EXISTS rate_limits (
+  key TEXT PRIMARY KEY,
+  hits INT NOT NULL DEFAULT 0,
+  reset_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS rate_limits_reset_idx ON rate_limits (reset_at);
+ALTER TABLE rate_limits ENABLE ROW LEVEL SECURITY;
+
+-- The site's own server is the only caller of these functions: Supabase's public API may not run them.
+DO $$
+DECLARE f regprocedure;
+BEGIN
+  FOR f IN SELECT p.oid::regprocedure FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           WHERE n.nspname = 'public' AND p.proname LIKE 'mm\_%' LOOP
+    EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC', f);
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM anon', f); END IF;
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM authenticated', f); END IF;
+  END LOOP;
+END $$;

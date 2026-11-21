@@ -1087,3 +1087,20 @@ describe('security hardening', () => {
     assert.deepEqual(await j.json(), { error: 'invalid_json' });
   });
 });
+
+describe('shared rate limits (several server instances)', () => {
+  it('counts attempts across instances, so spreading requests does not bypass the limit', async () => {
+    const express = (await import('express')).default;
+    const { limiter } = await import('../src/lib/rateLimit.js');
+    // the same limiter name on two separate "instances"
+    const name = `test-${Date.now()}`;
+    const mk = () => { const app = express(); app.post('/x', limiter(name, { windowMs: 60000, limit: 3, keyGenerator: () => 'same-account' }), (_q, r) => r.json({ ok: true })); return app.listen(0); };
+    const a = mk(); const b = mk();
+    const hit = (s) => fetch(`http://localhost:${s.address().port}/x`, { method: 'POST' }).then((r) => r.status);
+    const codes = [await hit(a), await hit(b), await hit(a), await hit(b), await hit(a)];
+    a.close(); b.close();
+    assert.deepEqual(codes, [200, 200, 200, 429, 429]);
+    const stored = await pool.query("SELECT key FROM rate_limits WHERE key LIKE '%same-account%'");
+    assert.equal(stored.rowCount, 0, 'keys are hashed, never stored in clear');
+  });
+});

@@ -1,6 +1,6 @@
 // Authenticated user features: favorites, messaging, notifications, reviews, reports.
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import { limiter } from '../lib/rateLimit.js';
 import { z } from 'zod';
 import { query, tx } from '../db.js';
 import { PAYMENT_METHODS, REPORT_REASONS } from '../lib/constants.js';
@@ -15,14 +15,7 @@ const router = Router();
 router.use(requireAuth);
 
 // Light anti-spam on anything that writes user-generated text.
-const writeLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  limit: 30,
-  keyGenerator: (req) => `u${req.user.id}`,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  message: { error: 'too_many_requests' },
-});
+const writeLimiter = limiter('account-write', { windowMs: 60 * 1000, limit: 30, keyGenerator: (req) => String(req.user.id) });
 
 // ---------- Favorites ----------
 
