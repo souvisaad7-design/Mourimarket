@@ -2,11 +2,12 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "npm --prefix backend ci --omit=dev && npm --prefix frontend ci --include=dev",
-  "buildCommand": "npm --prefix frontend run build && NODE_ENV=production node backend/src/db/migrate.js && NODE_ENV=production node backend/src/db/seed.js",
+  "buildCommand": "npm --prefix frontend run build && mv frontend/dist/index.html frontend/dist/app.html && NODE_ENV=production node backend/src/db/migrate.js && NODE_ENV=production node backend/src/db/seed.js",
   "outputDirectory": "frontend/dist",
   "functions": {
     "api/index.js": {
-      "maxDuration": 15
+      "maxDuration": 15,
+      "includeFiles": "frontend/dist/app.html"
     }
   },
   "rewrites": [
@@ -19,8 +20,40 @@
       "destination": "/api"
     },
     {
+      "source": "/og/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api"
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "/api"
+    },
+    {
+      "source": "/",
+      "destination": "/api"
+    },
+    {
+      "source": "/products/:id(\\d+)",
+      "destination": "/api"
+    },
+    {
+      "source": "/stores/:slug",
+      "destination": "/api"
+    },
+    {
+      "source": "/users/:id(\\d+)",
+      "destination": "/api"
+    },
+    {
+      "source": "/p/:slug",
+      "destination": "/api"
+    },
+    {
       "source": "/(.*)",
-      "destination": "/index.html"
+      "destination": "/app.html"
     }
   ],
   "headers": [

@@ -18,6 +18,7 @@ import { optionalAuth } from './middleware/auth.js';
 import publicRoutes from './routes/public.js';
 import geoRoutes from './routes/geo.js';
 import orderRoutes from './routes/orders.js';
+import seoRoutes, { HTML_CSP } from './routes/seo.js';
 
 export function createApp() {
   const app = express();
@@ -80,10 +81,14 @@ export function createApp() {
   app.use('/api', accountRoutes);
   app.use('/api', (_req, res) => res.status(404).json({ error: 'not_found' }));
 
-  // Serve the built React app in production (single deployable).
-  if (fs.existsSync(path.join(config.frontendDist, 'index.html'))) {
-    app.use(express.static(config.frontendDist, { maxAge: '1h' }));
-    app.get(/^(?!\/api|\/uploads).*/, (_req, res) => res.sendFile(path.join(config.frontendDist, 'index.html')));
+  // Pages with their own title / image for WhatsApp, Facebook and Google; sitemap.xml, robots.txt.
+  app.use(seoRoutes);
+
+  // Serve the built React app (single deployable). On Vercel the static files are served by Vercel itself.
+  const shellFile = ['app.html', 'index.html'].map((f) => path.join(config.frontendDist, f)).find((f) => fs.existsSync(f));
+  if (shellFile) {
+    app.use(express.static(config.frontendDist, { maxAge: '1h', index: false }));
+    app.get(/^(?!\/api|\/uploads).*/, (_req, res) => res.set({ 'Content-Security-Policy': HTML_CSP, 'X-Frame-Options': 'DENY' }).sendFile(shellFile));
   }
 
   // eslint-disable-next-line no-unused-vars

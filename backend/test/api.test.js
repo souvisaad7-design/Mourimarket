@@ -1104,3 +1104,75 @@ describe('shared rate limits (several server instances)', () => {
     assert.equal(stored.rowCount, 0, 'keys are hashed, never stored in clear');
   });
 });
+
+describe('link previews and search engines', () => {
+  let seller; let admin; let pid; let pendingId;
+  const page = async (path) => { const r = await fetch(base + path); return { status: r.status, html: await r.text(), type: r.headers.get('content-type'), cache: r.headers.get('cache-control') }; };
+  const og = (html, prop) => (new RegExp(`<meta property="${prop}" content="([^"]*)"`).exec(html) || [])[1];
+  before(async () => {
+    seller = await login('mohamed@example.mr'); admin = await login('admin@maurimarket.mr', 'Admin12345');
+    const mk = async (title) => {
+      const fd = new FormData();
+      for (const [k, v] of Object.entries({ title, description: 'سيارة بحالة ممتازة، مكيفة، أوراقها كاملة', price: '850000', city: 'nouakchott', condition: 'used', categoryId: '1', area: 'تفرغ زينة' })) fd.append(k, v);
+      fd.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+      return (await call('/api/products', { method: 'POST', token: seller, form: fd })).data.product.id;
+    };
+    pid = await mk('تويوتا هايلكس 2018 "<script>alert(1)</script>');
+    await call(`/api/admin/products/${pid}/status`, { method: 'PATCH', token: admin, body: { status: 'approved' } });
+    pendingId = await mk('إعلان سري بانتظار المراجعة');
+  });
+
+  it('a listing link carries its title, price, image and structured data', async () => {
+    const r = await page(`/products/${pid}`);
+    assert.equal(r.status, 200);
+    assert.match(r.type, /text\/html/);
+    assert.match(og(r.html, 'og:title'), /تويوتا هايلكس 2018/);
+    assert.match(og(r.html, 'og:title'), /850,000 MRU/);
+    assert.match(og(r.html, 'og:image'), /^http:\/\/localhost:\d+\/og\/img\/\d+\.jpg$/);
+    assert.match(og(r.html, 'og:description'), /نواكشوط/);
+    assert.equal(og(r.html, 'og:type'), 'product');
+    assert.ok(!r.html.includes('<script>alert(1)'), 'the title is escaped everywhere');
+    const ld = JSON.parse(/<script type="application\/ld\+json">(.*?)<\/script>/.exec(r.html)[1]);
+    assert.equal(ld['@type'], 'Product');
+    assert.equal(ld.offers.priceCurrency, 'MRU');
+    assert.equal(ld.offers.price, '850000');
+    assert.match(r.html, /<div id="root"><\/div>/, 'the React app still mounts');
+    assert.match(r.cache, /s-maxage/);
+  });
+
+  it('the share image is a small 1200×630 JPEG; private files are never served', async () => {
+    const url = og((await page(`/products/${pid}`)).html, 'og:image').replace(/^http:\/\/localhost:\d+/, '');
+    const r = await fetch(base + url);
+    assert.equal(r.status, 200);
+    assert.equal(r.headers.get('content-type'), 'image/jpeg');
+    const buf = Buffer.from(await r.arrayBuffer());
+    const sharp = (await import('sharp')).default;
+    const meta = await sharp(buf).metadata();
+    assert.deepEqual([meta.width, meta.height], [1200, 630]);
+    assert.ok(buf.length < 300 * 1024, 'small enough for WhatsApp');
+    const priv = (await pool.query('INSERT INTO files (mime, data, is_private) VALUES ($1, $2, true) RETURNING id', ['image/png', PNG])).rows[0].id;
+    assert.equal((await fetch(`${base}/og/img/${priv}.jpg`)).status, 404);
+    assert.equal((await fetch(`${base}/og/img/abc.jpg`)).status, 404);
+  });
+
+  it('listings under review are not described to anyone', async () => {
+    const r = await page(`/products/${pendingId}`);
+    assert.equal(r.status, 404);
+    assert.ok(!r.html.includes('إعلان سري'));
+    assert.match(r.html, /noindex/);
+    assert.equal((await page('/products/999999')).status, 404);
+  });
+
+  it('home, sitemap and robots', async () => {
+    const home = await page('/');
+    assert.equal(home.status, 200);
+    assert.match(og(home.html, 'og:image'), /\/og-image\.jpg$/);
+    const sm = await page('/sitemap.xml');
+    assert.match(sm.type, /xml/);
+    assert.ok(sm.html.includes(`/products/${pid}</loc>`));
+    assert.ok(!sm.html.includes(`/products/${pendingId}</loc>`));
+    const rb = await page('/robots.txt');
+    assert.match(rb.html, /Disallow: \/admin/);
+    assert.match(rb.html, /Sitemap: http:\/\/localhost:\d+\/sitemap\.xml/);
+  });
+});
