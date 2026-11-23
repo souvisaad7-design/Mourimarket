@@ -193,13 +193,13 @@ Base path `/api`. Errors look like `{ "error": "<code>", "fields": { "<field>": 
 | Variable | Default | |
 |---|---|---|
 | PORT | 4000 | |
-| DATABASE_URL | postgres://mauri:mauri@localhost:5432/maurimarket | |
+| DATABASE_URL | postgres://souk:souk@localhost:5432/souk_chinguetti | |
 | JWT_SECRET | dev value | **set a long random value in production** |
 | JWT_EXPIRES_IN | 7d | |
 | CORS_ORIGIN | http://localhost:5173 | comma-separated; also used to build reset links |
 | UPLOAD_DIR | uploads | |
 | AUTO_APPROVE | false | |
-| ADMIN_EMAIL / ADMIN_PASSWORD | admin@maurimarket.mr / Admin12345 | used by the seed script (password **required** in production) |
+| ADMIN_EMAIL / ADMIN_PASSWORD | admin@souk-chinguetti.mr / Admin12345 | used by the seed script (password **required** in production) |
 | DB_SSL | auto | TLS to the database; on for any non-localhost URL |
 | SEED_DEMO | false in production | load demo users and listings |
 | DB_POOL_MAX | 10 | connection pool size |

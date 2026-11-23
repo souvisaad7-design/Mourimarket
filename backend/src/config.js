@@ -31,7 +31,7 @@ export const config = {
   isProd,
   port: Number(process.env.PORT || 4000),
   databaseUrl: cleanDbUrl(
-    process.env.DATABASE_URL || process.env.POSTGRES_URL || 'postgres://mauri:mauri@localhost:5432/maurimarket',
+    process.env.DATABASE_URL || process.env.POSTGRES_URL || 'postgres://souk:souk@localhost:5432/souk_chinguetti',
   ),
   jwtSecret: process.env.JWT_SECRET || 'dev-only-secret-change-me',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',

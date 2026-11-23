@@ -16,8 +16,8 @@ Requirements: Node.js ≥ 20 and PostgreSQL ≥ 14.
 
 ```bash
 # 1. Database
-sudo -u postgres psql -c "CREATE USER mauri WITH PASSWORD 'mauri' CREATEDB;"
-sudo -u postgres psql -c "CREATE DATABASE maurimarket OWNER mauri;"
+sudo -u postgres psql -c "CREATE USER souk WITH PASSWORD 'souk' CREATEDB;"
+sudo -u postgres psql -c "CREATE DATABASE souk_chinguetti OWNER souk;"
 
 # 2. Install & configure
 npm run install:all
@@ -39,7 +39,7 @@ npm run dev:web     # Web on http://localhost:5173 (proxies /api and /uploads)
 
 | Role | Email | Password |
 |---|---|---|
-| Admin | `admin@maurimarket.mr` | `Admin12345` |
+| Admin | `admin@souk-chinguetti.mr` | `Admin12345` |
 | Seller (individual) | `mohamed@example.mr` | `Password123` |
 | Merchant + store | `amana@example.mr`, `fatimetou@example.mr` | `Password123` |
 | Buyer | `buyer@example.mr` | `Password123` |

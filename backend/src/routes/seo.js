@@ -30,7 +30,7 @@ const extraHosts = () => [process.env.SITE_HOSTS, process.env.CORS_ORIGIN, proce
 function allowedHost(host) {
   if (!host) return false;
   if (host === PRIMARY_HOST || extraHosts().includes(host)) return true;
-  if (/^(souk-chinguetti|maurimarket)[a-z0-9-]*\.vercel\.app$/.test(host)) return true; // this project's Vercel URLs
+  if (/^souk-chinguetti[a-z0-9-]*\.vercel\.app$/.test(host)) return true; // this project's Vercel URLs
   return !config.isProd && /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host);
 }
 

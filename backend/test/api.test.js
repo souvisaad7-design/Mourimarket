@@ -27,12 +27,12 @@ before(async () => {
   server = createApp().listen(0);
   base = `http://localhost:${server.address().port}`;
   // Most tests register fresh accounts and post at once: phone confirmation is tested on its own below.
-  const admin = (await call('/api/auth/login', { method: 'POST', body: { email: 'admin@maurimarket.mr', password: 'Admin12345' } })).data.token;
+  const admin = (await call('/api/auth/login', { method: 'POST', body: { email: 'admin@souk-chinguetti.mr', password: 'Admin12345' } })).data.token;
   await call('/api/admin/settings', { method: 'PUT', token: admin, body: { features: { phoneVerification: false } } });
 });
 after(async () => { server.close(); await pool.end(); });
 
-describe('MauriMarket API', () => {
+describe('Souk Chinguetti API', () => {
   const email = `t${Date.now()}@test.mr`;
   const sellerPhone = `3${String(Date.now()).slice(-7)}`;
   let token; let adminToken; let buyerToken; let productId; let conversationId; let categoryId;
@@ -54,7 +54,7 @@ describe('MauriMarket API', () => {
   it('logs in and rejects wrong passwords', async () => {
     assert.equal((await call('/api/auth/login', { method: 'POST', body: { email, password: 'nope' } })).status, 401);
     assert.ok(await login(email, 'secret123'));
-    adminToken = await login('admin@maurimarket.mr', 'Admin12345');
+    adminToken = await login('admin@souk-chinguetti.mr', 'Admin12345');
     buyerToken = await login('buyer@example.mr');
     assert.ok(adminToken && buyerToken);
   });
@@ -224,7 +224,7 @@ describe('pasted credentials', () => {
 
 describe('v1.1: smart search, featured listings, verified sellers', () => {
   let adminToken;
-  before(async () => { adminToken = await login('admin@maurimarket.mr', 'Admin12345'); });
+  before(async () => { adminToken = await login('admin@souk-chinguetti.mr', 'Admin12345'); });
 
   it('matches Arabic spelling variants and the definite article', async () => {
     // Seed title: «تويوتا هايلكس 2016 ديزل»; description mentions «سيارة»
@@ -372,7 +372,7 @@ describe('v1.3: phone login, buyers vs sellers, admin password reset', () => {
   });
 
   it('lets an admin set a temporary password for a phone-only account', async () => {
-    const admin = await login('admin@maurimarket.mr', 'Admin12345');
+    const admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
     const r = await call(`/api/admin/users/${buyerId}/reset-password`, { method: 'POST', token: admin });
     assert.equal(r.status, 200);
     assert.ok(r.data.password.length >= 10);
@@ -386,7 +386,7 @@ describe('v1.3: phone login, buyers vs sellers, admin password reset', () => {
 
 describe('admin: latest activity', () => {
   it('returns the 5 newest listings or new users, newest first', async () => {
-    const admin = await login('admin@maurimarket.mr', 'Admin12345');
+    const admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
     const before = (await call('/api/admin/stats', { token: admin })).data.recent;
     assert.ok(Array.isArray(before) && before.length <= 5);
     const r = await call('/api/auth/register', { method: 'POST', body: { name: 'نشاط جديد', phone: `2${String(Date.now()).slice(-7)}`, password: 'activity1' } });
@@ -412,7 +412,7 @@ describe('free mode (default): paid requests are off', () => {
 });
 
 const setPaid = async (on) => {
-  const admin = await login('admin@maurimarket.mr', 'Admin12345');
+  const admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
   const s = (await call('/api/admin/settings', { token: admin })).data.settings;
   await call('/api/admin/settings', { method: 'PUT', token: admin, body: { features: { ...s.features, paidUpgrades: on } } });
 };
@@ -431,7 +431,7 @@ describe('verification & featuring requests (paid features turned on in the pane
 
   before(async () => {
     seller = await login('mohamed@example.mr');
-    admin = await login('admin@maurimarket.mr', 'Admin12345');
+    admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
     buyer = await login('buyer@example.mr');
     const mine = (await call('/api/products/mine', { token: seller })).data.items;
     productId = mine.find((p) => p.status === 'approved' && p.availability === 'available').id;
@@ -506,7 +506,7 @@ describe('verification & featuring requests (paid features turned on in the pane
 
 describe('merchant accounts need an admin\'s approval', () => {
   let admin;
-  before(async () => { admin = await login('admin@maurimarket.mr', 'Admin12345'); });
+  before(async () => { admin = await login('admin@souk-chinguetti.mr', 'Admin12345'); });
   const reg = async (name) => {
     const r = await call('/api/auth/register', { method: 'POST', body: { name, phone: `4${String(Date.now() + Math.floor(Math.random() * 1e4)).slice(-7)}`, password: 'merchant1', accountType: 'merchant' } });
     assert.equal(r.status, 201);
@@ -573,20 +573,20 @@ describe('merchant accounts need an admin\'s approval', () => {
 describe('admin: full control', () => {
   let admin; let seller;
   before(async () => {
-    admin = await login('admin@maurimarket.mr', 'Admin12345');
+    admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
     seller = await login('sidi@example.mr');
   });
 
   it('edits site settings; texts and contact are public, validation applies', async () => {
     assert.equal((await call('/api/admin/settings', { token: seller })).status, 403);
     const r = await call('/api/admin/settings', { method: 'PUT', token: admin, body: {
-      contact: { email: 'contact@maurimarket.mr', whatsapp: '+222 22 00 00 00' },
+      contact: { email: 'contact@souk-chinguetti.mr', whatsapp: '+222 22 00 00 00' },
       announcement: { enabled: true, tone: 'brand', link: '/products' },
       texts: { ar: { 'brand.tagline': 'سوق موريتانيا الأول', 'announcement.text': 'مرحباً بكم' }, fr: {}, en: {} },
     } });
     assert.equal(r.status, 200);
     const pub = (await call('/api/settings')).data.settings;
-    assert.equal(pub.contact.email, 'contact@maurimarket.mr');
+    assert.equal(pub.contact.email, 'contact@souk-chinguetti.mr');
     assert.equal(pub.contact.phone, '', 'missing fields keep defaults');
     assert.equal(pub.texts.ar['brand.tagline'], 'سوق موريتانيا الأول');
     assert.equal(pub.announcement.enabled, true);
@@ -647,20 +647,20 @@ describe('admin: full control', () => {
 
   it('changes the admin login email and password (current password required)', async () => {
     assert.equal((await call('/api/admin/account', { method: 'PUT', token: admin, body: { currentPassword: 'nope', newPassword: 'NewAdmin123' } })).data.error, 'wrong_password');
-    const r = await call('/api/admin/account', { method: 'PUT', token: admin, body: { currentPassword: 'Admin12345', email: 'boss@maurimarket.mr', newPassword: 'NewAdmin123' } });
+    const r = await call('/api/admin/account', { method: 'PUT', token: admin, body: { currentPassword: 'Admin12345', email: 'boss@souk-chinguetti.mr', newPassword: 'NewAdmin123' } });
     assert.equal(r.status, 200);
-    assert.equal(r.data.user.email, 'boss@maurimarket.mr');
-    assert.ok(await login('boss@maurimarket.mr', 'NewAdmin123'));
-    assert.equal((await call('/api/auth/login', { method: 'POST', body: { email: 'admin@maurimarket.mr', password: 'Admin12345' } })).status, 401);
+    assert.equal(r.data.user.email, 'boss@souk-chinguetti.mr');
+    assert.ok(await login('boss@souk-chinguetti.mr', 'NewAdmin123'));
+    assert.equal((await call('/api/auth/login', { method: 'POST', body: { email: 'admin@souk-chinguetti.mr', password: 'Admin12345' } })).status, 401);
     // restore for other runs
-    const t2 = await login('boss@maurimarket.mr', 'NewAdmin123');
-    await call('/api/admin/account', { method: 'PUT', token: t2, body: { currentPassword: 'NewAdmin123', email: 'admin@maurimarket.mr', newPassword: 'Admin12345' } });
+    const t2 = await login('boss@souk-chinguetti.mr', 'NewAdmin123');
+    await call('/api/admin/account', { method: 'PUT', token: t2, body: { currentPassword: 'NewAdmin123', email: 'admin@souk-chinguetti.mr', newPassword: 'Admin12345' } });
   });
 });
 
 describe('admin: add users, post for anyone, pages, banner and menus', () => {
   let admin;
-  before(async () => { admin = await login('admin@maurimarket.mr', 'Admin12345'); });
+  before(async () => { admin = await login('admin@souk-chinguetti.mr', 'Admin12345'); });
 
   it('creates users (merchants are approved straight away)', async () => {
     const r = await call('/api/admin/users', { method: 'POST', token: admin, body: { name: 'تاجر من الإدارة', phone: '36778899', password: 'merchant9', accountType: 'merchant', city: 'nouakchott' } });
@@ -735,7 +735,7 @@ describe('admin: add users, post for anyone, pages, banner and menus', () => {
 
 describe('admin: identity, maintenance, prices, cities', () => {
   let admin;
-  before(async () => { admin = await login('admin@maurimarket.mr', 'Admin12345'); });
+  before(async () => { admin = await login('admin@souk-chinguetti.mr', 'Admin12345'); });
 
   it('saves identity & colours (validated) and serves them publicly', async () => {
     const ok = await call('/api/admin/settings', { method: 'PUT', token: admin, body: { appearance: { siteName: 'سوق موريتانيا', logoUrl: '', primaryColor: '#1d4ed8', secondaryColor: '#f97316' } } });
@@ -884,7 +884,7 @@ describe('delivery service', () => {
   let seller; let buyer; let courierTok; let other; let admin; let productId; let orderId; let courierId;
   const NKC_PIN = { lat: 18.0735, lng: -15.9582 }; // a point a few km from the listing
   before(async () => {
-    [seller, buyer, courierTok, other, admin] = await Promise.all([login('mohamed@example.mr'), login('buyer@example.mr'), login('sidi@example.mr'), login('fatimetou@example.mr'), login('admin@maurimarket.mr', 'Admin12345')]);
+    [seller, buyer, courierTok, other, admin] = await Promise.all([login('mohamed@example.mr'), login('buyer@example.mr'), login('sidi@example.mr'), login('fatimetou@example.mr'), login('admin@souk-chinguetti.mr', 'Admin12345')]);
     const fd = new FormData();
     for (const [k, v] of Object.entries({ title: 'ثلاجة للتوصيل', description: 'ثلاجة بحالة ممتازة للبيع', price: '12000', city: 'nouakchott', condition: 'used', categoryId: '1', lat: '18.1043', lng: '-15.9752', area: 'تفرغ زينة' })) fd.append(k, v);
     fd.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
@@ -1074,7 +1074,7 @@ describe('security hardening', () => {
   });
 
   it('admin links cannot point to another site disguised as an internal path', async () => {
-    const admin = await login('admin@maurimarket.mr', 'Admin12345');
+    const admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
     for (const link of ['//evil.example', '/\\evil.example', 'javascript:alert(1)', 'http://plain.example']) {
       const r = await call('/api/admin/settings', { method: 'PUT', token: admin, body: { announcement: { enabled: false, tone: 'gold', style: 'static', link } } });
       assert.equal(r.status, 400, link);
@@ -1113,7 +1113,7 @@ describe('link previews and search engines', () => {
   const page = async (path) => { const r = await fetch(base + path); return { status: r.status, html: await r.text(), type: r.headers.get('content-type'), cache: r.headers.get('cache-control') }; };
   const og = (html, prop) => (new RegExp(`<meta property="${prop}" content="([^"]*)"`).exec(html) || [])[1];
   before(async () => {
-    seller = await login('mohamed@example.mr'); admin = await login('admin@maurimarket.mr', 'Admin12345');
+    seller = await login('mohamed@example.mr'); admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
     const mk = async (title) => {
       const fd = new FormData();
       for (const [k, v] of Object.entries({ title, description: 'سيارة بحالة ممتازة، مكيفة، أوراقها كاملة', price: '850000', city: 'nouakchott', condition: 'used', categoryId: '1', area: 'تفرغ زينة' })) fd.append(k, v);
@@ -1239,7 +1239,7 @@ describe('saved searches and price-drop alerts', () => {
   const alertsFor = async (type, pid) => (await pool.query(
     "SELECT n.user_id FROM notifications n JOIN users u ON u.id = n.user_id WHERE n.type = $1 AND (n.data->>'id')::int = $2 AND u.email = 'buyer@example.mr'", [type, pid])).rowCount;
   before(async () => {
-    buyer = await login('buyer@example.mr'); seller = await login('mohamed@example.mr'); admin = await login('admin@maurimarket.mr', 'Admin12345');
+    buyer = await login('buyer@example.mr'); seller = await login('mohamed@example.mr'); admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
     ({ slug: catSlug, id: catId } = (await pool.query("SELECT slug, id FROM categories WHERE slug = 'vehicles'")).rows[0]);
   });
 
@@ -1302,7 +1302,7 @@ describe('saved searches and price-drop alerts', () => {
 describe('phone verification by SMS code', () => {
   let admin; let token; const phone = `4${String(Date.now()).slice(-7)}`;
   before(async () => {
-    admin = await login('admin@maurimarket.mr', 'Admin12345');
+    admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
     await call('/api/admin/settings', { method: 'PUT', token: admin, body: { features: { phoneVerification: true } } });
   });
   after(async () => { await call('/api/admin/settings', { method: 'PUT', token: admin, body: { features: { phoneVerification: false } } }); });
@@ -1419,7 +1419,7 @@ describe('category details and filters', () => {
     return call('/api/products', { method: 'POST', token: admin, form: fd });
   };
   before(async () => {
-    seller = await login('mohamed@example.mr'); admin = await login('admin@maurimarket.mr', 'Admin12345');
+    seller = await login('mohamed@example.mr'); admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
     const cats = (await call('/api/categories')).data.items;
     vehicles = cats.find((c) => c.slug === 'vehicles').id; realEstate = cats.find((c) => c.slug === 'real-estate').id;
   });
@@ -1495,7 +1495,7 @@ describe('short videos on listings', () => {
 
 describe('"wanted" ads', () => {
   let buyer; let seller; let admin; let id;
-  before(async () => { buyer = await login('buyer@example.mr'); seller = await login('mohamed@example.mr'); admin = await login('admin@maurimarket.mr', 'Admin12345'); });
+  before(async () => { buyer = await login('buyer@example.mr'); seller = await login('mohamed@example.mr'); admin = await login('admin@souk-chinguetti.mr', 'Admin12345'); });
 
   it('a buyer posts what they look for; everyone can find it', async () => {
     assert.equal((await call('/api/wanted', { method: 'POST', body: { title: 'x' } })).status, 401);
@@ -1578,7 +1578,7 @@ describe('bumping a listing to the top', () => {
   let seller; let other; let admin; let pid;
   const newest = async () => (await call('/api/products?limit=60')).data.items.findIndex((p) => p.id === pid);
   before(async () => {
-    seller = await login('amana@example.mr'); other = await login('mohamed@example.mr'); admin = await login('admin@maurimarket.mr', 'Admin12345');
+    seller = await login('amana@example.mr'); other = await login('mohamed@example.mr'); admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
     pid = (await pool.query("SELECT p.id FROM products p JOIN users u ON u.id = p.seller_id WHERE u.email = 'amana@example.mr' AND p.status = 'approved' AND p.availability = 'available' AND p.featured_until IS NULL ORDER BY p.created_at LIMIT 1")).rows[0].id;
     await pool.query("UPDATE products SET created_at = now() - interval '20 days', bumped_at = NULL WHERE id = $1", [pid]);
   });
@@ -1618,7 +1618,7 @@ describe('bumping a listing to the top', () => {
 describe('car inspection reports', () => {
   let seller; let admin; let buyer; let car; let phone; let iid;
   before(async () => {
-    seller = await login('mohamed@example.mr'); admin = await login('admin@maurimarket.mr', 'Admin12345'); buyer = await login('buyer@example.mr');
+    seller = await login('mohamed@example.mr'); admin = await login('admin@souk-chinguetti.mr', 'Admin12345'); buyer = await login('buyer@example.mr');
     car = (await pool.query("SELECT p.id FROM products p JOIN categories c ON c.id = p.category_id JOIN users u ON u.id = p.seller_id WHERE c.slug = 'vehicles' AND u.email = 'mohamed@example.mr' AND p.status = 'approved' LIMIT 1")).rows[0].id;
     phone = (await pool.query("SELECT p.id FROM products p JOIN categories c ON c.id = p.category_id JOIN users u ON u.id = p.seller_id WHERE c.slug <> 'vehicles' AND u.email = 'mohamed@example.mr' AND p.status = 'approved' LIMIT 1")).rows[0]?.id;
   });
@@ -1656,7 +1656,7 @@ describe('car inspection reports', () => {
 describe('monthly store plans', () => {
   let merchant; let admin; let pid;
   before(async () => {
-    merchant = await login('fatimetou@example.mr'); admin = await login('admin@maurimarket.mr', 'Admin12345');
+    merchant = await login('fatimetou@example.mr'); admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
     const s = (await call('/api/admin/settings', { token: admin })).data.settings;
     await call('/api/admin/settings', { method: 'PUT', token: admin, body: { features: { ...s.features, paidUpgrades: true } } });
     pid = (await pool.query("SELECT p.id FROM products p JOIN users u ON u.id = p.seller_id WHERE u.email = 'fatimetou@example.mr' AND p.status = 'approved' AND p.availability = 'available' ORDER BY p.id DESC LIMIT 1")).rows[0].id;
@@ -1700,7 +1700,7 @@ describe('monthly store plans', () => {
 describe('secure payment (escrow) on delivery orders', () => {
   let buyer; let seller; let admin; let courier; let pid; let oid;
   before(async () => {
-    buyer = await login('buyer@example.mr'); seller = await login('mohamed@example.mr'); admin = await login('admin@maurimarket.mr', 'Admin12345'); courier = await login('sidi@example.mr');
+    buyer = await login('buyer@example.mr'); seller = await login('mohamed@example.mr'); admin = await login('admin@souk-chinguetti.mr', 'Admin12345'); courier = await login('sidi@example.mr');
     const fd = new FormData();
     for (const [k, v] of Object.entries({ title: 'غسالة للدفع الآمن', description: 'غسالة بحالة ممتازة جداً', price: '20000', city: 'nouakchott', condition: 'used', categoryId: '1' })) fd.append(k, v);
     fd.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');

@@ -10,6 +10,19 @@
       "includeFiles": "frontend/dist/app.html"
     }
   },
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "maurimarket[a-z0-9-]*\\.vercel\\.app"
+        }
+      ],
+      "destination": "https://souk-chinguetti.vercel.app/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",

@@ -2,7 +2,7 @@
 # The database is external (Supabase): paste its connection string as DATABASE_URL.
 services:
   - type: web
-    name: maurimarket
+    name: souk-chinguetti
     runtime: node
     plan: free
     region: frankfurt

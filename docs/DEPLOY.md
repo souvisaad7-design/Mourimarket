@@ -4,9 +4,9 @@
 
 المستودع يحتوي على `vercel.json` و`api/index.js`. الواجهة تُنشر كملفات ثابتة على شبكة Vercel، والـ API يعمل كدالة serverless.
 
-1. **قاعدة بيانات خاصة بالموقع:** في Supabase أنشئ مشروعاً جديداً باسم `maurimarket` (المنطقة Paris). **لا تستعمل مشروع `awn-wa-sanad-membership`**، فهو لتطبيق آخر، وفيه جداول قد تتعارض أسماؤها (مثل `users`).
-2. **مشروع Vercel:** في https://vercel.com/new اختر **Import** للمستودع `souvisaad7-design/Mourimarket`، واترك إعدادات Build كما هي، فهي تُقرأ من `vercel.json`.
-3. **ربط Supabase:** في مشروع Vercel افتح **Storage** (أو **Integrations**) ثم **Supabase** ثم **Connect**، واختر مشروع `maurimarket`. يضيف هذا المتغير `POSTGRES_URL` تلقائياً، والموقع يقرؤه مباشرة. إن لم تستعمل التكامل، فأضف `DATABASE_URL` يدوياً برابط **Transaction pooler** (المنفذ 6543).
+1. **قاعدة بيانات خاصة بالموقع:** في Supabase أنشئ مشروعاً جديداً باسم `souk-chinguetti` (المنطقة Paris). **لا تستعمل مشروع `awn-wa-sanad-membership`**، فهو لتطبيق آخر، وفيه جداول قد تتعارض أسماؤها (مثل `users`).
+2. **مشروع Vercel:** في https://vercel.com/new اختر **Import** للمستودع `souvisaad7-design/Souk Chinguetti`، واترك إعدادات Build كما هي، فهي تُقرأ من `vercel.json`.
+3. **ربط Supabase:** في مشروع Vercel افتح **Storage** (أو **Integrations**) ثم **Supabase** ثم **Connect**، واختر مشروع `souk-chinguetti`. يضيف هذا المتغير `POSTGRES_URL` تلقائياً، والموقع يقرؤه مباشرة. إن لم تستعمل التكامل، فأضف `DATABASE_URL` يدوياً برابط **Transaction pooler** (المنفذ 6543).
 4. **المتغيرات:** في **Settings ← Environment Variables** أضف:
 
    | المفتاح | القيمة |
@@ -31,8 +31,8 @@
 GitHub (الكود)  ──►  Render (يشغّل الموقع: الواجهة + الـ API)  ──►  Supabase (قاعدة البيانات PostgreSQL + الصور)
 ```
 
-* **GitHub**: المستودع `souvisaad7-design/Mourimarket`. كل `push` يعيد نشر الموقع تلقائياً.
-* **Render**: يبني المشروع ويشغّله ويعطيك رابطاً مثل `https://maurimarket.onrender.com`.
+* **GitHub**: المستودع `souvisaad7-design/Souk Chinguetti`. كل `push` يعيد نشر الموقع تلقائياً.
+* **Render**: يبني المشروع ويشغّله ويعطيك رابطاً مثل `https://souk-chinguetti.onrender.com`.
 * **Supabase**: قاعدة البيانات. الصور المرفوعة تُحفظ فيها أيضاً، فلا تضيع عند إعادة التشغيل.
 
 الوقت المتوقع: 20 إلى 30 دقيقة.
@@ -44,7 +44,7 @@ GitHub (الكود)  ──►  Render (يشغّل الموقع: الواجهة 
 1. ادخل إلى https://supabase.com/dashboard
 2. اضغط **New project**.
 3. اختر المؤسسة `fatimetouhsn-cmd's Org`، ثم املأ الحقول:
-   * **Name:** `maurimarket`
+   * **Name:** `souk-chinguetti`
    * **Database Password:** اضغط **Generate a password** ثم **احفظ كلمة المرور** في مكان آمن، فستحتاجها في الخطوة 6.
    * **Region:** `West EU (Paris)`
 4. اضغط **Create new project** وانتظر دقيقتين حتى يصبح جاهزاً.
@@ -63,8 +63,8 @@ GitHub (الكود)  ──►  Render (يشغّل الموقع: الواجهة 
 
 7. ادخل إلى https://render.com واضغط **Get Started**، ثم سجّل الدخول بزر **GitHub**. هكذا يرتبط Render بحسابك على GitHub.
 8. من لوحة التحكم اضغط **New +**، ثم **Blueprint**.
-9. اضغط **Connect GitHub**. إذا طلب منك صلاحيات، اختر **Only select repositories** ثم المستودع `Mourimarket`، ثم **Install**.
-10. اختر المستودع `souvisaad7-design/Mourimarket`. سيقرأ Render ملف `render.yaml` الموجود فيه تلقائياً.
+9. اضغط **Connect GitHub**. إذا طلب منك صلاحيات، اختر **Only select repositories** ثم المستودع `Souk Chinguetti`، ثم **Install**.
+10. اختر المستودع `souvisaad7-design/Souk Chinguetti`. سيقرأ Render ملف `render.yaml` الموجود فيه تلقائياً.
 11. سيطلب منك 3 قيم:
 
     | المفتاح | القيمة |
@@ -78,7 +78,7 @@ GitHub (الكود)  ──►  Render (يشغّل الموقع: الواجهة 
     ```
     Souk Chinguetti API listening on ...
     ```
-13. افتح الرابط الظاهر أعلى الصفحة، مثل `https://maurimarket.onrender.com`. **🎉 موقعك يعمل الآن.**
+13. افتح الرابط الظاهر أعلى الصفحة، مثل `https://souk-chinguetti.onrender.com`. **🎉 موقعك يعمل الآن.**
 
 ---
 
@@ -93,12 +93,12 @@ GitHub (الكود)  ──►  Render (يشغّل الموقع: الواجهة 
 
 ---
 
-## المرحلة 4 (اختيارية): اسم نطاق خاص مثل `maurimarket.mr`
+## المرحلة 4 (اختيارية): اسم نطاق خاص مثل `souk-chinguetti.mr`
 
 18. اشترِ النطاق من مزوّد نطاقات. نطاقات `.mr` تُسجَّل عبر مسجّلين معتمدين لدى NIC Mauritanie، أو اختر نطاق `.com`.
 19. في Render، افتح الخدمة ثم **Settings** ثم **Custom Domains** ثم **Add Custom Domain**، واكتب النطاق.
 20. أضف سجلات DNS التي يعرضها Render (عادةً `CNAME` أو `A`) في لوحة مزوّد النطاق. شهادة HTTPS تُفعَّل تلقائياً.
-21. في **Environment** أضف المتغير `CORS_ORIGIN=https://maurimarket.mr`، فهو يُستخدم في روابط استعادة كلمة المرور.
+21. في **Environment** أضف المتغير `CORS_ORIGIN=https://souk-chinguetti.mr`، فهو يُستخدم في روابط استعادة كلمة المرور.
 
 ---
 

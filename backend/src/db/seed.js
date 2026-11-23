@@ -86,7 +86,7 @@ async function main() {
     }
 
     const adminHash = await bcrypt.hash(process.env.ADMIN_PASSWORD || 'Admin12345', 12);
-    const adminEmail = (process.env.ADMIN_EMAIL || 'admin@maurimarket.mr').toLowerCase();
+    const adminEmail = (process.env.ADMIN_EMAIL || 'admin@souk-chinguetti.mr').toLowerCase();
     if (!withDemo) {
       await client.query(
         `INSERT INTO users (name, email, password_hash, role, city) VALUES ('مدير المنصة', $1, $2, 'admin', 'nouakchott')`,
