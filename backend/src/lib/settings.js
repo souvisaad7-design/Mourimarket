@@ -59,7 +59,7 @@ export const SECTIONS = {
     style: z.enum(['static', 'marquee']),
     link: z.string().trim().max(300).refine((v) => v === '' || internal(v) || /^https:\/\//i.test(v), 'link'),
   }),
-  features: z.object({ registration: z.boolean(), autoApprove: z.boolean(), paidUpgrades: z.boolean() }),
+  features: z.object({ registration: z.boolean(), autoApprove: z.boolean(), paidUpgrades: z.boolean(), phoneVerification: z.boolean() }),
   payment: z.object({ bankily: text(40), masrvi: text(40), sedad: text(40), accountName: text(80) }),
   texts: z.object({ ar: langTexts, fr: langTexts, en: langTexts }),
 };
@@ -74,7 +74,7 @@ export const defaults = () => ({
   contact: { email: '', whatsapp: '', phone: '', address: '' },
   social: { facebook: '', instagram: '', tiktok: '', x: '', youtube: '' },
   announcement: { enabled: false, tone: 'gold', style: 'static', link: '' },
-  features: { registration: true, autoApprove: config.autoApprove, paidUpgrades: process.env.PAID_UPGRADES === 'true' },
+  features: { registration: true, autoApprove: config.autoApprove, paidUpgrades: process.env.PAID_UPGRADES === 'true', phoneVerification: true },
   payment: { bankily: '', masrvi: '', sedad: '', accountName: 'سوق شنقيط' },
   texts: { ar: {}, fr: {}, en: {} },
 });

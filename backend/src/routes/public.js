@@ -1,5 +1,6 @@
 // Read-only public endpoints: categories, cities, seller profiles, stores.
 import { Router } from 'express';
+import { phoneVerificationOn } from '../middleware/phone.js';
 import { z } from 'zod';
 import { query } from '../db.js';
 import { PAYMENT_METHODS, REPORT_REASONS } from '../lib/constants.js';
@@ -17,6 +18,7 @@ router.get('/meta', async (_req, res) => {
   const { pricing, features } = settings;
   res.json({
     cities, reportReasons: REPORT_REASONS, currency: 'MRU',
+    phoneVerification: await phoneVerificationOn(),
     upgrades: features.paidUpgrades ? { verifyPrice: pricing.verifyPrice, featurePlans: pricing.featurePlans, paymentMethods: PAYMENT_METHODS } : null,
   });
 });

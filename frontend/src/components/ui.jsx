@@ -133,6 +133,7 @@ export function ErrorBox({ error }) {
   return (
     <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
       {msg.startsWith('errors.') ? t('common.error') : msg}
+      {error.code === 'phone_unverified' && <> <Link to="/verify-phone" state={{ from: typeof window !== 'undefined' ? window.location.pathname : '/' }} className="font-bold underline">{t('phone.verifyNow')}</Link></>}
     </div>
   );
 }

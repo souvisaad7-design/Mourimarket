@@ -584,3 +584,6 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS live_price BIGINT;
 -- Listings already live before alerts existed: no "new listing" alert for them, and their current price is the reference.
 UPDATE products SET alerted_at = COALESCE(alerted_at, updated_at), live_price = COALESCE(live_price, price)
 WHERE status = 'approved' AND (alerted_at IS NULL OR live_price IS NULL) AND updated_at < now() - interval '1 day';
+
+-- ---------- Phone verification (SMS code) ----------
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMPTZ;

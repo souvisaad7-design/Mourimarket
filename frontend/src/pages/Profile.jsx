@@ -6,7 +6,8 @@ import { useI18n } from '../i18n/index.jsx';
 import { api, setToken } from '../lib/api.js';
 import { compressImage } from '../lib/image.js';
 import MerchantStatus from '../components/MerchantStatus.jsx';
-import { useDocumentTitle } from '../lib/hooks.js';
+import { useApi, useDocumentTitle } from '../lib/hooks.js';
+import { Link } from 'react-router-dom';
 
 function ProfileForm() {
   const { t } = useI18n();
@@ -103,6 +104,20 @@ function PasswordForm() {
   );
 }
 
+/** Is my number confirmed? (only shown when the site asks for it) */
+function PhoneStatus() {
+  const { t } = useI18n();
+  const { data } = useApi('/auth/phone');
+  if (!data?.required || !data.phone) return null;
+  return (
+    <div className={`card flex flex-wrap items-center gap-3 p-4 ${data.verified ? '' : 'border-amber-300 bg-amber-50'}`}>
+      <span aria-hidden="true" className="text-2xl">📱</span>
+      <p className="min-w-0 flex-1 text-sm"><span className="font-bold ltr-nums" dir="ltr">{data.phone}</span> — {data.verified ? <span className="text-emerald-700">{t('phone.badge')} ✓</span> : t('phone.notVerified')}</p>
+      {!data.verified && <Link to="/verify-phone" state={{ from: '/profile' }} className="btn-primary">{t('phone.verifyNow')}</Link>}
+    </div>
+  );
+}
+
 export default function Profile() {
   const { t } = useI18n();
   useDocumentTitle(t('profile.title'));
@@ -111,6 +126,7 @@ export default function Profile() {
       <PageHeader title={t('profile.title')} />
       <div className="mb-6"><ProfileCardFromContext /></div>
       <div className="space-y-6">
+        <PhoneStatus />
         <ProfileForm />
         <PasswordForm />
       </div>

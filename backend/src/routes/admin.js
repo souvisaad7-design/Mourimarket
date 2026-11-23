@@ -12,6 +12,7 @@ import { requireAdmin, requireAuth, signToken } from '../middleware/auth.js';
 import { removeUploads, saveFile, sendFile, upload } from '../middleware/upload.js';
 import { PRODUCT_FROM, PRODUCT_SELECT } from './products.js';
 import { onApproved } from '../lib/alerts.js';
+import { smsProvider } from '../lib/sms.js';
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -449,7 +450,8 @@ router.get('/settings', async (_req, res) => {
   const { rows } = await query(
     `SELECT s.key, s.updated_at, u.name AS updated_by_name FROM site_settings s LEFT JOIN users u ON u.id = s.updated_by`,
   );
-  res.json({ settings: await getSettings({ fresh: true }), updated: rows });
+  // Which outside services are configured (keys live in Vercel, never shown here).
+  res.json({ settings: await getSettings({ fresh: true }), updated: rows, providers: { sms: smsProvider === 'twilio' ? 'twilio' : smsProvider } });
 });
 
 /** PUT /admin/settings { contact?, social?, announcement?, features?, payment?, texts? } – each section replaced whole. */

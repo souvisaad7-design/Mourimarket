@@ -96,8 +96,9 @@ export function Register() {
     setError(null);
     try {
       const { confirm, city, email, ...rest } = form;
-      const { token, user } = await api('/auth/register', { method: 'POST', body: { ...rest, email: email || undefined, city: city || undefined } });
+      const { token, user, verifyPhone } = await api('/auth/register', { method: 'POST', body: { ...rest, email: email || undefined, city: city || undefined } });
       login(token, user);
+      if (verifyPhone) { navigate('/verify-phone', { replace: true, state: { from: user.account_type === 'merchant' ? '/dashboard/store' : user.account_type === 'buyer' ? '/' : '/dashboard' } }); return; }
       navigate(user.account_type === 'merchant' ? '/dashboard/store' : user.account_type === 'buyer' ? '/' : '/dashboard', { replace: true });
     } catch (err) { setError(err); } finally { setBusy(false); }
   };

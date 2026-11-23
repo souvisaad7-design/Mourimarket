@@ -10,11 +10,14 @@ import { assertCity, cityKey } from '../lib/cities.js';
 import { badRequest, conflict, forbidden, parse, unauthorized } from '../lib/http.js';
 import { normalizePhone } from '../lib/phone.js';
 import { requireAuth, signToken } from '../middleware/auth.js';
+import { phoneVerificationOn } from '../middleware/phone.js';
+import { limiter } from '../lib/rateLimit.js';
+import { checkCode, sendCode } from '../lib/sms.js';
 import { removeUploads, saveFile, upload } from '../middleware/upload.js';
 
 const router = Router();
 
-const USER_FIELDS = `id, name, email, phone, role, account_type, merchant_status, merchant_note, city, bio, avatar_url, is_verified, created_at`;
+const USER_FIELDS = `id, name, email, phone, phone_verified_at, role, account_type, merchant_status, merchant_note, city, bio, avatar_url, is_verified, created_at`;
 
 // Text copied from RTL (Arabic) content often carries invisible direction marks
 // (U+200E, U+200F, U+202A–U+202E, U+2066–U+2069, zero-width chars). Strip them
@@ -69,7 +72,7 @@ router.post('/register', async (req, res) => {
         wantsMerchant ? 'pending' : null, wantsMerchant ? new Date() : null],
     );
     if (wantsMerchant) await notifyMerchantRequest(rows[0]);
-    res.status(201).json({ user: rows[0], token: signToken(rows[0]) });
+    res.status(201).json({ user: rows[0], token: signToken(rows[0]), verifyPhone: await phoneVerificationOn() });
   } catch (err) {
     throw uniqueConflict(err);
   }
@@ -155,7 +158,8 @@ router.put('/me', requireAuth, upload.single('avatar'), async (req, res) => {
   const avatar = req.file ? await saveFile(req.file) : null;
   try {
     const { rows } = await query(
-      `UPDATE users SET name = $1, phone = $2, email = $3, city = $4, bio = $5,
+      `UPDATE users SET name = $1, phone = $2::varchar, email = $3, city = $4, bio = $5,
+         phone_verified_at = CASE WHEN phone IS DISTINCT FROM $2::varchar THEN NULL ELSE phone_verified_at END,
          account_type = $6, avatar_url = COALESCE($7, avatar_url), merchant_status = $9,
          merchant_requested_at = CASE WHEN $10 THEN now() ELSE merchant_requested_at END,
          merchant_note = CASE WHEN $10 THEN NULL ELSE merchant_note END, updated_at = now()
@@ -228,6 +232,48 @@ router.post('/reset-password', async (req, res) => {
     rows[0].user_id,
   ]);
   await query('UPDATE password_resets SET used_at = now() WHERE user_id = $1 AND used_at IS NULL', [rows[0].user_id]);
+  res.json({ ok: true });
+});
+
+// ---------- Phone verification (SMS code) ----------
+
+const perUser = limiter('sms-user', { windowMs: 60 * 60 * 1000, limit: 5, keyGenerator: (req) => String(req.user.id) });
+const perUserCheck = limiter('sms-check', { windowMs: 15 * 60 * 1000, limit: 10, keyGenerator: (req) => String(req.user.id) });
+
+/** GET /api/auth/phone – is verification needed, and is my number confirmed? */
+router.get('/phone', requireAuth, async (req, res) => {
+  const { rows } = await query('SELECT phone, phone_verified_at FROM users WHERE id = $1', [req.user.id]);
+  res.json({ required: await phoneVerificationOn(), phone: rows[0].phone, verified: Boolean(rows[0].phone_verified_at) });
+});
+
+/** POST /api/auth/phone/send { lang } – text a code to my number. */
+router.post('/phone/send', requireAuth, perUser, async (req, res) => {
+  if (!(await phoneVerificationOn())) throw badRequest('verification_off');
+  const { rows } = await query('SELECT phone, phone_verified_at FROM users WHERE id = $1', [req.user.id]);
+  const u = rows[0];
+  if (!u.phone) throw badRequest('validation_error', { phone: 'required' });
+  if (u.phone_verified_at) return res.json({ ok: true, verified: true });
+  // The same number cannot be confirmed by two accounts.
+  if ((await query('SELECT 1 FROM users WHERE phone = $1 AND id <> $2 AND phone_verified_at IS NOT NULL', [u.phone, req.user.id])).rowCount) throw conflict('phone_taken');
+  const lang = ['ar', 'fr', 'en'].includes(req.body?.lang) ? req.body.lang : 'ar';
+  try {
+    const r = await sendCode(u.phone, lang);
+    res.json({ ok: true, phone: u.phone, ...(config.isProd ? {} : r) });
+  } catch (err) {
+    console.error('sms send failed', err.message);
+    throw badRequest(err.twilioCode === 60200 || err.twilioCode === 21211 ? 'invalid_phone' : 'sms_failed');
+  }
+});
+
+/** POST /api/auth/phone/verify { code } */
+router.post('/phone/verify', requireAuth, perUserCheck, async (req, res) => {
+  const { code } = parse(z.object({ code: z.string().trim().regex(/^\d{4,8}$/, 'invalid_code') }), req.body);
+  const { rows } = await query('SELECT phone, phone_verified_at FROM users WHERE id = $1', [req.user.id]);
+  if (rows[0].phone_verified_at) return res.json({ ok: true });
+  if (!(await checkCode(rows[0].phone, code))) throw badRequest('wrong_code');
+  try {
+    await query('UPDATE users SET phone_verified_at = now() WHERE id = $1', [req.user.id]);
+  } catch (err) { throw uniqueConflict(err); }
   res.json({ ok: true });
 });
 

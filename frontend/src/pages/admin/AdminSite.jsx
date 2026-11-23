@@ -86,7 +86,7 @@ function useSettingsDraft() {
   useEffect(() => { if (data?.settings) setS(structuredClone(data.settings)); }, [data]);
   const set = (section, key) => (e) => setS((prev) => ({ ...prev, [section]: { ...prev[section], [key]: e.target.value } }));
   const put = (section, patch) => setS((prev) => ({ ...prev, [section]: { ...prev[section], ...patch } }));
-  return { s, setS, set, put, loading, error, updated: data?.updated };
+  return { s, setS, set, put, loading, error, updated: data?.updated, providers: data?.providers };
 }
 
 const fieldErr = (err) => (err?.fields ? Object.entries(err.fields).map(([f, m]) => `${f}: ${m}`).join(' · ') : null);
@@ -94,7 +94,7 @@ const fieldErr = (err) => (err?.fields ? Object.entries(err.fields).map(([f, m])
 /** General: sign-ups and automatic publishing. */
 export function AdminSettings() {
   const { t } = useI18n();
-  const { s, put, loading, error, updated } = useSettingsDraft();
+  const { s, put, loading, error, updated, providers } = useSettingsDraft();
   const { save, busy, errors } = useSaveSettings();
   if (loading || !s) return error ? <ErrorBox error={error} /> : <Spinner />;
   return (
@@ -103,6 +103,8 @@ export function AdminSettings() {
       <Section title={t('admin.set.features')} onSave={() => save('features', { features: s.features })} busy={busy === 'features'} error={errors.features}>
         <Toggle checked={s.features.registration} onChange={(v) => put('features', { registration: v })} label={t('admin.set.registration')} hint={t('admin.set.registrationHint')} />
         <Toggle checked={s.features.autoApprove} onChange={(v) => put('features', { autoApprove: v })} label={t('admin.set.autoApprove')} hint={t('admin.set.autoApproveHint')} />
+        <Toggle checked={s.features.phoneVerification !== false} onChange={(v) => put('features', { phoneVerification: v })} label={t('phone.adminLabel')} hint={t('phone.adminHint')} />
+        {!providers?.sms && <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">⚠️ {t('phone.adminNoProvider')}</p>}
       </Section>
       {updated?.length > 0 && <p className="text-xs text-slate-400">{t('admin.set.lastChange', { name: updated[0].updated_by_name || '—' })}</p>}
     </div>

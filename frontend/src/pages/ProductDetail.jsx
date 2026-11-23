@@ -275,6 +275,7 @@ export default function ProductDetail() {
               <Avatar name={product.seller_name} url={product.seller_avatar} />
               <div className="min-w-0">
                 <p className="flex items-center gap-1 truncate font-semibold">{product.seller_name}{product.seller_verified && <VerifiedBadge />}</p>
+                {product.seller_phone_verified && <p className="text-[11px] font-semibold text-emerald-700">📱 {t('phone.badge')}</p>}
                 {product.seller_verified && <p className="text-xs font-semibold text-sky-600">{t('common.verified')}</p>}
                 <div className="flex items-center gap-1.5 text-xs text-slate-500">
                   {product.seller_reviews_count > 0 ? (

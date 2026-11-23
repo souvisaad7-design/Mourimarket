@@ -8,6 +8,7 @@ import { getSettings, paidUpgradesEnabled } from '../lib/settings.js';
 import { badRequest, conflict, forbidden, notFound, pagination, parse } from '../lib/http.js';
 import { notify } from '../lib/notify.js';
 import { requireAuth } from '../middleware/auth.js';
+import { requireVerifiedPhone } from '../middleware/phone.js';
 import { savePrivateFile, upload } from '../middleware/upload.js';
 import { PRODUCT_FROM, PRODUCT_SELECT } from './products.js';
 
@@ -73,7 +74,7 @@ router.get('/conversations', async (req, res) => {
 const messageBody = z.string().trim().min(1, 'required').max(2000, 'too_long');
 
 /** POST /api/conversations – start (or reuse) a conversation about a product with a first message. */
-router.post('/conversations', writeLimiter, async (req, res) => {
+router.post('/conversations', requireVerifiedPhone, writeLimiter, async (req, res) => {
   const data = parse(z.object({ productId: z.coerce.number().int().positive(), body: messageBody }), req.body);
   const { rows: prows } = await query(
     `SELECT p.id, p.seller_id, p.title FROM products p JOIN users u ON u.id = p.seller_id
@@ -132,7 +133,7 @@ router.get('/conversations/:id', async (req, res) => {
   res.json({ conversation, messages: rows });
 });
 
-router.post('/conversations/:id/messages', writeLimiter, async (req, res) => {
+router.post('/conversations/:id/messages', requireVerifiedPhone, writeLimiter, async (req, res) => {
   const conversation = await loadConversation(req.params.id, req.user.id);
   const { body } = parse(z.object({ body: messageBody }), req.body);
   const { rows } = await query(

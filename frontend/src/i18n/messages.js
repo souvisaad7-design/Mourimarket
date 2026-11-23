@@ -1631,6 +1631,56 @@ deepMerge(en, {
   } },
 });
 
+// ---------- v25: phone number confirmed by SMS code ----------
+deepMerge(ar, {
+  common: { continue: 'متابعة' },
+  phone: {
+    title: 'تأكيد رقم الهاتف', why: 'لحماية الجميع من الحسابات الوهمية والنصب، نرسل رمزاً من 6 أرقام إلى رقمك.',
+    send: 'أرسل الرمز', resend: 'إعادة إرسال الرمز', resendIn: 'إعادة الإرسال بعد {s} ثانية', enterCode: 'أدخل الرمز الذي وصلك',
+    confirm: 'تأكيد', done: 'تم تأكيد رقمك ✓', already: 'رقمك مؤكَّد.', notNeeded: 'تأكيد الرقم غير مطلوب حالياً.',
+    wrongNumber: 'الرقم خطأ؟', change: 'غيّره من الملف الشخصي', addPhone: 'أضف رقم هاتفك أولاً',
+    devCode: 'وضع التجربة: الرمز هو {code}', verifyNow: 'أكّد رقمك الآن', notVerified: 'رقمك غير مؤكَّد بعد', badge: 'رقم مؤكَّد',
+    adminLabel: 'تأكيد رقم الهاتف برسالة SMS', adminHint: 'لا يستطيع الحساب نشر إعلان أو مراسلة أو الطلب قبل تأكيد رقمه برمز.',
+    adminNoProvider: 'لم تُضَف مفاتيح Twilio بعد، لذلك التأكيد متوقف الآن. أضف TWILIO_ACCOUNT_SID وTWILIO_AUTH_TOKEN وTWILIO_VERIFY_SERVICE_SID في Vercel ← Settings ← Environment Variables.',
+  },
+  errors: {
+    phone_unverified: 'أكّد رقم هاتفك أولاً برمز SMS.', wrong_code: 'الرمز غير صحيح أو انتهت صلاحيته.', sms_failed: 'تعذّر إرسال الرسالة الآن، حاول بعد قليل.',
+    verification_off: 'تأكيد الرقم غير مفعّل.', invalid_phone: 'رقم الهاتف غير صالح.',
+  },
+});
+deepMerge(fr, {
+  common: { continue: 'Continuer' },
+  phone: {
+    title: 'Confirmer votre numéro', why: 'Pour protéger tout le monde des faux comptes et des arnaques, nous envoyons un code à 6 chiffres à votre numéro.',
+    send: 'Envoyer le code', resend: 'Renvoyer le code', resendIn: 'Renvoyer dans {s} s', enterCode: 'Saisissez le code reçu',
+    confirm: 'Confirmer', done: 'Numéro confirmé ✓', already: 'Votre numéro est confirmé.', notNeeded: 'La confirmation n’est pas requise pour le moment.',
+    wrongNumber: 'Mauvais numéro ?', change: 'Modifiez-le dans votre profil', addPhone: 'Ajoutez d’abord votre numéro',
+    devCode: 'Mode test : le code est {code}', verifyNow: 'Confirmer mon numéro', notVerified: 'Numéro non confirmé', badge: 'Numéro confirmé',
+    adminLabel: 'Confirmation du numéro par SMS', adminHint: 'Un compte ne peut publier, écrire ou commander qu’après avoir confirmé son numéro.',
+    adminNoProvider: 'Les clés Twilio ne sont pas encore ajoutées : la confirmation est désactivée. Ajoutez TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN et TWILIO_VERIFY_SERVICE_SID dans Vercel → Settings → Environment Variables.',
+  },
+  errors: {
+    phone_unverified: 'Confirmez d’abord votre numéro par SMS.', wrong_code: 'Code incorrect ou expiré.', sms_failed: 'Envoi impossible pour le moment, réessayez.',
+    verification_off: 'La confirmation n’est pas activée.', invalid_phone: 'Numéro invalide.',
+  },
+});
+deepMerge(en, {
+  common: { continue: 'Continue' },
+  phone: {
+    title: 'Confirm your phone number', why: 'To protect everyone from fake accounts and scams, we text a 6-digit code to your number.',
+    send: 'Send code', resend: 'Send again', resendIn: 'Send again in {s}s', enterCode: 'Enter the code you received',
+    confirm: 'Confirm', done: 'Number confirmed ✓', already: 'Your number is confirmed.', notNeeded: 'Confirmation is not required right now.',
+    wrongNumber: 'Wrong number?', change: 'Change it in your profile', addPhone: 'Add your phone number first',
+    devCode: 'Test mode: the code is {code}', verifyNow: 'Confirm my number', notVerified: 'Number not confirmed yet', badge: 'Confirmed number',
+    adminLabel: 'Phone confirmation by SMS', adminHint: 'An account can only post, message or order after confirming its number with a code.',
+    adminNoProvider: 'Twilio keys are not added yet, so confirmation is off. Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_VERIFY_SERVICE_SID in Vercel → Settings → Environment Variables.',
+  },
+  errors: {
+    phone_unverified: 'Confirm your phone number by SMS first.', wrong_code: 'Wrong or expired code.', sms_failed: 'Could not send the text right now, try again shortly.',
+    verification_off: 'Phone confirmation is off.', invalid_phone: 'Invalid phone number.',
+  },
+});
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },

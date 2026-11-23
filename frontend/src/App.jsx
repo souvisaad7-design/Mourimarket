@@ -39,6 +39,7 @@ const [AdminAccount, AdminFiles, AdminReviews, AdminSettings, AdminSitemap, Admi
 import StoreSettings from './pages/StoreSettings.jsx';
 import { Checkout, Courier, OrderDetail, Orders, RedirectToCourier } from './pages/Delivery.jsx';
 import SavedSearches from './pages/SavedSearches.jsx';
+import VerifyPhone from './pages/VerifyPhone.jsx';
 const adminDelivery = () => import('./pages/admin/AdminDelivery.jsx');
 const [AdminOrders, AdminCouriers] = ['AdminOrders', 'AdminCouriers'].map((n) => lazyNamed(adminDelivery, n));
 const AdminDeliveryPricing = lazyNamed(adminSite, 'AdminDeliveryPricing');
@@ -67,10 +68,14 @@ function SellerOnly({ children }) {
 }
 
 function GuestOnly({ children }) {
-  const { user, ready } = useApp();
+  const { user, ready, meta } = useApp();
   const location = useLocation();
   if (!ready) return <Spinner />;
-  if (user) return <Navigate to={location.state?.from || (user.role === 'admin' ? '/admin' : '/dashboard')} replace />;
+  if (user) {
+    // A new account whose number is not confirmed yet goes to the code page first.
+    const needsPhone = meta.phoneVerification && user.role !== 'admin' && !user.phone_verified_at;
+    return <Navigate to={needsPhone ? '/verify-phone' : location.state?.from || (user.role === 'admin' ? '/admin' : '/dashboard')} replace />;
+  }
   return children;
 }
 
@@ -111,6 +116,7 @@ export default function App() {
         <Route path="checkout/:productId" element={<RequireAuth><Checkout /></RequireAuth>} />
         <Route path="orders" element={<RequireAuth><Orders /></RequireAuth>} />
         <Route path="saved-searches" element={<RequireAuth><SavedSearches /></RequireAuth>} />
+        <Route path="verify-phone" element={<RequireAuth><VerifyPhone /></RequireAuth>} />
         <Route path="orders/:id" element={<RequireAuth><OrderDetail /></RequireAuth>} />
         <Route path="courier" element={<RequireAuth><Courier /></RequireAuth>} />
         <Route path="delivery/join" element={<RedirectToCourier />} />

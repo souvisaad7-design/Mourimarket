@@ -108,7 +108,7 @@ async function main() {
     const userIds = [];
     for (const u of users) {
       const { rows } = await client.query(
-        `INSERT INTO users (name, email, phone, password_hash, role, account_type, city) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+        `INSERT INTO users (name, email, phone, password_hash, role, account_type, city, phone_verified_at) VALUES ($1,$2,$3,$4,$5,$6,$7, now()) RETURNING id`,
         u,
       );
       userIds.push(rows[0].id);

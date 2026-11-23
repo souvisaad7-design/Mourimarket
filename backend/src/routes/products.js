@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { limiter } from '../lib/rateLimit.js';
 import { onApproved } from '../lib/alerts.js';
+import { requireVerifiedPhone } from '../middleware/phone.js';
 import { z } from 'zod';
 import { config } from '../config.js';
 import { query, tx } from '../db.js';
@@ -201,7 +202,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
   const { rows } = await query(
     `SELECT ${PRODUCT_SELECT}, ${dist ? dist.shown : 'NULL::float8'} AS distance_km, p.lat AS pin_lat, p.lng AS pin_lng, p.description, p.rejection_reason, p.sold_to_id,
        u.phone AS seller_phone, u.city AS seller_city, u.created_at AS seller_since, u.avatar_url AS seller_avatar,
-       u.account_type AS seller_account_type, u.is_active AS seller_active,
+       u.account_type AS seller_account_type, u.is_active AS seller_active, (u.phone_verified_at IS NOT NULL) AS seller_phone_verified,
        s.logo_url AS store_logo,
        (SELECT ROUND(AVG(rating)::numeric, 1) FROM reviews r WHERE r.seller_id = p.seller_id) AS seller_rating,
        (SELECT COUNT(*) FROM reviews r WHERE r.seller_id = p.seller_id) AS seller_reviews_count
@@ -284,7 +285,7 @@ async function assertCategory(id, client) {
 // Anti-spam: at most 20 new listings per hour per account (admins are not limited).
 const postLimiter = limiter('listings-post', { windowMs: 60 * 60 * 1000, limit: 20, keyGenerator: (req) => String(req.user.id), skip: (req) => req.user?.role === 'admin' });
 
-router.post('/', requireAuth, postLimiter, upload.array('images', MAX_IMAGES), async (req, res) => {
+router.post('/', requireAuth, requireVerifiedPhone, postLimiter, upload.array('images', MAX_IMAGES), async (req, res) => {
   // Buyers browse and message; only seller accounts can post listings.
   // An admin can post for anyone (sellerId) and the listing goes live at once.
   const isAdmin = req.user.role === 'admin';

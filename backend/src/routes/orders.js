@@ -10,6 +10,7 @@ import { normalizePhone } from '../lib/phone.js';
 import { getSettings } from '../lib/settings.js';
 import { limiter } from '../lib/rateLimit.js';
 import { requireAuth } from '../middleware/auth.js';
+import { requireVerifiedPhone } from '../middleware/phone.js';
 
 const router = Router();
 router.use(['/orders', '/couriers'], requireAuth);
@@ -63,7 +64,7 @@ const orderSchema = destSchema.extend({
 });
 
 /** POST /api/orders – order with delivery, paid in cash on delivery. */
-router.post('/orders', writeLimiter, async (req, res) => {
+router.post('/orders', requireVerifiedPhone, writeLimiter, async (req, res) => {
   const d = parse(orderSchema, req.body);
   await assertCity(d.city);
   const phone = normalizePhone(d.phone);
@@ -253,7 +254,7 @@ router.post('/orders/:id/rate', writeLimiter, async (req, res) => {
 const VEHICLES = ['motorbike', 'car', 'bicycle', 'tricycle', 'foot'];
 
 /** POST /api/couriers/apply – ask to become a delivery partner (reviewed by an admin). */
-router.post('/couriers/apply', writeLimiter, async (req, res) => {
+router.post('/couriers/apply', requireVerifiedPhone, writeLimiter, async (req, res) => {
   const d = parse(z.object({
     phone: z.string().trim().min(1, 'required').max(30), city: cityKey, vehicle: z.enum(VEHICLES), note: z.string().trim().max(500).optional(),
   }), req.body);

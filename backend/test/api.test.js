@@ -26,6 +26,9 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
 before(async () => {
   server = createApp().listen(0);
   base = `http://localhost:${server.address().port}`;
+  // Most tests register fresh accounts and post at once: phone confirmation is tested on its own below.
+  const admin = (await call('/api/auth/login', { method: 'POST', body: { email: 'admin@maurimarket.mr', password: 'Admin12345' } })).data.token;
+  await call('/api/admin/settings', { method: 'PUT', token: admin, body: { features: { phoneVerification: false } } });
 });
 after(async () => { server.close(); await pool.end(); });
 
@@ -595,7 +598,7 @@ describe('admin: full control', () => {
   });
 
   it('closes registration and turns on auto-approve from the panel', async () => {
-    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { features: { registration: false, autoApprove: true } } });
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { features: { registration: false, autoApprove: true, phoneVerification: false } } });
     const reg = await call('/api/auth/register', { method: 'POST', body: { name: 'Closed', phone: '41112233', password: 'closed123' } });
     assert.equal(reg.status, 403);
     assert.equal(reg.data.error, 'registration_closed');
@@ -605,7 +608,7 @@ describe('admin: full control', () => {
     const p = await call('/api/products', { method: 'POST', token: seller, form: fd });
     assert.equal(p.status, 201, JSON.stringify(p.data));
     assert.equal(p.data.product.status, 'approved');
-    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { features: { registration: true, autoApprove: false } } });
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { features: { registration: true, autoApprove: false, phoneVerification: false } } });
     assert.equal((await call('/api/auth/register', { method: 'POST', body: { name: 'Open', phone: '41112234', password: 'opened123' } })).status, 201);
   });
 
@@ -1293,5 +1296,57 @@ describe('saved searches and price-drop alerts', () => {
     assert.deepEqual([n.old, n.price], [550000, 450000]);
     const sellerGot = (await pool.query("SELECT 1 FROM notifications n JOIN users u ON u.id = n.user_id WHERE n.type = 'price_drop' AND u.email = 'mohamed@example.mr'")).rowCount;
     assert.equal(sellerGot, 0);
+  });
+});
+
+describe('phone verification by SMS code', () => {
+  let admin; let token; const phone = `4${String(Date.now()).slice(-7)}`;
+  before(async () => {
+    admin = await login('admin@maurimarket.mr', 'Admin12345');
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { features: { phoneVerification: true } } });
+  });
+  after(async () => { await call('/api/admin/settings', { method: 'PUT', token: admin, body: { features: { phoneVerification: false } } }); });
+
+  it('a new account must confirm its number before posting or messaging', async () => {
+    const r = await call('/api/auth/register', { method: 'POST', body: { name: 'Nouveau', phone, password: 'Password123', accountType: 'individual' } });
+    assert.equal(r.status, 201);
+    assert.equal(r.data.verifyPhone, true);
+    assert.equal(r.data.user.phone_verified_at, null);
+    token = r.data.token;
+    assert.equal((await call('/api/meta')).data.phoneVerification, true);
+    const fd = new FormData();
+    for (const [k, v] of Object.entries({ title: 'هاتف للبيع', description: 'هاتف بحالة جيدة جداً', price: '5000', city: 'nouakchott', condition: 'used', categoryId: '1' })) fd.append(k, v);
+    fd.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+    const blocked = await call('/api/products', { method: 'POST', token, form: fd });
+    assert.equal(blocked.status, 403);
+    assert.equal(blocked.data.error, 'phone_unverified');
+    const pid = (await pool.query("SELECT id FROM products WHERE status = 'approved' LIMIT 1")).rows[0].id;
+    assert.equal((await call('/api/conversations', { method: 'POST', token, body: { productId: pid, body: 'سلام' } })).data.error, 'phone_unverified');
+    // browsing still works
+    assert.equal((await call('/api/products?limit=1', { token })).status, 200);
+  });
+
+  it('wrong codes are refused; the right one confirms the number', async () => {
+    const s = await call('/api/auth/phone/send', { method: 'POST', token, body: { lang: 'fr' } });
+    assert.equal(s.status, 200, JSON.stringify(s.data));
+    assert.match(s.data.devCode, /^\d{6}$/);
+    assert.equal((await call('/api/auth/phone/verify', { method: 'POST', token, body: { code: 'abc' } })).status, 400);
+    const wrong = s.data.devCode === '111111' ? '222222' : '111111';
+    assert.equal((await call('/api/auth/phone/verify', { method: 'POST', token, body: { code: wrong } })).data.error, 'wrong_code');
+    assert.equal((await call('/api/auth/phone/verify', { method: 'POST', token, body: { code: s.data.devCode } })).status, 200);
+    const st = (await call('/api/auth/phone', { token })).data;
+    assert.deepEqual([st.required, st.verified], [true, true]);
+    const pid = (await pool.query("SELECT id FROM products WHERE status = 'approved' LIMIT 1")).rows[0].id;
+    assert.ok([200, 201].includes((await call('/api/conversations', { method: 'POST', token, body: { productId: pid, body: 'سلام' } })).status));
+  });
+
+  it('changing the number needs a new confirmation; codes are rate-limited', async () => {
+    const fd = new FormData();
+    fd.append('name', 'Nouveau'); fd.append('phone', `3${String(Date.now()).slice(-7)}`);
+    assert.equal((await call('/api/auth/me', { method: 'PUT', token, form: fd })).status, 200);
+    assert.equal((await call('/api/auth/phone', { token })).data.verified, false);
+    const codes = [];
+    for (let i = 0; i < 6; i += 1) codes.push((await call('/api/auth/phone/send', { method: 'POST', token })).status);
+    assert.ok(codes.includes(429), `limited: ${codes}`);
   });
 });
