@@ -42,6 +42,7 @@ import SavedSearches from './pages/SavedSearches.jsx';
 import VerifyPhone from './pages/VerifyPhone.jsx';
 import Wanted from './pages/Wanted.jsx';
 import SellerStats from './pages/SellerStats.jsx';
+const BulkImport = lazy(() => import('./pages/BulkImport.jsx'));
 const adminDelivery = () => import('./pages/admin/AdminDelivery.jsx');
 const [AdminOrders, AdminCouriers] = ['AdminOrders', 'AdminCouriers'].map((n) => lazyNamed(adminDelivery, n));
 const AdminDeliveryPricing = lazyNamed(adminSite, 'AdminDeliveryPricing');
@@ -112,6 +113,7 @@ export default function App() {
         <Route path="dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
         <Route path="dashboard/store" element={<RequireAuth><StoreSettings /></RequireAuth>} />
         <Route path="dashboard/stats" element={<RequireAuth><SellerStats /></RequireAuth>} />
+        <Route path="dashboard/import" element={<RequireAuth><SellerOnly><Suspense fallback={<Spinner />}><BulkImport /></Suspense></SellerOnly></RequireAuth>} />
         <Route path="sell" element={<RequireAuth><SellerOnly><ProductForm /></SellerOnly></RequireAuth>} />
         <Route path="products/:id/edit" element={<RequireAuth><ProductForm /></RequireAuth>} />
         <Route path="favorites" element={<RequireAuth><Favorites /></RequireAuth>} />

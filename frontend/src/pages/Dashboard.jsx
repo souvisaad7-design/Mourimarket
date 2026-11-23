@@ -89,6 +89,7 @@ function SellerDashboard() {
       <PageHeader title={t('dashboard.welcome', { name: user.name })}>
         <div className="flex gap-2">
           <Link to="/dashboard/stats" className="btn-outline">📊 {t('stats.title')}</Link>
+          <Link to="/dashboard/import" className="btn-outline">📥 {t('bulk.short')}</Link>
           <Link to="/profile" className="btn-outline"><Icon name="user" className="h-4 w-4" />{t('card.title')}</Link>
           {user.account_type === 'merchant' && <Link to="/dashboard/store" className="btn-outline"><Icon name="store" className="h-4 w-4" />{t('nav.myStore')}</Link>}
           <Link to="/sell" className="btn-accent"><Icon name="plus" className="h-4 w-4" />{t('nav.post')}</Link>

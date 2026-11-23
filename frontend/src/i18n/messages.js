@@ -1905,6 +1905,44 @@ deepMerge(en, {
   notifications: { types: { inspection_request: '{name} asks to inspect “{title}”', inspection_published: 'Inspection report published for “{title}” ✅', inspection_cancelled: 'Inspection of “{title}” cancelled' } },
 });
 
+// ---------- v33: bulk upload from Excel ----------
+deepMerge(ar, {
+  bulk: {
+    title: 'رفع إعلانات بالجملة من Excel', short: 'رفع من Excel', step1: 'حمّل النموذج', step1Text: 'املأ سطراً لكل منتج. التصنيف والمدينة بالاسم أو الرمز (مثل vehicles وnouakchott).', template: 'تحميل النموذج',
+    step2: 'اختر ملف Excel أو CSV', step2Text: 'حتى 200 سطر في المرة. السطر الأول هو أسماء الأعمدة.', pickFile: 'اختيار الملف',
+    step3: 'اختر الصور', step3Text: 'اختر كل الصور مرة واحدة. في عمود photos اكتب أسماء صور كل منتج مفصولة بفواصل.', pickPhotos: 'اختيار الصور ({n} محددة)',
+    summary: '{total} سطر، منها {ok} جاهز للنشر', import: 'انشر {n} إعلاناً', progress: 'تم إرسال {done} من {total} ({ok} بنجاح)', finished: 'انتهى: الإعلانات المرسلة تنتظر مراجعة الإدارة كالمعتاد.',
+    col: { title: 'الإعلان', category: 'التصنيف', photos: 'الصور', status: 'الحالة' }, missing: 'صور غير موجودة: {names}', sent: 'أُرسل', readyRow: 'جاهز',
+    note: 'كل إعلان يمرّ بنفس الفحص ومراجعة الإدارة مثل النشر العادي. الحد: 200 إعلان في الساعة للتجار، و20 لغيرهم.',
+    p: { title: 'العنوان قصير', description: 'الوصف قصير (10 أحرف على الأقل)', price: 'السعر غير صالح', category: 'تصنيف غير معروف', city: 'مدينة غير معروفة', photos: 'لا توجد صورة' },
+  },
+  errors: { bulk_unreadable: 'تعذّرت قراءة الملف. استخدم النموذج بصيغة Excel أو CSV.', bulk_no_title: 'لم نجد عمود title في السطر الأول.' },
+});
+deepMerge(fr, {
+  bulk: {
+    title: 'Import en masse depuis Excel', short: 'Import Excel', step1: 'Téléchargez le modèle', step1Text: 'Une ligne par produit. Catégorie et ville par nom ou code (ex. vehicles, nouakchott).', template: 'Télécharger le modèle',
+    step2: 'Choisissez le fichier Excel ou CSV', step2Text: 'Jusqu’à 200 lignes à la fois. La 1re ligne contient les noms des colonnes.', pickFile: 'Choisir le fichier',
+    step3: 'Choisissez les photos', step3Text: 'Sélectionnez toutes les photos d’un coup. Dans la colonne photos, indiquez les noms de fichiers séparés par des virgules.', pickPhotos: 'Choisir les photos ({n} sélectionnées)',
+    summary: '{total} lignes, dont {ok} prêtes', import: 'Publier {n} annonces', progress: '{done}/{total} envoyées ({ok} réussies)', finished: 'Terminé : les annonces envoyées attendent la validation habituelle.',
+    col: { title: 'Annonce', category: 'Catégorie', photos: 'Photos', status: 'État' }, missing: 'Photos introuvables : {names}', sent: 'Envoyée', readyRow: 'Prête',
+    note: 'Chaque annonce passe les mêmes contrôles et la même validation qu’une publication normale. Limite : 200 par heure pour les commerçants, 20 sinon.',
+    p: { title: 'Titre trop court', description: 'Description trop courte (10 caractères min.)', price: 'Prix invalide', category: 'Catégorie inconnue', city: 'Ville inconnue', photos: 'Aucune photo' },
+  },
+  errors: { bulk_unreadable: 'Fichier illisible. Utilisez le modèle au format Excel ou CSV.', bulk_no_title: 'Colonne title introuvable en 1re ligne.' },
+});
+deepMerge(en, {
+  bulk: {
+    title: 'Bulk upload from Excel', short: 'Excel import', step1: 'Download the template', step1Text: 'One row per product. Category and city by name or code (e.g. vehicles, nouakchott).', template: 'Download template',
+    step2: 'Pick the Excel or CSV file', step2Text: 'Up to 200 rows at a time. The first row holds the column names.', pickFile: 'Choose file',
+    step3: 'Pick the photos', step3Text: 'Select all photos at once. In the photos column, write each product’s file names separated by commas.', pickPhotos: 'Choose photos ({n} selected)',
+    summary: '{total} rows, {ok} ready', import: 'Publish {n} listings', progress: '{done} of {total} sent ({ok} succeeded)', finished: 'Done: the listings sent await the usual review.',
+    col: { title: 'Listing', category: 'Category', photos: 'Photos', status: 'Status' }, missing: 'Photos not found: {names}', sent: 'Sent', readyRow: 'Ready',
+    note: 'Each listing goes through the same checks and admin review as a normal post. Limit: 200 per hour for merchants, 20 otherwise.',
+    p: { title: 'Title too short', description: 'Description too short (10+ characters)', price: 'Invalid price', category: 'Unknown category', city: 'Unknown city', photos: 'No photo' },
+  },
+  errors: { bulk_unreadable: 'Could not read the file. Use the template as Excel or CSV.', bulk_no_title: 'No “title” column in the first row.' },
+});
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },
