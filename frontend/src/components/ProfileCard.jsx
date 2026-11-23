@@ -10,7 +10,8 @@ const ROLE_STYLE = {
   merchant: 'bg-gold-400 text-ink',
 };
 
-export const memberId = (id) => `MM-${String(id).padStart(6, '0')}`;
+// SC = Souk Chinguetti
+export const memberId = (id) => `SC-${String(id).padStart(6, '0')}`;
 
 /** Formats +22236000001 as +222 36 00 00 01 for display. */
 export function formatPhone(phone) {
@@ -36,7 +37,7 @@ function QR({ value }) {
  * that opens the public profile. `user` is /auth/me (own card) or /users/:id (public card).
  */
 export default function ProfileCard({ user, showPhone = true, actions = true }) {
-  const { t, date, number } = useI18n();
+  const { t, date, number, siteName } = useI18n();
   const { meta, notify } = useApp();
   const cityName = useCityName();
   const type = user.account_type || 'individual';
@@ -69,9 +70,9 @@ export default function ProfileCard({ user, showPhone = true, actions = true }) 
         <div className="pointer-events-none absolute -end-16 -top-16 h-48 w-48 rounded-full bg-gold-400/20 blur-2xl" />
 
         <header className="relative flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2" dir="ltr">
-            <span className="rounded-xl bg-white p-1"><LogoMark className="h-7 w-7" /></span>
-            <span className="text-lg font-bold">Mauri<span className="text-brand-300">Market</span></span>
+          <div className="flex min-w-0 items-center gap-2">
+            <LogoMark className="h-9 w-9" onDark />
+            <span className="truncate text-lg font-bold text-gold-400">{siteName}</span>
           </div>
           <span className="text-xs font-semibold uppercase tracking-wider text-white/70">{t('card.title')}</span>
         </header>
