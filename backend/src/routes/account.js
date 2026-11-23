@@ -342,7 +342,7 @@ router.get('/upgrade-requests', async (req, res) => {
 });
 
 const upgradeSchema = z.object({
-  kind: z.enum(['verify', 'feature']),
+  kind: z.enum(['verify', 'feature', 'bump']),
   productId: z.coerce.number().int().positive().optional(),
   days: z.coerce.number().int().positive().optional(),
   paymentMethod: z.enum(PAYMENT_METHODS),
@@ -367,7 +367,8 @@ router.post('/upgrade-requests', writeLimiter, upload.single('receipt'), async (
     if (me.is_verified) throw conflict('already_verified');
     amount = (await getSettings()).pricing.verifyPrice;
   } else {
-    const plan = (await getSettings()).pricing.featurePlans.find((x) => x.days === data.days);
+    const pricing = (await getSettings()).pricing;
+    const plan = data.kind === 'bump' ? { price: pricing.bumpPrice } : pricing.featurePlans.find((x) => x.days === data.days);
     if (!plan) throw badRequest('validation_error', { days: 'invalid' });
     if (!data.productId) throw badRequest('validation_error', { productId: 'required' });
     product = (await query('SELECT id, title, seller_id, status, availability FROM products WHERE id = $1', [data.productId])).rows[0];

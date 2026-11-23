@@ -638,3 +638,12 @@ CREATE TABLE IF NOT EXISTS product_views_daily (
 );
 CREATE INDEX IF NOT EXISTS product_views_day_idx ON product_views_daily (day);
 ALTER TABLE product_views_daily ENABLE ROW LEVEL SECURITY;
+
+-- ---------- Bump a listing back to the top (free every N days, or paid) ----------
+ALTER TABLE products ADD COLUMN IF NOT EXISTS bumped_at TIMESTAMPTZ;
+ALTER TABLE upgrade_requests DROP CONSTRAINT IF EXISTS upgrade_requests_kind_check;
+ALTER TABLE upgrade_requests ADD CONSTRAINT upgrade_requests_kind_check CHECK (kind IN ('verify', 'feature', 'bump'));
+CREATE UNIQUE INDEX IF NOT EXISTS upgrade_requests_one_pending_bump ON upgrade_requests(product_id) WHERE status = 'pending' AND kind = 'bump';
+ALTER TABLE upgrade_requests DROP CONSTRAINT IF EXISTS upgrade_requests_check;
+ALTER TABLE upgrade_requests DROP CONSTRAINT IF EXISTS upgrade_requests_target_check;
+ALTER TABLE upgrade_requests ADD CONSTRAINT upgrade_requests_target_check CHECK (kind = 'verify' OR (kind = 'bump' AND product_id IS NOT NULL) OR (product_id IS NOT NULL AND days IS NOT NULL));

@@ -10,7 +10,7 @@ import { config } from '../config.js';
 import { query, tx } from '../db.js';
 import { MAX_IMAGES } from '../lib/constants.js';
 import { assertCity, cityKey } from '../lib/cities.js';
-import { badRequest, forbidden, notFound, pagination, parse } from '../lib/http.js';
+import { HttpError, badRequest, forbidden, notFound, pagination, parse } from '../lib/http.js';
 import { notify } from '../lib/notify.js';
 import { optionalAuth, requireAuth } from '../middleware/auth.js';
 import { removeUploads, saveFile, upload } from '../middleware/upload.js';
@@ -22,7 +22,7 @@ const router = Router();
 // Shared SELECT for product cards / detail.
 export const PRODUCT_SELECT = `
   p.id, p.title, p.price, p.old_price, p.city, p.condition, p.status, p.availability, p.views,
-  p.created_at, p.updated_at, p.category_id, p.seller_id, p.store_id, p.attrs, p.video_url,
+  p.created_at, p.updated_at, p.category_id, p.seller_id, p.store_id, p.attrs, p.video_url, p.bumped_at,
   c.slug AS category_slug, c.name_ar AS category_name_ar, c.name_fr AS category_name_fr, c.name_en AS category_name_en,
   (SELECT url FROM product_images i WHERE i.product_id = p.id ORDER BY sort_order, id LIMIT 1) AS cover_url,
   u.name AS seller_name, u.is_verified AS seller_verified, s.name AS store_name, s.slug AS store_slug,
@@ -76,7 +76,8 @@ const listSchema = z.object({
 
 const FEATURED_FIRST = '(p.featured_until IS NOT NULL AND p.featured_until > now()) DESC';
 const SORTS = {
-  newest: `${FEATURED_FIRST}, p.created_at DESC, p.id DESC`,
+  // A bumped listing counts as new again from the moment it was bumped.
+  newest: `${FEATURED_FIRST}, COALESCE(p.bumped_at, p.created_at) DESC, p.id DESC`,
   oldest: 'p.created_at ASC, p.id ASC',
   price_asc: 'p.price ASC, p.id DESC',
   price_desc: 'p.price DESC, p.id DESC',
@@ -193,6 +194,25 @@ async function loadProduct(id) {
 function assertOwner(product, user) {
   if (product.seller_id !== user.id && user.role !== 'admin') throw forbidden();
 }
+
+/** POST /api/products/:id/bump – put my listing back at the top of "newest" (free once every N days). */
+router.post('/:id/bump', requireAuth, async (req, res) => {
+  const product = await loadProduct(req.params.id);
+  assertOwner(product, req.user);
+  if (product.status !== 'approved' || product.availability !== 'available') throw badRequest('product_not_featurable');
+  const { freeBumpDays } = (await getSettings()).pricing;
+  const { rows } = await query(
+    `UPDATE products SET bumped_at = now()
+     WHERE id = $1 AND COALESCE(bumped_at, created_at) <= now() - make_interval(days => $2::int)
+     RETURNING bumped_at`,
+    [product.id, freeBumpDays],
+  );
+  if (!rows[0]) {
+    const next = new Date(new Date(product.bumped_at || product.created_at).getTime() + freeBumpDays * 86400000);
+    throw new HttpError(409, 'bump_too_soon', 'bump_too_soon', { next: next.toISOString() });
+  }
+  res.json({ bumpedAt: rows[0].bumped_at });
+});
 
 /** POST /api/products/:id/view { source } – the listing page counts one view per visit (never the owner's own). */
 const viewLimiter = limiter('listing-view', { windowMs: 60 * 1000, limit: 120 });

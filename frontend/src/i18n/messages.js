@@ -1832,6 +1832,26 @@ deepMerge(en, { stats: {
   source: { site: 'Within the site', direct: 'Direct / apps', whatsapp: 'WhatsApp', facebook: 'Facebook', google: 'Google', instagram: 'Instagram', tiktok: 'TikTok', qr: 'QR code', other: 'Other sites' },
 } });
 
+// ---------- v31: bump a listing back to the top ----------
+deepMerge(ar, {
+  bump: { adminFreeDays: 'الرفع المجاني: مرة كل (أيام)', adminFreeDaysHint: 'كم يوماً ينتظر البائع بين رفعتين مجانيتين.', adminPrice: 'سعر الرفع الإضافي (MRU)', adminPriceHint: 'عند تفعيل الخدمات المدفوعة: لرفع الإعلان قبل انتهاء المدة.', cta: 'رفع للأعلى', hint: 'يعيد الإعلان إلى أعلى «الأحدث» مجاناً مرة كل {n} أيام', done: 'تم رفع إعلانك إلى الأعلى ⬆', tooSoon: 'رفعتَ هذا الإعلان مؤخراً. يمكنك رفعه مجاناً مرة أخرى في {date}.', buyNow: 'ارفعه الآن مقابل {price}', paidTitle: 'رفع «{title}» إلى الأعلى' },
+  upgrades: { kind: { bump: 'رفع للأعلى' } },
+  notifications: { types: { product_bumped: 'تم رفع إعلانك «{title}» إلى الأعلى ⬆', upgrade_rejected_bump: 'لم يُقبل طلب رفع «{title}». السبب: {reason}', upgrade_request_bump: '{name} طلب رفع إعلان «{title}»' } },
+  errors: { bump_too_soon: 'رفعتَ هذا الإعلان مؤخراً.' },
+});
+deepMerge(fr, {
+  bump: { adminFreeDays: 'Remontée gratuite : tous les (jours)', adminFreeDaysHint: 'Délai entre deux remontées gratuites.', adminPrice: 'Prix d’une remontée en plus (MRU)', adminPriceHint: 'Si les services payants sont activés : pour remonter avant la fin du délai.', cta: 'Remonter', hint: 'Remet l’annonce en tête des « plus récentes », gratuitement une fois tous les {n} jours', done: 'Votre annonce est remontée en tête ⬆', tooSoon: 'Vous avez remonté cette annonce récemment. Prochaine remontée gratuite le {date}.', buyNow: 'Remonter maintenant pour {price}', paidTitle: 'Remonter « {title} »' },
+  upgrades: { kind: { bump: 'Remontée' } },
+  notifications: { types: { product_bumped: 'Votre annonce « {title} » est remontée en tête ⬆', upgrade_rejected_bump: 'Remontée de « {title} » refusée. Motif : {reason}', upgrade_request_bump: '{name} demande la remontée de « {title} »' } },
+  errors: { bump_too_soon: 'Annonce remontée récemment.' },
+});
+deepMerge(en, {
+  bump: { adminFreeDays: 'Free bump: once every (days)', adminFreeDaysHint: 'How long a seller waits between two free bumps.', adminPrice: 'Price of an extra bump (MRU)', adminPriceHint: 'With paid services on: to bump before the wait is over.', cta: 'Bump to top', hint: 'Puts the listing back at the top of “newest”, free once every {n} days', done: 'Your listing is back at the top ⬆', tooSoon: 'You bumped this listing recently. Next free bump on {date}.', buyNow: 'Bump now for {price}', paidTitle: 'Bump “{title}” to the top' },
+  upgrades: { kind: { bump: 'Bump' } },
+  notifications: { types: { product_bumped: 'Your listing “{title}” is back at the top ⬆', upgrade_rejected_bump: 'Bump of “{title}” declined. Reason: {reason}', upgrade_request_bump: '{name} asked to bump “{title}”' } },
+  errors: { bump_too_soon: 'Bumped recently.' },
+});
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },

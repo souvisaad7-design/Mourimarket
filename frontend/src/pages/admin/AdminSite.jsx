@@ -241,6 +241,14 @@ export function AdminPayments() {
         <Field label={t('admin.verifyPrice')}>
           <input className="input w-40" type="number" min="0" dir="ltr" value={s.pricing.verifyPrice} onChange={(e) => put('pricing', { verifyPrice: Math.max(0, parseInt(e.target.value, 10) || 0) })} />
         </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label={t('bump.adminFreeDays')} hint={t('bump.adminFreeDaysHint')}>
+            <input className="input w-32" type="number" min="1" max="365" dir="ltr" value={s.pricing.freeBumpDays ?? 7} onChange={(e) => put('pricing', { freeBumpDays: Math.max(1, parseInt(e.target.value, 10) || 1) })} />
+          </Field>
+          <Field label={t('bump.adminPrice')} hint={t('bump.adminPriceHint')}>
+            <input className="input w-32" type="number" min="0" dir="ltr" value={s.pricing.bumpPrice ?? 50} onChange={(e) => put('pricing', { bumpPrice: Math.max(0, parseInt(e.target.value, 10) || 0) })} />
+          </Field>
+        </div>
         <fieldset>
           <legend className="label">{t('admin.vipPlans')}</legend>
           <ul className="space-y-2">

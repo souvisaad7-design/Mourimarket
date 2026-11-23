@@ -43,6 +43,8 @@ export const SECTIONS = {
   }),
   pricing: z.object({
     verifyPrice: z.number().int().min(0).max(10_000_000),
+    bumpPrice: z.number().int().min(0).max(10_000_000).default(50),
+    freeBumpDays: z.number().int().min(1).max(365).default(7),
     featurePlans: z.array(z.object({ days: z.number().int().min(1).max(365), price: z.number().int().min(0).max(10_000_000) }))
       .min(1).max(6).refine((plans) => new Set(plans.map((p) => p.days)).size === plans.length, 'duplicate_days'),
   }),
@@ -69,7 +71,7 @@ export const defaults = () => ({
   appearance: { siteName: '', logoUrl: '', primaryColor: '', secondaryColor: '' },
   maintenance: { enabled: false, message: { ar: '', fr: '', en: '' } },
   delivery: { enabled: true, baseFee: 100, perKm: 20, minFee: 150, interCityFee: 500, maxKm: 600 },
-  pricing: { verifyPrice: VERIFY_PRICE, featurePlans: FEATURE_PLANS },
+  pricing: { verifyPrice: VERIFY_PRICE, featurePlans: FEATURE_PLANS, bumpPrice: 50, freeBumpDays: 7 },
   menu: { header: null, footer: null, home: Object.fromEntries(HOME_SECTIONS.map((k) => [k, true])) },
   contact: { email: '', whatsapp: '', phone: '', address: '' },
   social: { facebook: '', instagram: '', tiktok: '', x: '', youtube: '' },

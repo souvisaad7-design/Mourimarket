@@ -1573,3 +1573,44 @@ describe('seller statistics', () => {
     assert.equal((await call('/api/seller/stats')).status, 401);
   });
 });
+
+describe('bumping a listing to the top', () => {
+  let seller; let other; let admin; let pid;
+  const newest = async () => (await call('/api/products?limit=60')).data.items.findIndex((p) => p.id === pid);
+  before(async () => {
+    seller = await login('amana@example.mr'); other = await login('mohamed@example.mr'); admin = await login('admin@maurimarket.mr', 'Admin12345');
+    pid = (await pool.query("SELECT p.id FROM products p JOIN users u ON u.id = p.seller_id WHERE u.email = 'amana@example.mr' AND p.status = 'approved' AND p.availability = 'available' AND p.featured_until IS NULL ORDER BY p.created_at LIMIT 1")).rows[0].id;
+    await pool.query("UPDATE products SET created_at = now() - interval '20 days', bumped_at = NULL WHERE id = $1", [pid]);
+  });
+
+  it('free once every 7 days, only by the owner; goes back to the top of "newest"', async () => {
+    const before = await newest();
+    assert.equal((await call(`/api/products/${pid}/bump`, { method: 'POST', token: other })).status, 403);
+    assert.equal((await call(`/api/products/${pid}/bump`, { method: 'POST', token: seller })).status, 200);
+    const after = await newest();
+    assert.ok(after < before, `moved up: ${before} → ${after}`);
+    const featured = (await call('/api/products?limit=60')).data.items.filter((p) => p.is_featured).length;
+    assert.equal(after, featured, 'first after the featured listings');
+    const again = await call(`/api/products/${pid}/bump`, { method: 'POST', token: seller });
+    assert.equal(again.status, 409);
+    assert.equal(again.data.error, 'bump_too_soon');
+    assert.ok(new Date(again.data.fields.next) > new Date(Date.now() + 6 * 86400000));
+  });
+
+  it('an extra bump can be bought when paid services are on', async () => {
+    const s = (await call('/api/admin/settings', { token: admin })).data.settings;
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { features: { ...s.features, paidUpgrades: true } } });
+    assert.equal((await call('/api/meta')).data.upgrades.bumpPrice, 50);
+    await pool.query("UPDATE products SET bumped_at = now() - interval '3 days' WHERE id = $1", [pid]);
+    const fd = new FormData();
+    fd.append('kind', 'bump'); fd.append('productId', String(pid)); fd.append('paymentMethod', 'bankily');
+    fd.append('receipt', new Blob([PNG], { type: 'image/png' }), 'r.png');
+    const r = await call('/api/upgrade-requests', { method: 'POST', token: seller, form: fd });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    assert.equal(r.data.request.amount, 50);
+    assert.equal((await call(`/api/admin/upgrade-requests/${r.data.request.id}`, { method: 'PATCH', token: admin, body: { status: 'approved' } })).status, 200);
+    const { rows } = await pool.query('SELECT bumped_at > now() - interval \'1 minute\' AS fresh FROM products WHERE id = $1', [pid]);
+    assert.equal(rows[0].fresh, true);
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { features: s.features } });
+  });
+});

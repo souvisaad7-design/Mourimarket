@@ -21,7 +21,8 @@ router.get('/meta', async (_req, res) => {
     cities, reportReasons: REPORT_REASONS, currency: 'MRU',
     phoneVerification: await phoneVerificationOn(),
     videoUploads: videoEnabled(),
-    upgrades: features.paidUpgrades ? { verifyPrice: pricing.verifyPrice, featurePlans: pricing.featurePlans, paymentMethods: PAYMENT_METHODS } : null,
+    freeBumpDays: pricing.freeBumpDays,
+    upgrades: features.paidUpgrades ? { verifyPrice: pricing.verifyPrice, bumpPrice: pricing.bumpPrice, featurePlans: pricing.featurePlans, paymentMethods: PAYMENT_METHODS } : null,
   });
 });
 

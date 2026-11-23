@@ -43,7 +43,7 @@ export function UpgradeModal({ request, products = [], onClose, onDone }) {
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
   if (!request) return null;
-  const amount = kind === 'verify' ? cfg.verifyPrice : (cfg.featurePlans.find((p) => p.days === days)?.price || 0);
+  const amount = kind === 'verify' ? cfg.verifyPrice : kind === 'bump' ? cfg.bumpPrice || 0 : (cfg.featurePlans.find((p) => p.days === days)?.price || 0);
 
   const pick = async (e) => {
     const f = e.target.files?.[0];
@@ -69,6 +69,7 @@ export function UpgradeModal({ request, products = [], onClose, onDone }) {
       const fd = new FormData();
       fd.append('kind', kind);
       if (kind === 'feature') { fd.append('productId', productId); fd.append('days', String(days)); }
+      if (kind === 'bump') fd.append('productId', String(request.product.id));
       fd.append('paymentMethod', method);
       if (ref.trim()) fd.append('paymentRef', ref.trim());
       if (note.trim()) fd.append('note', note.trim());
@@ -85,7 +86,7 @@ export function UpgradeModal({ request, products = [], onClose, onDone }) {
 
   const number = SITE_PAYMENT[method];
   return (
-    <Modal open onClose={onClose} title={kind === 'verify' ? t('upgrades.verifyTitle') : t('upgrades.featureTitle')} size="lg">
+    <Modal open onClose={onClose} title={kind === 'verify' ? t('upgrades.verifyTitle') : kind === 'bump' ? t('bump.paidTitle', { title: request.product?.title || '' }) : t('upgrades.featureTitle')} size="lg">
       <form onSubmit={submit} className="space-y-5">
         <ErrorBox error={error && !error.fields ? error : null} />
 

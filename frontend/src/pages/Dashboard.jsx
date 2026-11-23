@@ -44,6 +44,18 @@ function SellerDashboard() {
   const paid = Boolean(meta.upgrades); // paid verification/featuring (off: the site is free)
   const upgrades = useApi(paid ? '/upgrade-requests' : null);
   const [upgrade, setUpgrade] = useState(null);
+  const [bumpWait, setBumpWait] = useState(null); // { product, next }
+  const bump = async (p) => {
+    try {
+      await api(`/products/${p.id}/bump`, { method: 'POST' });
+      notify(t('bump.done'));
+      reload();
+    } catch (err) {
+      if (err.code === 'bump_too_soon') setBumpWait({ product: p, next: err.fields?.next });
+      else notify(t('common.error'));
+    }
+  };
+
   const [soldProduct, setSoldProduct] = useState(null);
   const [filter, setFilter] = useState('all');
   useDocumentTitle(t('dashboard.title'));
@@ -143,6 +155,9 @@ function SellerDashboard() {
                     <Icon name="star" filled className="h-4 w-4" />{t('upgrades.featureThis')}
                   </button>
                 )}
+                {isFeaturable(p) && (
+                  <button className="btn-outline border-brand-300 px-3 py-2 text-xs text-brand-800" onClick={() => bump(p)} title={t('bump.hint', { n: meta.freeBumpDays || 7 })}>⬆ {t('bump.cta')}</button>
+                )}
                 <Link to={`/products/${p.id}/edit`} className="btn-outline px-3 py-2 text-xs"><Icon name="edit" className="h-4 w-4" />{t('common.edit')}</Link>
                 <button className="btn-ghost px-3 py-2 text-xs text-rose-600" onClick={() => remove(p)}><Icon name="trash" className="h-4 w-4" />{t('common.delete')}</button>
               </div>
@@ -151,6 +166,16 @@ function SellerDashboard() {
         </ul>
       )}
 
+      <Modal open={Boolean(bumpWait)} onClose={() => setBumpWait(null)} title={`⬆ ${t('bump.cta')}`}>
+        {bumpWait && (
+          <div className="space-y-3">
+            <p className="text-sm">{t('bump.tooSoon', { date: date(bumpWait.next) })}</p>
+            {paid && meta.upgrades?.bumpPrice != null && (
+              <button className="btn-accent w-full" onClick={() => { setUpgrade({ kind: 'bump', product: bumpWait.product }); setBumpWait(null); }}>{t('bump.buyNow', { price: price(meta.upgrades.bumpPrice) })}</button>
+            )}
+          </div>
+        )}
+      </Modal>
       {paid && <UpgradeModal request={upgrade} products={items} onClose={() => setUpgrade(null)} onDone={() => { setUpgrade(null); upgrades.reload(); }} />}
       <SoldModal product={soldProduct} onClose={() => setSoldProduct(null)} onDone={() => { setSoldProduct(null); reload(); }} />
     </div>
