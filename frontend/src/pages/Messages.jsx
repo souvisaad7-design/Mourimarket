@@ -216,7 +216,8 @@ function Thread({ id, onActivity }) {
             <Link to={`/products/${c.product_id}`} className="block truncate text-xs text-brand-700 hover:underline">
               {t('messages.about', { title: c.product_title })} · <span className="ltr-nums">{price(c.product_price)}</span>
             </Link>
-          ) : <span className="text-xs text-slate-400">{t('messages.deletedProduct')}</span>}
+          ) : c.wanted_id ? <Link to="/wanted" className="block truncate text-xs text-brand-700 hover:underline">🙋 {t('wanted.about', { title: c.wanted_title })}</Link>
+            : <span className="text-xs text-slate-400">{t('messages.deletedProduct')}</span>}
         </div>
         {c.product_cover && <img src={c.product_cover} alt="" className="h-10 w-12 rounded-lg object-cover" />}
       </div>
@@ -310,7 +311,7 @@ export default function Messages() {
                       <p className={`truncate text-sm ${c.unread ? 'font-bold' : 'font-semibold'}`}>{c.other_name}</p>
                       <span className="shrink-0 text-[11px] text-slate-400">{ago(c.last_message_at)}</span>
                     </div>
-                    <p className="truncate text-xs text-brand-700">{c.product_title || t('messages.deletedProduct')}</p>
+                    <p className="truncate text-xs text-brand-700">{c.product_title || (c.wanted_title ? `🙋 ${c.wanted_title}` : t('messages.deletedProduct'))}</p>
                     <div className="flex items-center justify-between gap-2">
                       <p className={`truncate text-xs ${c.unread ? 'text-slate-800' : 'text-slate-500'}`}>{c.last_kind && c.last_kind !== 'text' ? t(`chat.preview.${c.last_kind}`) : c.last_message}</p>
                       {c.unread > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-700 px-1 text-[11px] font-bold text-white">{c.unread}</span>}

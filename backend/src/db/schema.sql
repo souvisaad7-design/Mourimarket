@@ -608,3 +608,22 @@ CREATE INDEX IF NOT EXISTS idx_products_attrs ON products USING gin (attrs);
 
 -- ---------- Short video on a listing (Vercel Blob URL) ----------
 ALTER TABLE products ADD COLUMN IF NOT EXISTS video_url TEXT;
+-- ---------- "Wanted" ads: buyers post what they are looking for ----------
+CREATE TABLE IF NOT EXISTS wanted_ads (
+  id           SERIAL PRIMARY KEY,
+  user_id      INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title        VARCHAR(140) NOT NULL,
+  description  VARCHAR(2000),
+  category_id  INT REFERENCES categories(id) ON DELETE SET NULL,
+  city         VARCHAR(40),
+  budget       BIGINT,
+  status       TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'closed', 'hidden')),
+  replies      INT NOT NULL DEFAULT 0,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at   TIMESTAMPTZ NOT NULL DEFAULT now() + interval '30 days'
+);
+CREATE INDEX IF NOT EXISTS wanted_ads_active_idx ON wanted_ads (status, created_at DESC);
+ALTER TABLE wanted_ads ENABLE ROW LEVEL SECURITY;
+-- A conversation can be about a listing or about a "wanted" ad (a seller answering a buyer's request).
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS wanted_id INT REFERENCES wanted_ads(id) ON DELETE SET NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS conversations_wanted_unique ON conversations (wanted_id, buyer_id, seller_id) WHERE wanted_id IS NOT NULL;

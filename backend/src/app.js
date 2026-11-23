@@ -21,6 +21,7 @@ import orderRoutes from './routes/orders.js';
 import seoRoutes, { HTML_CSP } from './routes/seo.js';
 import pushRoutes from './routes/push.js';
 import alertRoutes from './routes/alerts.js';
+import wantedRoutes from './routes/wanted.js';
 
 export function createApp() {
   const app = express();
@@ -79,6 +80,7 @@ export function createApp() {
   app.use('/api/admin', adminRoutes);
   app.use('/api/geo', geoRoutes);
   app.use('/api/push', pushRoutes);
+  app.use('/api/wanted', wantedRoutes);
   app.use('/api', orderRoutes);
   app.use('/api', alertRoutes);
   app.use('/api', publicRoutes);

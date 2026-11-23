@@ -5,6 +5,7 @@ export const BUILTIN_LINKS = {
   categories: { to: '/categories', icon: 'grid', label: 'nav.categories', dropdown: true },
   stores: { to: '/stores', icon: 'store', label: 'nav.stores' },
   offers: { to: '/products?deals=1', emoji: '🔥', label: 'nav.offers' },
+  wanted: { to: '/wanted', emoji: '🙋', label: 'wanted.nav' },
   about: { to: '/about', icon: 'info', label: 'nav.about' },
   help: { to: '/help', icon: 'help', label: 'nav.help' },
   safety: { to: '/safety', icon: 'shield', label: 'footer.safety' },
@@ -12,8 +13,8 @@ export const BUILTIN_LINKS = {
 };
 
 const b = (key) => ({ type: 'builtin', key });
-export const DEFAULT_HEADER = ['home', 'products', 'categories', 'stores', 'offers', 'about'].map(b);
-export const DEFAULT_FOOTER = ['products', 'stores', 'sell', 'offers', 'about', 'help', 'safety'].map(b);
+export const DEFAULT_HEADER = ['home', 'products', 'categories', 'stores', 'offers', 'wanted', 'about'].map(b);
+export const DEFAULT_FOOTER = ['products', 'wanted', 'stores', 'sell', 'offers', 'about', 'help', 'safety'].map(b);
 export const HOME_SECTIONS = ['hero', 'categories', 'latest', 'promo', 'deals', 'cities', 'stores', 'features'];
 
 /** Resolve a menu item to { to, label, icon, emoji, end, dropdown, external }. */

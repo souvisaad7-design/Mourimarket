@@ -40,6 +40,7 @@ import StoreSettings from './pages/StoreSettings.jsx';
 import { Checkout, Courier, OrderDetail, Orders, RedirectToCourier } from './pages/Delivery.jsx';
 import SavedSearches from './pages/SavedSearches.jsx';
 import VerifyPhone from './pages/VerifyPhone.jsx';
+import Wanted from './pages/Wanted.jsx';
 const adminDelivery = () => import('./pages/admin/AdminDelivery.jsx');
 const [AdminOrders, AdminCouriers] = ['AdminOrders', 'AdminCouriers'].map((n) => lazyNamed(adminDelivery, n));
 const AdminDeliveryPricing = lazyNamed(adminSite, 'AdminDeliveryPricing');
@@ -91,6 +92,7 @@ export default function App() {
         <Route path="products/:id" element={<ProductDetail />} />
         <Route path="users/:id" element={<SellerProfile />} />
         <Route path="stores" element={<Stores />} />
+        <Route path="wanted" element={<Wanted />} />
         <Route path="stores/:slug" element={<StoreDetail />} />
         <Route path="safety" element={<Safety />} />
         <Route path="about" element={<About />} />

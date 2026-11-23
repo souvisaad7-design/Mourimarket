@@ -1492,3 +1492,48 @@ describe('short videos on listings', () => {
     assert.equal((await post(other, mine)).data.fields?.videoUrl, 'invalid', 'someone else’s video');
   });
 });
+
+describe('"wanted" ads', () => {
+  let buyer; let seller; let admin; let id;
+  before(async () => { buyer = await login('buyer@example.mr'); seller = await login('mohamed@example.mr'); admin = await login('admin@maurimarket.mr', 'Admin12345'); });
+
+  it('a buyer posts what they look for; everyone can find it', async () => {
+    assert.equal((await call('/api/wanted', { method: 'POST', body: { title: 'x' } })).status, 401);
+    assert.equal((await call('/api/wanted', { method: 'POST', token: buyer, body: { title: 'ab' } })).data.fields.title, 'min_3');
+    const cat = (await call('/api/categories')).data.items.find((c) => c.slug === 'vehicles').id;
+    const r = await call('/api/wanted', { method: 'POST', token: buyer, body: { title: 'مطلوب هايلكس 2015 أو أحدث', description: 'بحالة جيدة، نواكشوط', categoryId: cat, city: 'nouakchott', budget: 900000 } });
+    assert.equal(r.status, 201);
+    id = r.data.id;
+    const list = (await call('/api/wanted?category=vehicles&city=nouakchott&q=هايلكس')).data;
+    assert.equal(list.items[0].id, id);
+    assert.equal(list.items[0].category_slug, 'vehicles');
+    assert.equal(Number((await call(`/api/wanted/${id}`)).data.wanted.budget), 900000);
+  });
+
+  it('a seller answers in a conversation; the buyer is told', async () => {
+    assert.equal((await call(`/api/wanted/${id}/reply`, { method: 'POST', token: buyer, body: { body: 'x' } })).data.error, 'cannot_message_self');
+    const r = await call(`/api/wanted/${id}/reply`, { method: 'POST', token: seller, body: { body: 'عندي هايلكس 2016 نظيفة' } });
+    assert.equal(r.status, 201);
+    const again = await call(`/api/wanted/${id}/reply`, { method: 'POST', token: seller, body: { body: 'والسعر قابل للنقاش' } });
+    assert.equal(again.data.conversationId, r.data.conversationId, 'same conversation');
+    const conv = (await call(`/api/conversations/${r.data.conversationId}`, { token: buyer })).data;
+    assert.equal(conv.conversation.wanted_title, 'مطلوب هايلكس 2015 أو أحدث');
+    assert.equal(conv.messages.length, 2);
+    assert.equal((await call(`/api/wanted/${id}`)).data.wanted.replies, 1);
+    const n = (await pool.query("SELECT 1 FROM notifications n JOIN users u ON u.id = n.user_id WHERE n.type = 'wanted_reply' AND u.email = 'buyer@example.mr'")).rowCount;
+    assert.ok(n >= 1);
+  });
+
+  it('closing, renewing and moderation', async () => {
+    assert.equal((await call(`/api/wanted/${id}`, { method: 'PATCH', token: seller, body: { status: 'closed' } })).status, 404, 'not the author');
+    await call(`/api/wanted/${id}`, { method: 'PATCH', token: buyer, body: { status: 'closed' } });
+    assert.ok(!(await call('/api/wanted')).data.items.some((w) => w.id === id), 'closed requests leave the list');
+    assert.equal((await call(`/api/wanted/${id}/reply`, { method: 'POST', token: seller, body: { body: 'x' } })).status, 404);
+    assert.equal((await call('/api/wanted?mine=1', { token: buyer })).data.items[0].status, 'closed');
+    await call(`/api/wanted/${id}`, { method: 'PATCH', token: buyer, body: { status: 'active' } });
+    assert.ok((await call('/api/wanted')).data.items.some((w) => w.id === id));
+    assert.equal((await call(`/api/wanted/${id}`, { method: 'DELETE', token: seller })).status, 403);
+    assert.equal((await call(`/api/wanted/${id}`, { method: 'DELETE', token: admin })).status, 200);
+    assert.equal((await call(`/api/wanted/${id}`)).status, 404);
+  });
+});

@@ -1771,6 +1771,41 @@ deepMerge(en, {
   errors: { video_disabled: 'Video uploads are off.' },
 });
 
+// ---------- v29: "wanted" ads ----------
+deepMerge(ar, {
+  wanted: {
+    nav: 'مطلوب', title: 'مطلوب', intro: 'لم تجد ما تبحث عنه؟ اكتب طلبك، ويراسلك من يملكه. الطلب يبقى منشوراً 30 يوماً.',
+    new: 'أضف طلباً', what: 'ماذا تبحث عنه؟', whatPh: 'مثال: مطلوب هايلكس 2015 أو أحدث', budget: 'الميزانية القصوى', details: 'تفاصيل', detailsPh: 'الحالة، اللون، الحي…',
+    publish: 'انشر الطلب', publishHint: 'يظهر طلبك فوراً، ويمكنك إغلاقه عندما تجد ما تريد.', all: 'كل الطلبات', mine: 'طلباتي',
+    iHaveIt: 'عندي هذا', replyPh: 'صف ما عندك وسعره…', replies: '{n} رد', found: 'وجدته', renew: 'إعادة النشر',
+    empty: 'لا توجد طلبات حالياً', emptyMine: 'لم تنشر أي طلب بعد', about: 'بخصوص طلب: {title}', safety: 'نصائح الأمان: لا تدفع مقدماً قبل رؤية المنتج',
+  },
+  errors: { wanted_not_found: 'الطلب غير موجود أو أُغلق.' },
+  notifications: { types: { wanted_reply: '{from} يملك ما تبحث عنه: «{title}»' } },
+});
+deepMerge(fr, {
+  wanted: {
+    nav: 'Recherché', title: 'Recherché', intro: 'Vous ne trouvez pas ? Publiez votre demande, ceux qui l’ont vous écrivent. Elle reste en ligne 30 jours.',
+    new: 'Publier une demande', what: 'Que recherchez-vous ?', whatPh: 'Ex. : Hilux 2015 ou plus récente', budget: 'Budget maximum', details: 'Détails', detailsPh: 'État, couleur, quartier…',
+    publish: 'Publier la demande', publishHint: 'Votre demande paraît tout de suite ; fermez-la quand vous avez trouvé.', all: 'Toutes les demandes', mine: 'Mes demandes',
+    iHaveIt: 'Je l’ai', replyPh: 'Décrivez ce que vous avez et le prix…', replies: '{n} réponse(s)', found: 'Trouvé', renew: 'Republier',
+    empty: 'Aucune demande pour le moment', emptyMine: 'Vous n’avez publié aucune demande', about: 'Au sujet de la demande : {title}', safety: 'Conseil : ne payez jamais d’avance sans voir l’article',
+  },
+  errors: { wanted_not_found: 'Demande introuvable ou fermée.' },
+  notifications: { types: { wanted_reply: '{from} a ce que vous recherchez : « {title} »' } },
+});
+deepMerge(en, {
+  wanted: {
+    nav: 'Wanted', title: 'Wanted', intro: 'Can’t find it? Post what you are looking for and people who have it will message you. It stays up for 30 days.',
+    new: 'Post a request', what: 'What are you looking for?', whatPh: 'e.g. Hilux 2015 or newer', budget: 'Maximum budget', details: 'Details', detailsPh: 'Condition, colour, neighbourhood…',
+    publish: 'Post request', publishHint: 'Your request is visible right away; close it once you have found it.', all: 'All requests', mine: 'My requests',
+    iHaveIt: 'I have it', replyPh: 'Describe what you have and the price…', replies: '{n} replies', found: 'Found it', renew: 'Post again',
+    empty: 'No requests right now', emptyMine: 'You have not posted any request yet', about: 'About the request: {title}', safety: 'Safety tip: never pay in advance before seeing the item',
+  },
+  errors: { wanted_not_found: 'Request not found or closed.' },
+  notifications: { types: { wanted_reply: '{from} has what you are looking for: “{title}”' } },
+});
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },
