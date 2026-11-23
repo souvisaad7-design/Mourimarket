@@ -1614,3 +1614,41 @@ describe('bumping a listing to the top', () => {
     await call('/api/admin/settings', { method: 'PUT', token: admin, body: { features: s.features } });
   });
 });
+
+describe('car inspection reports', () => {
+  let seller; let admin; let buyer; let car; let phone; let iid;
+  before(async () => {
+    seller = await login('mohamed@example.mr'); admin = await login('admin@maurimarket.mr', 'Admin12345'); buyer = await login('buyer@example.mr');
+    car = (await pool.query("SELECT p.id FROM products p JOIN categories c ON c.id = p.category_id JOIN users u ON u.id = p.seller_id WHERE c.slug = 'vehicles' AND u.email = 'mohamed@example.mr' AND p.status = 'approved' LIMIT 1")).rows[0].id;
+    phone = (await pool.query("SELECT p.id FROM products p JOIN categories c ON c.id = p.category_id JOIN users u ON u.id = p.seller_id WHERE c.slug <> 'vehicles' AND u.email = 'mohamed@example.mr' AND p.status = 'approved' LIMIT 1")).rows[0]?.id;
+  });
+
+  it('the seller asks for an inspection of a car (only cars, only once at a time)', async () => {
+    assert.equal((await call(`/api/products/${car}/inspection`, { method: 'POST', token: buyer, body: {} })).status, 403);
+    if (phone) assert.equal((await call(`/api/products/${phone}/inspection`, { method: 'POST', token: seller, body: {} })).data.error, 'vehicles_only');
+    const r = await call(`/api/products/${car}/inspection`, { method: 'POST', token: seller, body: { note: 'متاح السبت صباحاً' } });
+    assert.equal(r.status, 201);
+    iid = r.data.inspection.id;
+    assert.equal((await call(`/api/products/${car}/inspection`, { method: 'POST', token: seller, body: {} })).data.error, 'inspection_pending');
+    assert.equal((await call('/api/admin/inspections', { token: seller })).status, 403);
+    assert.ok((await call('/api/admin/inspections', { token: admin })).data.items.some((i) => i.id === iid));
+  });
+
+  it('the admin publishes the report; it shows on the listing', async () => {
+    assert.equal((await call(`/api/products/${car}`)).data.product.inspection, null);
+    const fd = (fields) => { const f = new FormData(); for (const [k, v] of Object.entries(fields)) f.append(k, v); return f; };
+    const missing = await call(`/api/admin/inspections/${iid}`, { method: 'PUT', token: admin, form: fd({ status: 'published', workshop: 'ورشة الأمانة' }) });
+    assert.equal(missing.data.fields.inspectedOn, 'required');
+    const ok = await call(`/api/admin/inspections/${iid}`, { method: 'PUT', token: admin, form: fd({
+      status: 'published', workshop: 'ورشة الأمانة – تفرغ زينة', inspectedOn: '2026-11-20', mileage: '182000', overall: 'good',
+      checklist: JSON.stringify({ engine: 'ok', gearbox: 'ok', brakes: 'attention', tires: 'problem', hacked: 'ok', body: 'weird' }), summary: 'سيارة جيدة، الإطارات تحتاج تغيير.',
+    }) });
+    assert.equal(ok.status, 200, JSON.stringify(ok.data));
+    const ins = (await call(`/api/products/${car}`)).data.product.inspection;
+    assert.equal(ins.overall, 'good');
+    assert.equal(ins.mileage, 182000);
+    assert.deepEqual(ins.checklist, { engine: 'ok', gearbox: 'ok', brakes: 'attention', tires: 'problem' });
+    const n = (await pool.query("SELECT 1 FROM notifications n JOIN users u ON u.id = n.user_id WHERE n.type = 'inspection_published' AND u.email = 'mohamed@example.mr'")).rowCount;
+    assert.equal(n, 1);
+  });
+});

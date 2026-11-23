@@ -13,6 +13,7 @@ import { useSettings } from '../context/SettingsContext.jsx';
 import { OrderDeliveryButton } from './Delivery.jsx';
 import { AttributeTable } from '../components/Attributes.jsx';
 import { taggedUrl, viewSource } from '../lib/viewSource.js';
+import { InspectionReport } from '../components/Inspection.jsx';
 
 function ReportModal({ productId, open, onClose }) {
   const { t } = useI18n();
@@ -182,7 +183,7 @@ function MobileActionBar({ product }) {
       <div className="flex items-center gap-2">
         <p className="me-auto min-w-0 truncate text-lg font-bold text-brand-800"><span className="ltr-nums">{price(product.price)}</span></p>
         {phone && <a href={`tel:${phone}`} className="btn-outline px-3" aria-label={t('product.call')}><Icon name="phone" className="h-5 w-5" /></a>}
-        {delivery && <Link to={user ? `/checkout/${product.id}` : '/login'} state={user ? undefined : { from: `/checkout/${product.id}` }} className="btn-accent px-3" aria-label={t('delivery.cta.button')}><span aria-hidden="true">🛵</span><span className="hidden min-[400px]:inline">{t('delivery.cta.short')}</span></Link>}
+        {delivery && <Link to={user ? `/checkout/${product.id}` : '/login'} state={user ? undefined : { from: `/checkout/${product.id}` }} className="btn-accent px-3" aria-label={t('delivery.cta.button')}><span aria-hidden="true">🛵</span><span className="hidden min-[480px]:inline">{t('delivery.cta.short')}</span></Link>}
         <button type="button" onClick={message} className="btn-primary"><Icon name="chat" className="h-4 w-4" />{delivery ? <span className="hidden min-[400px]:inline">{t('product.contactSeller')}</span> : t('product.contactSeller')}</button>
       </div>
     </div>
@@ -225,6 +226,7 @@ export default function ProductDetail() {
         <div className="space-y-6">
           <Gallery images={product.images} title={product.title}
             badge={product.is_featured && <span className="badge gap-1 bg-gold-400 text-ink shadow"><Icon name="star" filled className="h-3 w-3" />{t('common.featured')}</span>} />
+          <InspectionReport inspection={product.inspection} />
           {product.video_url && (
             <section className="card overflow-hidden p-0" aria-label={t('video.title')}>
               <video src={product.video_url} controls playsInline preload="metadata" className="max-h-[70vh] w-full bg-black" />

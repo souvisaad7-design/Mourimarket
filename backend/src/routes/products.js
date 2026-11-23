@@ -3,6 +3,7 @@ import { limiter } from '../lib/rateLimit.js';
 import { onApproved } from '../lib/alerts.js';
 import { attrFilters, validateAttrs } from '../lib/attributes.js';
 import { recordView } from './stats.js';
+import { publishedInspection } from './inspections.js';
 import { deleteVideo, ownVideoUrl, videoEnabled, videoUploadToken, VIDEO_TYPES } from '../lib/video.js';
 import { requireVerifiedPhone } from '../middleware/phone.js';
 import { z } from 'zod';
@@ -259,6 +260,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
 
 
   product.images = images.rows;
+  product.inspection = await publishedInspection(id);
   product.is_favorite = fav.rowCount > 0;
   product.review = review.rows[0] || null;
   product.can_review = Boolean(req.user && product.sold_to_id === req.user.id && !review.rows[0]);

@@ -36,6 +36,7 @@ router.get('/stats', async (_req, res) => {
       (SELECT COUNT(*) FROM users WHERE is_verified) AS verified_users,
       (SELECT COUNT(*) FROM upgrade_requests WHERE status = 'pending') AS pending_upgrades,
       (SELECT COUNT(*) FROM users WHERE merchant_status = 'pending') AS pending_merchants,
+      (SELECT COUNT(*) FROM inspections WHERE status IN ('requested', 'scheduled')) AS pending_inspections,
       (SELECT COUNT(*) FROM orders WHERE status NOT IN ('delivered', 'cancelled')) AS open_orders,
       (SELECT COUNT(*) FROM orders WHERE status = 'pending') AS pending_orders,
       (SELECT COUNT(*) FROM orders WHERE status = 'delivered') AS delivered_orders,

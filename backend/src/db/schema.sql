@@ -647,3 +647,25 @@ CREATE UNIQUE INDEX IF NOT EXISTS upgrade_requests_one_pending_bump ON upgrade_r
 ALTER TABLE upgrade_requests DROP CONSTRAINT IF EXISTS upgrade_requests_check;
 ALTER TABLE upgrade_requests DROP CONSTRAINT IF EXISTS upgrade_requests_target_check;
 ALTER TABLE upgrade_requests ADD CONSTRAINT upgrade_requests_target_check CHECK (kind = 'verify' OR (kind = 'bump' AND product_id IS NOT NULL) OR (product_id IS NOT NULL AND days IS NOT NULL));
+
+-- ---------- Car inspection reports (partner workshop) ----------
+CREATE TABLE IF NOT EXISTS inspections (
+  id              SERIAL PRIMARY KEY,
+  product_id      INT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  requested_by    INT REFERENCES users(id) ON DELETE SET NULL,
+  status          TEXT NOT NULL DEFAULT 'requested' CHECK (status IN ('requested', 'scheduled', 'published', 'cancelled')),
+  workshop        VARCHAR(120),
+  inspected_on    DATE,
+  mileage         INT,
+  overall         TEXT CHECK (overall IS NULL OR overall IN ('excellent', 'good', 'fair', 'poor')),
+  checklist       JSONB NOT NULL DEFAULT '{}'::jsonb,
+  summary         VARCHAR(2000),
+  report_file_id  INT REFERENCES files(id) ON DELETE SET NULL,
+  admin_note      VARCHAR(500),
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS inspections_product_idx ON inspections (product_id);
+CREATE INDEX IF NOT EXISTS inspections_status_idx ON inspections (status, created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS inspections_one_open ON inspections (product_id) WHERE status IN ('requested', 'scheduled');
+ALTER TABLE inspections ENABLE ROW LEVEL SECURITY;

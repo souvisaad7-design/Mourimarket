@@ -9,6 +9,7 @@ import BecomeSeller from '../components/BecomeSeller.jsx';
 import ProfileCard from '../components/ProfileCard.jsx';
 import MerchantStatus from '../components/MerchantStatus.jsx';
 import { UpgradeModal, UpgradePanel, isFeaturable } from '../components/Upgrades.jsx';
+import { InspectionButton } from '../components/Inspection.jsx';
 
 function SoldModal({ product, onClose, onDone }) {
   const { t } = useI18n();
@@ -158,6 +159,7 @@ function SellerDashboard() {
                 {isFeaturable(p) && (
                   <button className="btn-outline border-brand-300 px-3 py-2 text-xs text-brand-800" onClick={() => bump(p)} title={t('bump.hint', { n: meta.freeBumpDays || 7 })}>⬆ {t('bump.cta')}</button>
                 )}
+                <InspectionButton product={p} />
                 <Link to={`/products/${p.id}/edit`} className="btn-outline px-3 py-2 text-xs"><Icon name="edit" className="h-4 w-4" />{t('common.edit')}</Link>
                 <button className="btn-ghost px-3 py-2 text-xs text-rose-600" onClick={() => remove(p)}><Icon name="trash" className="h-4 w-4" />{t('common.delete')}</button>
               </div>

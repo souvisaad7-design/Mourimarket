@@ -45,6 +45,7 @@ import SellerStats from './pages/SellerStats.jsx';
 const adminDelivery = () => import('./pages/admin/AdminDelivery.jsx');
 const [AdminOrders, AdminCouriers] = ['AdminOrders', 'AdminCouriers'].map((n) => lazyNamed(adminDelivery, n));
 const AdminDeliveryPricing = lazyNamed(adminSite, 'AdminDeliveryPricing');
+const AdminInspections = lazyNamed(() => import('./pages/admin/AdminInspections.jsx'), 'AdminInspections');
 
 function RequireAuth({ children, admin = false }) {
   const { user, ready } = useApp();
@@ -155,6 +156,7 @@ export default function App() {
         <Route path="orders" element={<AdminOrders />} />
         <Route path="couriers" element={<AdminCouriers />} />
         <Route path="delivery" element={<AdminDeliveryPricing />} />
+        <Route path="inspections" element={<AdminInspections />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
         <Route path="stores" element={<AdminStores />} />
       </Route>

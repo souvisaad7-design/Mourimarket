@@ -1852,6 +1852,59 @@ deepMerge(en, {
   errors: { bump_too_soon: 'Bumped recently.' },
 });
 
+// ---------- v32: car inspection reports ----------
+deepMerge(ar, {
+  admin: { inspections: 'فحص السيارات' },
+  inspection: {
+    title: 'تقرير فحص السيارة', ask: 'اطلب فحصاً', askText: 'ستتواصل معك الإدارة لتحديد موعد مع الورشة الشريكة. بعد الفحص يظهر التقرير في إعلانك مع علامة «مفحوصة».',
+    availability: 'متى تكون متاحاً؟', availabilityPh: 'مثال: السبت صباحاً في تفرغ زينة', send: 'أرسل الطلب', requested: 'وصل طلب الفحص، سنتواصل معك قريباً',
+    original: 'صورة التقرير الأصلي', disclaimer: 'التقرير من الورشة الشريكة بتاريخ الفحص، وقد تتغير حالة السيارة بعده.',
+    overall: { excellent: 'ممتازة', good: 'جيدة', fair: 'مقبولة', poor: 'ضعيفة' }, overallLabel: 'التقييم العام',
+    values: { ok: 'سليم', attention: 'يحتاج انتباهاً', problem: 'عطل' },
+    items: { engine: 'المحرك', gearbox: 'ناقل الحركة', brakes: 'المكابح', suspension: 'نظام التعليق', steering: 'التوجيه', body: 'الهيكل والطلاء', electrical: 'الكهرباء', ac: 'المكيّف', tires: 'الإطارات', interior: 'المقصورة' },
+    adminTitle: 'فحص السيارات', adminHint: 'طلبات فحص من البائعين: نسّق مع الورشة، ثم أدخل نتيجة الفحص وانشرها في الإعلان.', none: 'لا توجد طلبات فحص.',
+    status: { requested: 'طلب جديد', scheduled: 'موعد محدد', published: 'منشور', cancelled: 'ملغى' }, enterReport: 'إدخال التقرير',
+    workshop: 'الورشة', date: 'تاريخ الفحص', mileage: 'العداد عند الفحص (كم)', checklist: 'نقاط الفحص', summary: 'ملاحظات الفاحص', reportPhoto: 'صورة التقرير الورقي',
+    publish: 'نشر التقرير', schedule: 'تم تحديد موعد', cancel: 'إلغاء الطلب',
+  },
+  errors: { vehicles_only: 'الفحص متاح لإعلانات السيارات فقط.', inspection_pending: 'لديك طلب فحص قيد المعالجة لهذا الإعلان.' },
+  notifications: { types: { inspection_request: '{name} يطلب فحص سيارته «{title}»', inspection_published: 'نُشر تقرير فحص سيارتك «{title}» ✅', inspection_cancelled: 'أُلغي طلب فحص «{title}»' } },
+});
+deepMerge(fr, {
+  admin: { inspections: 'Inspections auto' },
+  inspection: {
+    title: 'Rapport d’inspection', ask: 'Demander une inspection', askText: 'L’équipe vous contactera pour fixer un rendez-vous au garage partenaire. Le rapport apparaîtra ensuite sur l’annonce avec le badge « Inspectée ».',
+    availability: 'Quand êtes-vous disponible ?', availabilityPh: 'Ex. : samedi matin à Tevragh Zeina', send: 'Envoyer la demande', requested: 'Demande reçue, nous vous contactons bientôt',
+    original: 'Photo du rapport original', disclaimer: 'Rapport du garage partenaire à la date de l’inspection ; l’état peut changer ensuite.',
+    overall: { excellent: 'Excellent', good: 'Bon', fair: 'Correct', poor: 'Médiocre' }, overallLabel: 'Note globale',
+    values: { ok: 'OK', attention: 'À surveiller', problem: 'Défaut' },
+    items: { engine: 'Moteur', gearbox: 'Boîte de vitesses', brakes: 'Freins', suspension: 'Suspension', steering: 'Direction', body: 'Carrosserie', electrical: 'Électricité', ac: 'Climatisation', tires: 'Pneus', interior: 'Intérieur' },
+    adminTitle: 'Inspections auto', adminHint: 'Demandes des vendeurs : organisez le rendez-vous avec le garage, puis saisissez et publiez le rapport.', none: 'Aucune demande.',
+    status: { requested: 'Nouvelle', scheduled: 'RDV fixé', published: 'Publiée', cancelled: 'Annulée' }, enterReport: 'Saisir le rapport',
+    workshop: 'Garage', date: 'Date', mileage: 'Compteur (km)', checklist: 'Points de contrôle', summary: 'Remarques', reportPhoto: 'Photo du rapport papier',
+    publish: 'Publier le rapport', schedule: 'RDV fixé', cancel: 'Annuler',
+  },
+  errors: { vehicles_only: 'Réservé aux annonces de véhicules.', inspection_pending: 'Une demande est déjà en cours pour cette annonce.' },
+  notifications: { types: { inspection_request: '{name} demande l’inspection de « {title} »', inspection_published: 'Rapport d’inspection publié pour « {title} » ✅', inspection_cancelled: 'Inspection de « {title} » annulée' } },
+});
+deepMerge(en, {
+  admin: { inspections: 'Car inspections' },
+  inspection: {
+    title: 'Inspection report', ask: 'Ask for an inspection', askText: 'The team will contact you to book the partner workshop. The report then appears on your listing with an “Inspected” badge.',
+    availability: 'When are you available?', availabilityPh: 'e.g. Saturday morning in Tevragh Zeina', send: 'Send request', requested: 'Request received, we will contact you soon',
+    original: 'Photo of the original report', disclaimer: 'Report by the partner workshop on the inspection date; the car may change afterwards.',
+    overall: { excellent: 'Excellent', good: 'Good', fair: 'Fair', poor: 'Poor' }, overallLabel: 'Overall rating',
+    values: { ok: 'OK', attention: 'Needs attention', problem: 'Fault' },
+    items: { engine: 'Engine', gearbox: 'Transmission', brakes: 'Brakes', suspension: 'Suspension', steering: 'Steering', body: 'Body & paint', electrical: 'Electrics', ac: 'Air conditioning', tires: 'Tyres', interior: 'Interior' },
+    adminTitle: 'Car inspections', adminHint: 'Requests from sellers: book the workshop, then enter and publish the report on the listing.', none: 'No inspection requests.',
+    status: { requested: 'New', scheduled: 'Booked', published: 'Published', cancelled: 'Cancelled' }, enterReport: 'Enter report',
+    workshop: 'Workshop', date: 'Inspection date', mileage: 'Odometer (km)', checklist: 'Checkpoints', summary: 'Inspector’s notes', reportPhoto: 'Photo of the paper report',
+    publish: 'Publish report', schedule: 'Booked', cancel: 'Cancel request',
+  },
+  errors: { vehicles_only: 'Inspections are for car listings only.', inspection_pending: 'There is already an open request for this listing.' },
+  notifications: { types: { inspection_request: '{name} asks to inspect “{title}”', inspection_published: 'Inspection report published for “{title}” ✅', inspection_cancelled: 'Inspection of “{title}” cancelled' } },
+});
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },
