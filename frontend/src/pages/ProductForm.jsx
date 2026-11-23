@@ -8,6 +8,7 @@ import { compressImage, formatBytes } from '../lib/image.js';
 import MapView, { MAURITANIA } from '../components/MapView.jsx';
 import { useGeo } from '../context/LocationContext.jsx';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
+import { AttributeFields } from '../components/Attributes.jsx';
 
 const MAX_IMAGES = 8;
 
@@ -24,6 +25,7 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
   const [form, setForm] = useState({ title: '', description: '', price: '', oldPrice: '', categoryId: '', city: user.city || '', condition: 'used' });
   // Where the item is: optional pin, moughataa and neighbourhood (see the "Location" section).
   const [loc, setLoc] = useState({ lat: null, lng: null, area: '', district: '', locExact: false });
+  const [attrs, setAttrs] = useState({});
   const [existing, setExisting] = useState([]);
   const [removeIds, setRemoveIds] = useState([]);
   // New photos: { key, file, originalSize, status: 'processing' | 'ready' | 'error' }.
@@ -43,6 +45,7 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
         oldPrice: product.old_price ? String(product.old_price) : '',
         categoryId: String(product.category_id), city: product.city, condition: product.condition,
       });
+      setAttrs(product.attrs || {});
       setLoc({ lat: product.pin_lat ?? null, lng: product.pin_lng ?? null, area: product.area || '', district: product.district || '', locExact: Boolean(product.loc_exact) });
       setExisting(product.images);
     }).catch(setError).finally(() => setLoading(false));
@@ -88,6 +91,7 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
       fd.append('lat', loc.lat ?? ''); fd.append('lng', loc.lng ?? '');
       fd.append('area', loc.area); fd.append('district', loc.district); fd.append('locExact', loc.locExact ? 'true' : 'false');
+      fd.append('attrs', JSON.stringify(attrs));
       if (sellerId) fd.append('sellerId', String(sellerId));
       removeIds.forEach((rid) => fd.append('removeImageIds', rid));
       for (const item of ready) fd.append('images', item.file);
@@ -205,6 +209,7 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
               </div>
             </Field>
           </div>
+          <AttributeFields categorySlug={categories.find((c) => String(c.id) === String(form.categoryId))?.slug} value={attrs} onChange={setAttrs} fieldError={fieldError} />
           <Field label={t('form.description')} error={fieldError('description')}>
             <textarea className="input" rows={6} maxLength={5000} placeholder={t('form.descriptionPh')} value={form.description} onChange={set('description')} required />
           </Field>

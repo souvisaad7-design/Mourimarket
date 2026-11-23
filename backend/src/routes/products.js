@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { limiter } from '../lib/rateLimit.js';
 import { onApproved } from '../lib/alerts.js';
+import { attrFilters, validateAttrs } from '../lib/attributes.js';
 import { requireVerifiedPhone } from '../middleware/phone.js';
 import { z } from 'zod';
 import { config } from '../config.js';
@@ -19,7 +20,7 @@ const router = Router();
 // Shared SELECT for product cards / detail.
 export const PRODUCT_SELECT = `
   p.id, p.title, p.price, p.old_price, p.city, p.condition, p.status, p.availability, p.views,
-  p.created_at, p.updated_at, p.category_id, p.seller_id, p.store_id,
+  p.created_at, p.updated_at, p.category_id, p.seller_id, p.store_id, p.attrs,
   c.slug AS category_slug, c.name_ar AS category_name_ar, c.name_fr AS category_name_fr, c.name_en AS category_name_en,
   (SELECT url FROM product_images i WHERE i.product_id = p.id ORDER BY sort_order, id LIMIT 1) AS cover_url,
   u.name AS seller_name, u.is_verified AS seller_verified, s.name AS store_name, s.slug AS store_slug,
@@ -100,7 +101,7 @@ router.get('/', optionalAuth, async (req, res) => {
   }
   if (f.featured) where.push('p.featured_until > now()');
   if (f.deals) where.push('p.old_price > p.price');
-  if (f.category) add('c.slug = ?', f.category);
+  if (f.category) { add('c.slug = ?', f.category); attrFilters(f.category, req.query, add); }
   if (f.city) add('p.city = ?', f.city);
   if (f.minPrice !== undefined) add('p.price >= ?', f.minPrice);
   if (f.maxPrice !== undefined) add('p.price <= ?', f.maxPrice);
@@ -277,8 +278,9 @@ async function storeIdFor(userId, client) {
 }
 
 async function assertCategory(id, client) {
-  const { rowCount } = await client.query('SELECT 1 FROM categories WHERE id = $1', [id]);
-  if (!rowCount) throw badRequest('validation_error', { categoryId: 'required' });
+  const { rows } = await client.query('SELECT slug FROM categories WHERE id = $1', [id]);
+  if (!rows[0]) throw badRequest('validation_error', { categoryId: 'required' });
+  return rows[0].slug;
 }
 
 /** POST /api/products – create a listing (multipart, field "images"). */
@@ -302,14 +304,14 @@ router.post('/', requireAuth, requireVerifiedPhone, postLimiter, upload.array('i
   if (!files.length) throw badRequest('validation_error', { images: 'image_required' });
   const status = isAdmin || (await getSettings()).features.autoApprove ? 'approved' : 'pending';
   const product = await tx(async (client) => {
-    await assertCategory(data.categoryId, client);
+    const attrs = validateAttrs(await assertCategory(data.categoryId, client), req.body.attrs);
     const storeId = await storeIdFor(sellerId, client);
     const { rows } = await client.query(
       `INSERT INTO products (seller_id, category_id, store_id, title, description, price, old_price, city, condition, status,
-         lat, lng, area, district, loc_exact)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id, status, seller_id`,
+         lat, lng, area, district, loc_exact, attrs)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id, status, seller_id`,
       [sellerId, data.categoryId, storeId, data.title, data.description, data.price, data.oldPrice ?? null, data.city, data.condition, status,
-        data.lat, data.lng, data.area, data.district, data.locExact],
+        data.lat, data.lng, data.area, data.district, data.locExact, attrs],
     );
     for (const [i, file] of files.entries()) {
       await client.query('INSERT INTO product_images (product_id, url, sort_order) VALUES ($1, $2, $3)', [
@@ -336,7 +338,7 @@ router.put('/:id', requireAuth, upload.array('images', MAX_IMAGES), async (req, 
     .filter(Boolean);
 
   const removed = await tx(async (client) => {
-    await assertCategory(data.categoryId, client);
+    const attrs = validateAttrs(await assertCategory(data.categoryId, client), req.body.attrs);
     const del = await client.query(
       'DELETE FROM product_images WHERE product_id = $1 AND id = ANY($2::int[]) RETURNING url',
       [product.id, removeIds],
@@ -357,11 +359,11 @@ router.put('/:id', requireAuth, upload.array('images', MAX_IMAGES), async (req, 
       `UPDATE products SET title = $1, description = $2, price = $3, category_id = $4, city = $5, condition = $6,
          status = CASE WHEN $7 THEN status ELSE 'pending' END,
          rejection_reason = CASE WHEN $7 THEN rejection_reason ELSE NULL END,
-         old_price = $9, lat = $10, lng = $11, area = $12, district = $13, loc_exact = $14,
+         old_price = $9, lat = $10, lng = $11, area = $12, district = $13, loc_exact = $14, attrs = $15,
          updated_at = now()
        WHERE id = $8`,
       [data.title, data.description, data.price, data.categoryId, data.city, data.condition, keepApproved, product.id, data.oldPrice ?? null,
-        data.lat, data.lng, data.area, data.district, data.locExact],
+        data.lat, data.lng, data.area, data.district, data.locExact, attrs],
     );
     return del.rows.map((r) => r.url);
   });

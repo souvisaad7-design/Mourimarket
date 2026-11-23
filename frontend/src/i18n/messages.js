@@ -1728,6 +1728,32 @@ deepMerge(en, {
   } },
 });
 
+// ---------- v27: category details (cars, real estate, phones, computers) ----------
+deepMerge(ar, { fields: { invalid: 'قيمة غير صالحة', out_of_range: 'القيمة خارج المجال المسموح' } });
+deepMerge(fr, { fields: { invalid: 'Valeur invalide', out_of_range: 'Valeur hors limites' } });
+deepMerge(en, { fields: { invalid: 'Invalid value', out_of_range: 'Value out of range' } });
+deepMerge(ar, { attrs: {
+  details: 'تفاصيل إضافية', any: 'الكل', min: 'من', max: 'إلى', upTo: 'حتى',
+  brand: 'الماركة', model: 'الموديل', year: 'سنة الصنع', mileage: 'الكيلومترات', gearbox: 'ناقل الحركة', fuel: 'الوقود',
+  deal: 'نوع العرض', propertyType: 'نوع العقار', rooms: 'عدد الغرف', surface: 'المساحة', storage: 'السعة', ram: 'الذاكرة (RAM)',
+  opts: { other: 'أخرى', gearbox: { manual: 'عادي', automatic: 'أوتوماتيك' }, fuel: { diesel: 'ديزل', petrol: 'بنزين', hybrid: 'هجين', electric: 'كهربائي' },
+    deal: { sale: 'للبيع', rent: 'للإيجار' }, propertyType: { house: 'منزل', apartment: 'شقة', land: 'قطعة أرضية', shop: 'محل تجاري', office: 'مكتب', room: 'غرفة' } },
+} });
+deepMerge(fr, { attrs: {
+  details: 'Détails', any: 'Tous', min: 'Min', max: 'Max', upTo: 'Jusqu’à',
+  brand: 'Marque', model: 'Modèle', year: 'Année', mileage: 'Kilométrage', gearbox: 'Boîte de vitesses', fuel: 'Carburant',
+  deal: 'Type d’offre', propertyType: 'Type de bien', rooms: 'Pièces', surface: 'Surface', storage: 'Stockage', ram: 'Mémoire (RAM)',
+  opts: { other: 'Autre', gearbox: { manual: 'Manuelle', automatic: 'Automatique' }, fuel: { diesel: 'Diesel', petrol: 'Essence', hybrid: 'Hybride', electric: 'Électrique' },
+    deal: { sale: 'À vendre', rent: 'À louer' }, propertyType: { house: 'Maison', apartment: 'Appartement', land: 'Terrain', shop: 'Local commercial', office: 'Bureau', room: 'Chambre' } },
+} });
+deepMerge(en, { attrs: {
+  details: 'Details', any: 'Any', min: 'Min', max: 'Max', upTo: 'Up to',
+  brand: 'Make / brand', model: 'Model', year: 'Year', mileage: 'Mileage', gearbox: 'Transmission', fuel: 'Fuel',
+  deal: 'Offer type', propertyType: 'Property type', rooms: 'Rooms', surface: 'Area', storage: 'Storage', ram: 'Memory (RAM)',
+  opts: { other: 'Other', gearbox: { manual: 'Manual', automatic: 'Automatic' }, fuel: { diesel: 'Diesel', petrol: 'Petrol', hybrid: 'Hybrid', electric: 'Electric' },
+    deal: { sale: 'For sale', rent: 'For rent' }, propertyType: { house: 'House', apartment: 'Apartment', land: 'Land', shop: 'Shop', office: 'Office', room: 'Room' } },
+} });
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },

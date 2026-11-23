@@ -601,3 +601,7 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS file_id INT REFERENCES files(id) ON DELETE SET NULL;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS duration SMALLINT;
 CREATE INDEX IF NOT EXISTS idx_messages_file ON messages(file_id) WHERE file_id IS NOT NULL;
+
+-- ---------- Category-specific details (car make, year, mileage; rooms, area…) ----------
+ALTER TABLE products ADD COLUMN IF NOT EXISTS attrs JSONB NOT NULL DEFAULT '{}'::jsonb;
+CREATE INDEX IF NOT EXISTS idx_products_attrs ON products USING gin (attrs);

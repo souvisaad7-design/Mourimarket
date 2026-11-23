@@ -9,6 +9,7 @@ import LocationBar from '../components/LocationBar.jsx';
 import MapView, { MAURITANIA } from '../components/MapView.jsx';
 import { useGeo } from '../context/LocationContext.jsx';
 import { SaveSearchButton } from './SavedSearches.jsx';
+import { AttributeFilters } from '../components/Attributes.jsx';
 
 // `near` is the radius in km around the visitor; their position itself never goes in the URL.
 const FILTER_KEYS = ['q', 'category', 'city', 'minPrice', 'maxPrice', 'condition', 'sort', 'availability', 'featured', 'deals', 'near', 'view', 'page'];
@@ -21,15 +22,20 @@ export default function Products() {
   const [params, setParams] = useSearchParams();
   const [showFilters, setShowFilters] = useState(false);
 
-  const current = Object.fromEntries(FILTER_KEYS.map((k) => [k, params.get(k) || '']));
+  // Category details filters live in the URL too: a.brand, a.year.min, a.mileage.max …
+  const readParams = () => ({
+    ...Object.fromEntries(FILTER_KEYS.map((k) => [k, params.get(k) || ''])),
+    ...Object.fromEntries([...params.keys()].filter((k) => k.startsWith('a.')).map((k) => [k, params.get(k) || ''])),
+  });
+  const current = readParams();
   const [draft, setDraft] = useState(current);
-  useEffect(() => { setDraft(Object.fromEntries(FILTER_KEYS.map((k) => [k, params.get(k) || '']))); }, [params]);
+  useEffect(() => { setDraft(readParams()); }, [params]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { query: here } = useGeo();
   const near = here ? current.near : '';
   const mapView = current.view === 'map';
   const apiParams = new URLSearchParams({ limit: mapView ? '60' : '24' });
-  for (const k of FILTER_KEYS) if (current[k] && !['near', 'view'].includes(k)) apiParams.set(k, current[k]);
+  for (const k of Object.keys(current)) if (current[k] && !['near', 'view'].includes(k)) apiParams.set(k, current[k]);
   if (here) { apiParams.set('lat', here.lat); apiParams.set('lng', here.lng); }
   if (near) {
     apiParams.set('radius', near);
@@ -69,7 +75,7 @@ export default function Products() {
       </div>
       <div>
         <label className="label" htmlFor="f-cat">{t('products.category')}</label>
-        <select id="f-cat" className="input" value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })}>
+        <select id="f-cat" className="input" value={draft.category} onChange={(e) => setDraft({ ...Object.fromEntries(Object.entries(draft).map(([k, v]) => [k, k.startsWith('a.') ? '' : v])), category: e.target.value })}>
           <option value="">{t('common.allCategories')}</option>
           {categories.map((c) => <option key={c.id} value={c.slug}>{tl(c)}</option>)}
         </select>
@@ -93,6 +99,7 @@ export default function Products() {
           <option value="used">{t('common.used')}</option>
         </select>
       </div>
+      <AttributeFilters categorySlug={draft.category} values={draft} onChange={(patch) => setDraft({ ...draft, ...patch })} />
       <label className="flex items-center gap-2 text-sm text-slate-700">
         <input type="checkbox" className="h-4 w-4 rounded accent-brand-700" checked={draft.availability === 'all'} onChange={(e) => setDraft({ ...draft, availability: e.target.checked ? 'all' : '' })} />
         {t('products.includeSold')}

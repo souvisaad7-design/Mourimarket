@@ -1408,3 +1408,45 @@ describe('chat: price offers, photos and voice notes', () => {
     assert.equal(list.last_kind, 'audio');
   });
 });
+
+describe('category details and filters', () => {
+  let seller; let admin; let vehicles; let realEstate;
+  const post = async (fields, attrs) => {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries({ description: 'بحالة ممتازة ونظيفة جداً', condition: 'used', city: 'nouakchott', ...fields })) fd.append(k, String(v));
+    fd.append('attrs', JSON.stringify(attrs));
+    fd.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+    return call('/api/products', { method: 'POST', token: admin, form: fd });
+  };
+  before(async () => {
+    seller = await login('mohamed@example.mr'); admin = await login('admin@maurimarket.mr', 'Admin12345');
+    const cats = (await call('/api/categories')).data.items;
+    vehicles = cats.find((c) => c.slug === 'vehicles').id; realEstate = cats.find((c) => c.slug === 'real-estate').id;
+  });
+
+  it('saves the details of the category, refuses bad values, drops others', async () => {
+    const ok = await post({ title: 'تويوتا لاندكروزر', price: 2500000, categoryId: vehicles }, { brand: 'toyota', model: 'Land Cruiser', year: '2017', mileage: '180,000', gearbox: 'automatic', fuel: 'diesel', rooms: 4 });
+    assert.equal(ok.status, 201, JSON.stringify(ok.data));
+    const p = (await call(`/api/products/${ok.data.product.id}`)).data.product;
+    assert.deepEqual(p.attrs, { brand: 'toyota', model: 'Land Cruiser', year: 2017, mileage: 180000, gearbox: 'automatic', fuel: 'diesel' });
+    assert.equal((await post({ title: 'سيارة', price: 1, categoryId: vehicles }, { brand: 'ferrari-x' })).data.fields['attrs.brand'], 'invalid');
+    assert.equal((await post({ title: 'سيارة', price: 1, categoryId: vehicles }, { year: '1800' })).data.fields['attrs.year'], 'out_of_range');
+    assert.equal((await post({ title: 'سيارة', price: 1, categoryId: vehicles }, { mileage: 'كثير' })).data.fields['attrs.mileage'], 'invalid_number');
+  });
+
+  it('filters by make, year range, mileage, deal type and rooms', async () => {
+    await post({ title: 'هيونداي توسان', price: 900000, categoryId: vehicles }, { brand: 'hyundai', year: 2012, mileage: 250000, gearbox: 'manual' });
+    await post({ title: 'تويوتا كورولا', price: 700000, categoryId: vehicles }, { brand: 'toyota', year: 2010, mileage: 300000, gearbox: 'manual' });
+    await post({ title: 'شقة للإيجار في تفرغ زينة', price: 60000, categoryId: realEstate }, { deal: 'rent', propertyType: 'apartment', rooms: 3, surface: 120 });
+    await post({ title: 'منزل للبيع', price: 15000000, categoryId: realEstate }, { deal: 'sale', propertyType: 'house', rooms: 6, surface: 400 });
+    const q = async (s) => (await call(`/api/products?${s}`)).data.items.map((p) => p.title).sort();
+    assert.deepEqual(await q('category=vehicles&a.brand=toyota'), ['تويوتا كورولا', 'تويوتا لاندكروزر']);
+    assert.deepEqual(await q('category=vehicles&a.brand=toyota&a.year.min=2015'), ['تويوتا لاندكروزر']);
+    assert.deepEqual(await q('category=vehicles&a.mileage.max=260000'), ['تويوتا لاندكروزر', 'هيونداي توسان']);
+    assert.deepEqual(await q('category=vehicles&a.gearbox=manual&a.year.max=2011'), ['تويوتا كورولا']);
+    assert.deepEqual(await q('category=real-estate&a.deal=rent'), ['شقة للإيجار في تفرغ زينة']);
+    assert.deepEqual(await q('category=real-estate&a.rooms.min=4'), ['منزل للبيع']);
+    // unknown keys and bad values are ignored, never put in SQL
+    assert.equal((await call("/api/products?category=vehicles&a.brand=x'--&a.year.min=1;drop&a.evil=1")).status, 200);
+  });
+});

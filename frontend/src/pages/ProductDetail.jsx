@@ -11,6 +11,7 @@ import { useGeo } from '../context/LocationContext.jsx';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
 import { useSettings } from '../context/SettingsContext.jsx';
 import { OrderDeliveryButton } from './Delivery.jsx';
+import { AttributeTable } from '../components/Attributes.jsx';
 
 function ReportModal({ productId, open, onClose }) {
   const { t } = useI18n();
@@ -231,6 +232,7 @@ export default function ProductDetail() {
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-4">
               <div><dt className="text-slate-500">{t('product.category')}</dt><dd className="font-medium">{tl(category)}</dd></div>
               <div><dt className="text-slate-500">{t('products.condition')}</dt><dd className="font-medium">{t(`common.${product.condition}`)}</dd></div>
+              <AttributeTable categorySlug={product.category_slug} attrs={product.attrs} />
               <div><dt className="text-slate-500">{t('product.location')}</dt><dd className="font-medium">{cityName(meta.cities, product.city)}</dd></div>
               <div><dt className="text-slate-500">{t('product.postedOn')}</dt><dd className="font-medium">{date(product.created_at)}</dd></div>
             </dl>

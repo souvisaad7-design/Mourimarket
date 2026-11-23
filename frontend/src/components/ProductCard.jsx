@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
 import { Icon, VerifiedBadge, useCityName } from './ui.jsx';
+import { useAttrSummary } from './Attributes.jsx';
 
 export function FavoriteButton({ product, className = '', onChange }) {
   const { user, notify } = useApp();
@@ -54,6 +55,7 @@ export default function ProductCard({ product, onFavoriteChange }) {
   const { t, price, ago, number } = useI18n();
   const { meta } = useApp();
   const cityName = useCityName();
+  const summary = useAttrSummary();
   const sold = product.availability === 'sold';
   const off = discountPercent(product);
 
@@ -76,6 +78,7 @@ export default function ProductCard({ product, onFavoriteChange }) {
       </div>
       <div className="flex flex-1 flex-col gap-1 p-3.5 text-center">
         <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-snug text-slate-900">{product.title}</h3>
+        {summary(product) && <p className="mt-0.5 truncate text-[11px] font-semibold text-brand-700">{summary(product)}</p>}
         <p className="mt-1 text-lg font-bold text-brand-700"><span className="ltr-nums">{price(product.price)}</span></p>
         {off > 0 && <p className="-mt-1 text-xs text-slate-400 line-through"><span className="ltr-nums">{price(product.old_price)}</span></p>}
         <div className="mt-1 flex items-center justify-center gap-3 text-xs text-slate-500">
