@@ -1182,7 +1182,7 @@ describe('link previews and search engines', () => {
 
 describe('web push', () => {
   let buyer; let seller; let sent = [];
-  const sub = (n, lang = 'fr') => ({ endpoint: `https://push.example.test/send/${n}`, keys: { p256dh: 'B'.repeat(87), auth: 'A'.repeat(22) }, lang });
+  const sub = (n, lang = 'fr') => ({ endpoint: `https://fcm.googleapis.com/fcm/send/${n}`, keys: { p256dh: 'B'.repeat(87), auth: 'A'.repeat(22) }, lang });
   before(async () => {
     const { setPushSender } = await import('../src/lib/push.js');
     setPushSender(async (s, body) => {
@@ -1764,5 +1764,27 @@ describe('secure payment (escrow) on delivery orders', () => {
     assert.equal((await pay('refund', { ref: 'REFUND-9' })).data.paymentStatus, 'refunded');
     const list = (await call('/api/admin/escrow', { token: admin })).data;
     assert.ok(list.counts.refunded >= 1 && list.counts.released >= 1);
+  });
+});
+
+describe('security: third round', () => {
+  it('push subscriptions only accept the browsers’ push services', async () => {
+    const tok = await login('buyer@example.mr');
+    const sub = (endpoint) => call('/api/push/subscribe', { method: 'POST', token: tok, body: { endpoint, keys: { p256dh: 'B'.repeat(87), auth: 'A'.repeat(22) } } });
+    for (const bad of ['https://evil.example/x', 'https://169.254.169.254/latest', 'https://fcm.googleapis.com.evil.example/x', 'https://fcm.googleapis.com:8443/x', 'http://fcm.googleapis.com/fcm/send/x']) {
+      assert.equal((await sub(bad)).status, 400, bad);
+    }
+    for (const good of ['https://fcm.googleapis.com/fcm/send/abc', 'https://web.push.apple.com/QAbc', 'https://updates.push.services.mozilla.com/wpush/v2/x']) {
+      assert.equal((await sub(good)).status, 201, good);
+    }
+  });
+
+  it('pages never build links from a forged Host header', async () => {
+    const r = await fetch(`${base}/`, { headers: { 'X-Forwarded-Host': 'evil.example' } });
+    const html = await r.text();
+    assert.ok(!html.includes('evil.example'));
+    assert.match(html, /<link rel="canonical" href="https:\/\/souk-chinguetti\.vercel\.app\/"/);
+    const ok = await (await fetch(`${base}/`)).text();
+    assert.match(ok, /<link rel="canonical" href="http:\/\/localhost:\d+\/"/, 'local development still works');
   });
 });

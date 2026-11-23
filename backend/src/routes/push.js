@@ -14,8 +14,16 @@ router.get('/key', async (_req, res) => {
   res.json({ publicKey: (await vapidKeys()).publicKey });
 });
 
+// The server sends requests to the subscription URL, so only the browsers' own push services are accepted
+// (otherwise anyone could make the server call an address of their choice).
+const PUSH_HOSTS = [/^fcm\.googleapis\.com$/, /^android\.googleapis\.com$/, /^updates\.push\.services\.mozilla\.com$/, /^push\.services\.mozilla\.com$/,
+  /^web\.push\.apple\.com$/, /^[a-z0-9-]+\.push\.apple\.com$/, /^[a-z0-9-]+\.notify\.windows\.com$/];
+export const isPushEndpoint = (u) => {
+  try { const x = new URL(u); return x.protocol === 'https:' && !x.port && PUSH_HOSTS.some((re) => re.test(x.hostname)); } catch { return false; }
+};
+
 const subSchema = z.object({
-  endpoint: z.string().url().max(800).refine((u) => u.startsWith('https://'), 'https'),
+  endpoint: z.string().url().max(800).refine(isPushEndpoint, 'push_service'),
   keys: z.object({ p256dh: z.string().min(20).max(200), auth: z.string().min(8).max(100) }),
   lang: z.enum(['ar', 'fr', 'en']).default('ar'),
 });

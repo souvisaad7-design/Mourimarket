@@ -8,6 +8,7 @@ import { config } from '../config.js';
 import { query } from '../db.js';
 import { getCities } from '../lib/cities.js';
 import { getSettings } from '../lib/settings.js';
+import { limiter } from '../lib/rateLimit.js';
 
 const router = Router();
 
@@ -22,11 +23,23 @@ const clip = (s, n) => { const t = String(s || '').replace(/\s+/g, ' ').trim(); 
 const money = (n) => `${Number(n).toLocaleString('en-US')} MRU`;
 const fileId = (url) => /^\/uploads\/f\/(\d+)$/.exec(url || '')?.[1];
 
-/** https://host of this request (Vercel / proxies set x-forwarded-*). */
+// The site's own domains. Pages are cached, so links are never built from an arbitrary Host header.
+const PRIMARY_HOST = 'souk-chinguetti.vercel.app';
+const extraHosts = () => [process.env.SITE_HOSTS, process.env.CORS_ORIGIN, process.env.VERCEL_PROJECT_PRODUCTION_URL]
+  .filter(Boolean).join(',').split(',').map((h) => h.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '').toLowerCase()).filter(Boolean);
+function allowedHost(host) {
+  if (!host) return false;
+  if (host === PRIMARY_HOST || extraHosts().includes(host)) return true;
+  if (/^(souk-chinguetti|maurimarket)[a-z0-9-]*\.vercel\.app$/.test(host)) return true; // this project's Vercel URLs
+  return !config.isProd && /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host);
+}
+
+/** https://host of this request, if it is one of ours (else the main domain). */
 export function origin(req) {
-  const host = String(req.headers['x-forwarded-host'] || req.headers.host || 'localhost').split(',')[0].trim();
-  const proto = String(req.headers['x-forwarded-proto'] || (host.startsWith('localhost') ? 'http' : 'https')).split(',')[0].trim();
-  return `${proto}://${host}`;
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim().toLowerCase();
+  if (!allowedHost(host)) return `https://${PRIMARY_HOST}`;
+  const local = /^(localhost|127\.0\.0\.1)/.test(host);
+  return `${local ? 'http' : 'https'}://${host}`;
 }
 
 // ---------- The app shell (frontend/dist/app.html, built by Vite) ----------
@@ -248,7 +261,7 @@ router.get('/p/:slug', async (req, res) => {
 
 // ---------- Share images: any public upload, as a 1200×630 JPEG ----------
 
-router.get('/og/img/:file', async (req, res) => {
+router.get('/og/img/:file', limiter('og-image', { windowMs: 60 * 1000, limit: 60 }), async (req, res) => {
   const m = /^(\d{1,10})\.jpg$/.exec(req.params.file);
   if (!m) return res.status(404).end();
   const { rows } = await query('SELECT data FROM files WHERE id = $1 AND NOT is_private', [Number(m[1])]);
