@@ -8,6 +8,7 @@ import { useSettings } from '../context/SettingsContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
+import { EscrowPanel } from '../components/Escrow.jsx';
 
 export const ORDER_STEPS = ['pending', 'accepted', 'preparing', 'picked_up', 'on_the_way', 'delivered'];
 const STATUS_STYLE = {
@@ -72,6 +73,7 @@ export function Checkout() {
   const areas = useApi('/geo/areas');
   const [f, setF] = useState({ city: user?.city || 'nouakchott', area: '', district: '', address: '', phone: (user?.phone || '').replace(/^\+222/, ''), note: '' });
   const [pin, setPin] = useState(null);
+  const [payMethod, setPayMethod] = useState('cod');
   const [quote, setQuote] = useState(null);
   const [quoteErr, setQuoteErr] = useState(null);
   const [locating, setLocating] = useState(false);
@@ -113,7 +115,7 @@ export function Checkout() {
     e.preventDefault();
     setBusy(true); setError(null);
     try {
-      const { order } = await api('/orders', { method: 'POST', body: { ...f, productId: Number(productId), lat: pin?.lat, lng: pin?.lng } });
+      const { order } = await api('/orders', { method: 'POST', body: { ...f, productId: Number(productId), lat: pin?.lat, lng: pin?.lng, paymentMethod: payMethod } });
       notify(t('delivery.checkout.placed'));
       navigate(`/orders/${order.id}`, { replace: true });
     } catch (err) { setError(err); } finally { setBusy(false); }
@@ -184,10 +186,15 @@ export function Checkout() {
               </div>
               <div className="flex justify-between border-t border-dashed border-slate-200 pt-2 text-base"><dt className="font-bold">{t('delivery.cost.total')}</dt><dd className="font-bold text-brand-800 ltr-nums">{quote ? price(quote.total) : '…'}</dd></div>
             </dl>
-            <div className="mx-4 mb-4 flex items-start gap-2 rounded-xl border border-gold-300 bg-gold-300/20 p-3 text-xs text-brand-900">
-              <span aria-hidden="true" className="text-lg">💵</span>
-              <span><strong className="block">{t('delivery.cod.title')}</strong>{t('delivery.cod.text')}</span>
-            </div>
+            <fieldset className="mx-4 mb-4 space-y-2" aria-label={t('escrow.choose')}>
+              {[['cod', '💵', t('delivery.cod.title'), t('delivery.cod.text')], ...(settings.delivery?.escrow ? [['escrow', '🔒', t('escrow.title'), t('escrow.checkoutText')]] : [])].map(([k, icon, title, text]) => (
+                <label key={k} className={`flex cursor-pointer items-start gap-2 rounded-xl border-2 p-3 text-xs text-brand-900 ${payMethod === k ? 'border-gold-400 bg-gold-300/20' : 'border-slate-200'}`}>
+                  <input type="radio" name="pay" className="mt-1" checked={payMethod === k} onChange={() => setPayMethod(k)} />
+                  <span aria-hidden="true" className="text-lg">{icon}</span>
+                  <span><strong className="block">{title}</strong>{text}</span>
+                </label>
+              ))}
+            </fieldset>
           </section>
           {quote && !quote.deliverable && <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{t('errors.too_far')}</p>}
           <ErrorBox error={quoteErr} />
@@ -404,6 +411,7 @@ export function OrderDetailView({ id, admin = false, extra }) {
         {o.status === 'pending' && roles.includes('seller') && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{t('delivery.order.sellerPending')}</p>}
         {['accepted', 'preparing'].includes(o.status) && !o.courier_id && <p className="rounded-xl bg-sky-50 p-3 text-sm text-sky-800">{t('delivery.order.waitingCourier')}</p>}
         <OrderActions order={o} onDone={reload} />
+        <EscrowPanel order={o} onDone={reload} />
         {extra?.(o, reload)}
       </div>
 
@@ -418,7 +426,7 @@ export function OrderDetailView({ id, admin = false, extra }) {
             <div className="flex justify-between"><dt className="text-slate-600">{t('delivery.cost.delivery')} <span className="text-[11px] text-slate-400">({t('delivery.cost.distance', { km: String(Number(o.distance_km)) })})</span></dt><dd className="ltr-nums">{price(o.delivery_fee)}</dd></div>
             <div className="flex justify-between border-t border-dashed border-slate-200 pt-2 font-bold"><dt>{t('delivery.cost.total')}</dt><dd className="text-brand-800 ltr-nums">{price(o.total)}</dd></div>
           </dl>
-          <p className="mt-3 rounded-xl bg-gold-300/20 p-2.5 text-xs text-brand-900">💵 {t('delivery.cod.short')}</p>
+          <p className="mt-3 rounded-xl bg-gold-300/20 p-2.5 text-xs text-brand-900">{o.payment_method === 'escrow' ? `🔒 ${t('escrow.paidOnline')}` : `💵 ${t('delivery.cod.short')}`}</p>
         </section>
 
         <section className="card space-y-2 p-5 text-sm">

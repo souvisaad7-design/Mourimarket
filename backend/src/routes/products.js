@@ -350,7 +350,7 @@ router.post('/video-token', requireAuth, requireVerifiedPhone, limiter('video-to
 /** POST /api/products – create a listing (multipart, field "images"). */
 // Anti-spam: at most 20 new listings per hour per account (admins are not limited).
 // Approved merchants (who import from Excel) get 200 per hour.
-const postLimiter = limiter('listings-post', { windowMs: 60 * 60 * 1000, limit: (req) => (req.user?.account_type === 'merchant' ? 200 : 20), keyGenerator: (req) => String(req.user.id), skip: (req) => req.user?.role === 'admin' });
+const postLimiter = limiter('listings-post', { windowMs: 60 * 60 * 1000, limit: (req) => (!config.isProd ? 1000 : req.user?.account_type === 'merchant' ? 200 : 20), keyGenerator: (req) => String(req.user.id), skip: (req) => req.user?.role === 'admin' });
 
 router.post('/', requireAuth, requireVerifiedPhone, postLimiter, upload.array('images', MAX_IMAGES), async (req, res) => {
   // Buyers browse and message; only seller accounts can post listings.

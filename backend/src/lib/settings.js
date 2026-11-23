@@ -35,6 +35,7 @@ export const SECTIONS = {
   // Delivery prices (MRU): base + per km, never under the minimum; extra when crossing cities.
   delivery: z.object({
     enabled: z.boolean(),
+    escrow: z.boolean().default(false),
     baseFee: z.number().int().min(0).max(1_000_000),
     perKm: z.number().int().min(0).max(100_000),
     minFee: z.number().int().min(0).max(1_000_000),
@@ -76,7 +77,7 @@ export const defaults = () => ({
   // Empty values / null menus mean "use the built-in ones".
   appearance: { siteName: '', logoUrl: '', primaryColor: '', secondaryColor: '' },
   maintenance: { enabled: false, message: { ar: '', fr: '', en: '' } },
-  delivery: { enabled: true, baseFee: 100, perKm: 20, minFee: 150, interCityFee: 500, maxKm: 600 },
+  delivery: { enabled: true, escrow: false, baseFee: 100, perKm: 20, minFee: 150, interCityFee: 500, maxKm: 600 },
   pricing: {
     verifyPrice: VERIFY_PRICE, featurePlans: FEATURE_PLANS, bumpPrice: 50, freeBumpDays: 7,
     storePlans: [

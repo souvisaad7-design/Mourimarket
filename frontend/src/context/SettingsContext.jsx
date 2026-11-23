@@ -6,7 +6,7 @@ export const DEFAULT_SETTINGS = {
   appearance: { siteName: '', logoUrl: '', primaryColor: '', secondaryColor: '' },
   maintenance: { enabled: false, message: { ar: '', fr: '', en: '' } },
   pricing: { verifyPrice: 500, featurePlans: [] },
-  delivery: { enabled: true, baseFee: 100, perKm: 20, minFee: 150, interCityFee: 500, maxKm: 600 },
+  delivery: { enabled: true, escrow: false, baseFee: 100, perKm: 20, minFee: 150, interCityFee: 500, maxKm: 600 },
   contact: { email: '', whatsapp: '', phone: '', address: '' },
   social: { facebook: '', instagram: '', tiktok: '', x: '', youtube: '' },
   announcement: { enabled: false, tone: 'gold', style: 'static', link: '' },

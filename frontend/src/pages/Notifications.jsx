@@ -12,6 +12,7 @@ const ICON_FOR = {
   product_featured: 'star', account_verified: 'shield',
   merchant_request: 'store', merchant_approved: 'store', merchant_rejected: 'x',
   inspection_request: 'check', inspection_published: 'check', inspection_cancelled: 'x',
+  escrow_submitted: 'shield', escrow_held: 'shield', escrow_rejected: 'x', escrow_release_due: 'check', escrow_released: 'check', escrow_refunded: 'shield', escrow_disputed: 'flag',
   wanted_reply: 'chat', product_bumped: 'arrow', upgrade_request_bump: 'arrow', upgrade_rejected_bump: 'x',
   offer_new: 'star', offer_accepted: 'check', offer_declined: 'x',
   saved_search_match: 'search', price_drop: 'bolt', push_test: 'bell',

@@ -1975,6 +1975,77 @@ deepMerge(en, {
   notifications: { types: { plan_active: 'Your store plan is active for {months} month(s) ⭐', upgrade_rejected_plan: 'Plan request declined. Reason: {reason}', upgrade_request_plan: '{name} asked for the “{title}” plan' } },
 });
 
+// ---------- v35: secure payment (manual escrow) ----------
+deepMerge(ar, {
+  admin: { escrow: 'الدفع الآمن' },
+  escrow: {
+    title: 'الدفع الآمن', choose: 'طريقة الدفع', checkoutText: 'ادفع للمنصة عبر بنكيلي أو مصرفي أو السداد. نحتفظ بالمبلغ ولا يصل للبائع إلا بعد أن تؤكد استلام المنتج.',
+    paidOnline: 'مدفوع عبر الدفع الآمن', payTo: 'حوّل {amount} إلى أحد الأرقام التالية ثم أرسل صورة الإيصال:', accountName: 'باسم', ref: 'رقم العملية', receipt: 'صورة الإيصال',
+    send: 'إرسال الإيصال', resend: 'إرسال إيصال آخر', receiptSent: 'وصل الإيصال، ستؤكده الإدارة قريباً', confirm: 'استلمت المنتج', thanks: 'شكراً! سيُحوَّل المبلغ للبائع.',
+    problem: 'عندي مشكلة', disputeText: 'صف المشكلة: يبقى المبلغ محجوزاً حتى تراجع الإدارة الحالة وتقرر.', openDispute: 'فتح نزاع', disputeSent: 'وصل بلاغك، ستتواصل معك الإدارة',
+    status: { awaiting_payment: 'بانتظار الدفع', submitted: 'الإيصال قيد التحقق', held: 'المبلغ محجوز', release_due: 'جاهز للتحويل للبائع', released: 'حُوِّل للبائع', disputed: 'نزاع', refund_due: 'بانتظار الاسترجاع', refunded: 'أُعيد للمشتري' },
+    explain: {
+      buyer: { awaiting_payment: 'ادفع {amount} ثم أرسل الإيصال. لن يبدأ البائع التجهيز قبل تأكيد الدفع.', submitted: 'نتحقق من إيصالك.', held: 'المبلغ محجوز بأمان لدى المنصة. عند الاستلام اضغط «استلمت المنتج».', release_due: 'أكّدتَ الاستلام، سيُحوَّل المبلغ للبائع.', released: 'اكتملت العملية.', disputed: 'النزاع قيد المراجعة، المبلغ محجوز.', refund_due: 'سيُعاد المبلغ إليك.', refunded: 'أُعيد المبلغ إليك.' },
+      other: { awaiting_payment: 'بانتظار دفع المشتري للمنصة. لا تجهّز الطلب قبل تأكيد الدفع.', submitted: 'المشتري أرسل الإيصال، الإدارة تتحقق.', held: 'المبلغ محجوز لدى المنصة: جهّز الطلب بأمان.', release_due: 'المشتري أكّد الاستلام، ستحوّل الإدارة المبلغ إليك.', released: 'حُوِّل المبلغ إليك.', disputed: 'فتح المشتري نزاعاً، ستتواصل معك الإدارة.', refund_due: 'أُلغي الطلب، يُعاد المبلغ للمشتري.', refunded: 'أُعيد المبلغ للمشتري.' },
+    },
+    adminTitle: 'الدفع الآمن', adminHint: 'تحقق من الإيصالات، حوّل للبائع بعد التسليم وتأكيد المشتري، وأعد المبلغ في حال الإلغاء أو النزاع.', none: 'لا توجد مدفوعات.',
+    total: 'المبلغ', toSeller: 'للبائع', toCourier: 'للمندوب', transferRef: 'رقم عملية التحويل', rejectReason: 'سبب الرفض', review: 'مراجعة', details: 'التفاصيل',
+    action: { confirm: 'تأكيد استلام المبلغ', reject: 'رفض الإيصال', release: 'تحويل للبائع', refund: 'إعادة للمشتري' },
+    adminToggle: 'الدفع الآمن (وسيط)', adminToggleHint: 'يدفع المشتري للمنصة ويُحجز المبلغ حتى الاستلام. أضف أرقام الدفع في صفحة الدفع أولاً.',
+  },
+  errors: { escrow_disabled: 'الدفع الآمن غير مفعّل.', payment_not_confirmed: 'لم يُؤكَّد دفع المشتري بعد.', payment_closed: 'لا يمكن هذا الإجراء في حالة الدفع الحالية.', not_delivered: 'لم يُسلَّم الطلب بعد.' },
+  notifications: { types: {
+    escrow_submitted: 'إيصال دفع جديد للطلب #{id} ({amount} أوقية)', escrow_held: 'تأكّد دفع الطلب #{id}: المبلغ محجوز لدى المنصة', escrow_rejected: 'لم يُقبل إيصال الطلب #{id}: {reason}',
+    escrow_release_due: 'المشتري أكّد استلام الطلب #{id}', escrow_released: 'تم تحويل {amount} أوقية للطلب #{id} ✅', escrow_refunded: 'أُعيد مبلغ الطلب #{id}', escrow_disputed: 'نزاع على الطلب #{id}',
+  } },
+});
+deepMerge(fr, {
+  admin: { escrow: 'Paiement sécurisé' },
+  escrow: {
+    title: 'Paiement sécurisé', choose: 'Mode de paiement', checkoutText: 'Payez la plateforme par Bankily, Masrvi ou Sedad. Le vendeur n’est payé qu’après votre confirmation de réception.',
+    paidOnline: 'Payé par paiement sécurisé', payTo: 'Envoyez {amount} à l’un de ces numéros puis la photo du reçu :', accountName: 'Au nom de', ref: 'N° de transaction', receipt: 'Photo du reçu',
+    send: 'Envoyer le reçu', resend: 'Envoyer un autre reçu', receiptSent: 'Reçu envoyé, vérification en cours', confirm: 'J’ai reçu l’article', thanks: 'Merci ! Le vendeur sera payé.',
+    problem: 'J’ai un problème', disputeText: 'Décrivez le problème : l’argent reste bloqué jusqu’à la décision de l’équipe.', openDispute: 'Ouvrir un litige', disputeSent: 'Litige reçu, l’équipe vous contacte',
+    status: { awaiting_payment: 'En attente du paiement', submitted: 'Reçu en vérification', held: 'Montant bloqué', release_due: 'À verser au vendeur', released: 'Versé au vendeur', disputed: 'Litige', refund_due: 'À rembourser', refunded: 'Remboursé' },
+    explain: {
+      buyer: { awaiting_payment: 'Payez {amount} puis envoyez le reçu. Le vendeur ne prépare rien avant la confirmation.', submitted: 'Nous vérifions votre reçu.', held: 'Montant bloqué par la plateforme. À la réception, touchez « J’ai reçu l’article ».', release_due: 'Réception confirmée, le vendeur va être payé.', released: 'Transaction terminée.', disputed: 'Litige en cours, montant bloqué.', refund_due: 'Vous allez être remboursé.', refunded: 'Vous avez été remboursé.' },
+      other: { awaiting_payment: 'En attente du paiement de l’acheteur. Ne préparez rien avant la confirmation.', submitted: 'Reçu envoyé, vérification en cours.', held: 'Montant bloqué : préparez la commande en confiance.', release_due: 'Réception confirmée, l’équipe va vous payer.', released: 'Vous avez été payé.', disputed: 'L’acheteur a ouvert un litige.', refund_due: 'Commande annulée, l’acheteur est remboursé.', refunded: 'L’acheteur a été remboursé.' },
+    },
+    adminTitle: 'Paiement sécurisé', adminHint: 'Vérifiez les reçus, payez le vendeur après livraison et confirmation, remboursez en cas d’annulation ou de litige.', none: 'Aucun paiement.',
+    total: 'Montant', toSeller: 'vendeur', toCourier: 'livreur', transferRef: 'Référence du virement', rejectReason: 'Motif du refus', review: 'Traiter', details: 'Détails',
+    action: { confirm: 'Confirmer la réception', reject: 'Refuser le reçu', release: 'Payer le vendeur', refund: 'Rembourser l’acheteur' },
+    adminToggle: 'Paiement sécurisé (tiers de confiance)', adminToggleHint: 'L’acheteur paie la plateforme, l’argent est bloqué jusqu’à la réception. Ajoutez d’abord les numéros de paiement.',
+  },
+  errors: { escrow_disabled: 'Paiement sécurisé désactivé.', payment_not_confirmed: 'Paiement de l’acheteur pas encore confirmé.', payment_closed: 'Action impossible à cette étape du paiement.', not_delivered: 'Commande pas encore livrée.' },
+  notifications: { types: {
+    escrow_submitted: 'Nouveau reçu pour la commande #{id} ({amount} MRU)', escrow_held: 'Paiement confirmé pour la commande #{id} : montant bloqué', escrow_rejected: 'Reçu refusé pour la commande #{id} : {reason}',
+    escrow_release_due: 'L’acheteur a confirmé la réception de #{id}', escrow_released: '{amount} MRU versés pour la commande #{id} ✅', escrow_refunded: 'Commande #{id} remboursée', escrow_disputed: 'Litige sur la commande #{id}',
+  } },
+});
+deepMerge(en, {
+  admin: { escrow: 'Secure payment' },
+  escrow: {
+    title: 'Secure payment', choose: 'Payment method', checkoutText: 'Pay the platform by Bankily, Masrvi or Sedad. The seller is only paid after you confirm you received the item.',
+    paidOnline: 'Paid with secure payment', payTo: 'Send {amount} to one of these numbers, then the photo of the receipt:', accountName: 'Account name', ref: 'Transaction number', receipt: 'Receipt photo',
+    send: 'Send receipt', resend: 'Send another receipt', receiptSent: 'Receipt sent, being checked', confirm: 'I received the item', thanks: 'Thank you! The seller will be paid.',
+    problem: 'I have a problem', disputeText: 'Describe the problem: the money stays held until the team decides.', openDispute: 'Open a dispute', disputeSent: 'Dispute received, the team will contact you',
+    status: { awaiting_payment: 'Awaiting payment', submitted: 'Receipt being checked', held: 'Money held', release_due: 'Ready to pay the seller', released: 'Paid to seller', disputed: 'Dispute', refund_due: 'Refund due', refunded: 'Refunded' },
+    explain: {
+      buyer: { awaiting_payment: 'Pay {amount}, then send the receipt. The seller prepares nothing before the payment is confirmed.', submitted: 'We are checking your receipt.', held: 'The money is held safely by the platform. When you receive the item, tap “I received the item”.', release_due: 'You confirmed receipt; the seller will be paid.', released: 'All done.', disputed: 'Dispute under review; the money stays held.', refund_due: 'You will be refunded.', refunded: 'You were refunded.' },
+      other: { awaiting_payment: 'Waiting for the buyer to pay the platform. Do not prepare the order before the payment is confirmed.', submitted: 'The buyer sent a receipt; it is being checked.', held: 'The money is held by the platform: prepare the order safely.', release_due: 'The buyer confirmed receipt; the team will pay you.', released: 'You were paid.', disputed: 'The buyer opened a dispute.', refund_due: 'Order cancelled; the buyer is refunded.', refunded: 'The buyer was refunded.' },
+    },
+    adminTitle: 'Secure payment', adminHint: 'Check receipts, pay the seller after delivery and the buyer’s confirmation, refund on cancellation or dispute.', none: 'No payments.',
+    total: 'Amount', toSeller: 'to seller', toCourier: 'to courier', transferRef: 'Transfer reference', rejectReason: 'Reason for refusing', review: 'Review', details: 'Details',
+    action: { confirm: 'Confirm money received', reject: 'Refuse receipt', release: 'Pay the seller', refund: 'Refund the buyer' },
+    adminToggle: 'Secure payment (escrow)', adminToggleHint: 'The buyer pays the platform and the money is held until delivery. Add the payment numbers first.',
+  },
+  errors: { escrow_disabled: 'Secure payment is off.', payment_not_confirmed: 'The buyer’s payment is not confirmed yet.', payment_closed: 'Not possible at this payment stage.', not_delivered: 'The order is not delivered yet.' },
+  notifications: { types: {
+    escrow_submitted: 'New payment receipt for order #{id} ({amount} MRU)', escrow_held: 'Payment confirmed for order #{id}: money held', escrow_rejected: 'Receipt refused for order #{id}: {reason}',
+    escrow_release_due: 'The buyer confirmed receipt of #{id}', escrow_released: '{amount} MRU paid for order #{id} ✅', escrow_refunded: 'Order #{id} refunded', escrow_disputed: 'Dispute on order #{id}',
+  } },
+});
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },

@@ -1696,3 +1696,73 @@ describe('monthly store plans', () => {
     assert.equal((await call(`/api/products/${pid}/feature-credit`, { method: 'POST', token: other })).status, 403);
   });
 });
+
+describe('secure payment (escrow) on delivery orders', () => {
+  let buyer; let seller; let admin; let courier; let pid; let oid;
+  before(async () => {
+    buyer = await login('buyer@example.mr'); seller = await login('mohamed@example.mr'); admin = await login('admin@maurimarket.mr', 'Admin12345'); courier = await login('sidi@example.mr');
+    const fd = new FormData();
+    for (const [k, v] of Object.entries({ title: 'غسالة للدفع الآمن', description: 'غسالة بحالة ممتازة جداً', price: '20000', city: 'nouakchott', condition: 'used', categoryId: '1' })) fd.append(k, v);
+    fd.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+    pid = (await call('/api/products', { method: 'POST', token: seller, form: fd })).data.product.id;
+    await pool.query("UPDATE products SET status = 'approved' WHERE id = $1", [pid]);
+  });
+  const order = async (tok = buyer) => (await call(`/api/orders/${oid}`, { token: tok })).data.order;
+  const move = (tok, status) => call(`/api/orders/${oid}/status`, { method: 'POST', token: tok, body: { status } });
+  const pay = (action, body = {}) => call(`/api/admin/escrow/${oid}`, { method: 'PATCH', token: admin, body: { action, ...body } });
+
+  it('is off until the admin turns it on', async () => {
+    const r = await call('/api/orders', { method: 'POST', token: buyer, body: { productId: pid, city: 'nouakchott', phone: '22334455', paymentMethod: 'escrow' } });
+    assert.equal(r.data.error, 'escrow_disabled');
+    const s = (await call('/api/admin/settings', { token: admin })).data.settings;
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { delivery: { ...s.delivery, escrow: true } } });
+  });
+
+  it('the seller cannot accept before the admin confirms the money is held', async () => {
+    const r = await call('/api/orders', { method: 'POST', token: buyer, body: { productId: pid, city: 'nouakchott', phone: '22334455', paymentMethod: 'escrow' } });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    oid = r.data.order.id;
+    assert.equal(r.data.order.payment_status, 'awaiting_payment');
+    assert.equal((await move(seller, 'accepted')).data.error, 'payment_not_confirmed');
+    assert.ok(!(await order(seller)).next.includes('accepted'));
+    const fd = new FormData(); fd.append('channel', 'bankily'); fd.append('ref', 'TX-778899');
+    fd.append('receipt', new Blob([PNG], { type: 'image/png' }), 'r.png');
+    assert.equal((await call(`/api/orders/${oid}/payment`, { method: 'POST', token: seller, form: fd })).status, 404, 'only the buyer');
+    const fd2 = new FormData(); fd2.append('channel', 'bankily'); fd2.append('ref', 'TX-778899'); fd2.append('receipt', new Blob([PNG], { type: 'image/png' }), 'r.png');
+    assert.equal((await call(`/api/orders/${oid}/payment`, { method: 'POST', token: buyer, form: fd2 })).data.paymentStatus, 'submitted');
+    assert.equal((await order(seller)).pay_ref, undefined, 'the seller does not see the payment proof');
+    const receipt = await fetch(`${base}/api/admin/escrow/${oid}/receipt`, { headers: { Authorization: `Bearer ${admin}` } });
+    assert.equal(receipt.status, 200);
+    assert.equal((await fetch(`${base}/api/admin/escrow/${oid}/receipt`, { headers: { Authorization: `Bearer ${buyer}` } })).status, 403);
+    assert.equal((await pay('confirm')).data.paymentStatus, 'held');
+    assert.equal((await move(seller, 'accepted')).status, 200);
+  });
+
+  it('after delivery the buyer confirms and the admin pays the seller', async () => {
+    assert.equal((await pay('release', { ref: 'BANKILY-1' })).data.error, 'not_delivered', 'never before delivery');
+    await pool.query("INSERT INTO couriers (user_id, status, phone, city, vehicle) SELECT id, 'approved', '+22246001122', 'nouakchott', 'motorbike' FROM users WHERE email = 'sidi@example.mr' ON CONFLICT (user_id) DO UPDATE SET status = 'approved'");
+    await call(`/api/orders/${oid}/claim`, { method: 'POST', token: courier });
+    for (const st of ['picked_up', 'on_the_way', 'delivered']) assert.equal((await move(courier, st)).status, 200, st);
+    assert.equal((await call(`/api/orders/${oid}/confirm-receipt`, { method: 'POST', token: buyer })).data.paymentStatus, 'release_due');
+    assert.equal((await pay('release')).data.fields.ref, 'required');
+    assert.equal((await pay('release', { ref: 'BANKILY-PAYOUT-42' })).data.paymentStatus, 'released');
+    const o = await order(seller);
+    assert.equal(o.payment_status, 'released');
+    const n = (await pool.query("SELECT data FROM notifications n JOIN users u ON u.id = n.user_id WHERE n.type = 'escrow_released' AND u.email = 'mohamed@example.mr'")).rows[0].data;
+    assert.equal(n.amount, 20000, 'the seller gets the item price');
+  });
+
+  it('cancelling a paid order puts the money up for refund; disputes hold it', async () => {
+    await pool.query("UPDATE products SET availability = 'available' WHERE id = $1", [pid]);
+    const r = await call('/api/orders', { method: 'POST', token: buyer, body: { productId: pid, city: 'nouakchott', phone: '22334455', paymentMethod: 'escrow' } });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    oid = r.data.order.id;
+    const fd = new FormData(); fd.append('channel', 'masrvi'); fd.append('receipt', new Blob([PNG], { type: 'image/png' }), 'r.png');
+    await call(`/api/orders/${oid}/payment`, { method: 'POST', token: buyer, form: fd });
+    await pay('confirm');
+    assert.equal((await call(`/api/orders/${oid}/dispute`, { method: 'POST', token: buyer, body: { reason: 'البائع لا يرد' } })).data.paymentStatus, 'disputed');
+    assert.equal((await pay('refund', { ref: 'REFUND-9' })).data.paymentStatus, 'refunded');
+    const list = (await call('/api/admin/escrow', { token: admin })).data;
+    assert.ok(list.counts.refunded >= 1 && list.counts.released >= 1);
+  });
+});

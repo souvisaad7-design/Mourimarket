@@ -336,6 +336,7 @@ export function AdminDeliveryPricing() {
       <PageTitle icon="globe" title={t('delivery.admin.pricing')} subtitle={t('delivery.admin.pricingHint')} />
       <Section title={t('delivery.admin.pricing')} busy={busy === 'delivery'} error={errors.delivery} onSave={() => save('delivery', { delivery: d })}>
         <Toggle checked={d.enabled} onChange={(v) => put('delivery', { enabled: v })} label={t('delivery.admin.enabled')} hint={t('delivery.admin.enabledHint')} />
+        <Toggle checked={Boolean(d.escrow)} onChange={(v) => put('delivery', { escrow: v })} label={`🔒 ${t('escrow.adminToggle')}`} hint={t('escrow.adminToggleHint')} />
         <div className="grid gap-3 sm:grid-cols-2">
           {fields.map(([k, unit]) => (
             <Field key={k} label={t(`delivery.admin.f.${k}`)} hint={t(`delivery.admin.f.${k}Hint`)}>

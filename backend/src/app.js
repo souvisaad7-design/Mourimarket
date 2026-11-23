@@ -24,6 +24,7 @@ import alertRoutes from './routes/alerts.js';
 import wantedRoutes from './routes/wanted.js';
 import statsRoutes from './routes/stats.js';
 import inspectionRoutes from './routes/inspections.js';
+import escrowRoutes from './routes/escrow.js';
 
 export function createApp() {
   const app = express();
@@ -80,6 +81,7 @@ export function createApp() {
   app.use('/api/auth', authRoutes);
   app.use('/api/products', productRoutes);
   app.use('/api', inspectionRoutes);
+  app.use('/api', escrowRoutes);
   app.use('/api/admin', adminRoutes);
   app.use('/api/geo', geoRoutes);
   app.use('/api/push', pushRoutes);

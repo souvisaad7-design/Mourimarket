@@ -61,6 +61,7 @@ const orderSchema = destSchema.extend({
   address: z.string().trim().max(300).optional().transform((v) => v || null),
   phone: z.string().trim().min(1, 'required').max(30),
   note: z.string().trim().max(500).optional().transform((v) => v || null),
+  paymentMethod: z.enum(['cod', 'escrow']).default('cod'),
 });
 
 /** POST /api/orders – order with delivery, paid in cash on delivery. */
@@ -73,15 +74,17 @@ router.post('/orders', requireVerifiedPhone, writeLimiter, async (req, res) => {
   const product = await loadOrderable(d.productId, req.user.id);
   const q = await quote(pricing, product, d);
   if (!q.deliverable) throw badRequest('too_far');
+  if (d.paymentMethod === 'escrow' && !pricing.escrow) throw badRequest('escrow_disabled');
   const order = await tx(async (client) => {
     let rows;
     try {
       ({ rows } = await client.query(
         `INSERT INTO orders (product_id, product_title, buyer_id, seller_id, item_price, delivery_fee, total, distance_km,
-           city, area, district, address, phone, lat, lng, pickup_city, pickup_lat, pickup_lng, note)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING id, status, total`,
+           city, area, district, address, phone, lat, lng, pickup_city, pickup_lat, pickup_lng, note, payment_method, payment_status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) RETURNING id, status, total, payment_method, payment_status`,
         [product.id, product.title, req.user.id, product.seller_id, q.itemPrice, q.deliveryFee, q.itemPrice + q.deliveryFee, q.distanceKm,
-          d.city, d.area, d.district, d.address, phone, d.lat, d.lng, product.city, q.pickup?.lat ?? null, q.pickup?.lng ?? null, d.note],
+          d.city, d.area, d.district, d.address, phone, d.lat, d.lng, product.city, q.pickup?.lat ?? null, q.pickup?.lng ?? null, d.note,
+          d.paymentMethod, d.paymentMethod === 'escrow' ? 'awaiting_payment' : null],
       ));
     } catch (err) {
       if (err.code === '23505') throw conflict('order_exists');
@@ -130,6 +133,8 @@ function shape(o, roles) {
   const full = roles.includes('buyer') || roles.includes('courier') || roles.includes('admin');
   const out = { ...o, my_roles: roles };
   if (!full) { delete out.address; delete out.phone; delete out.lat; delete out.lng; }
+  // Payment proof is between the buyer and the admins.
+  if (!roles.includes('buyer') && !roles.includes('admin')) { delete out.pay_ref; delete out.pay_receipt_file_id; }
   const tracking = ['picked_up', 'on_the_way'].includes(o.status) && o.courier_sharing && o.courier_lat != null
     && o.courier_seen_at && Date.now() - new Date(o.courier_seen_at).getTime() < 15 * 60 * 1000;
   out.courier_location = tracking && (roles.includes('buyer') || roles.includes('admin'))
@@ -173,7 +178,8 @@ router.get('/orders/:id', async (req, res) => {
   order.next = Object.entries(FLOW[o.status] || {})
     .filter(([, who]) => who.some((r) => roles.includes(r)))
     .map(([status]) => status)
-    .filter((s) => s !== 'picked_up' || o.courier_id);
+    .filter((s) => s !== 'picked_up' || o.courier_id)
+    .filter((s) => s !== 'accepted' || o.payment_method !== 'escrow' || o.payment_status === 'held');
   order.can_rate = roles.includes('buyer') && o.status === 'delivered' && Boolean(o.courier_id) && !rating.rows[0];
   res.json({ order });
 });
@@ -203,6 +209,7 @@ router.post('/orders/:id/status', writeLimiter, async (req, res) => {
     const role = roles.find((r) => allowed.includes(r));
     if (!role) throw forbidden('not_allowed');
     if (d.status === 'picked_up' && !o.courier_id) throw badRequest('no_courier');
+    if (d.status === 'accepted' && o.payment_method === 'escrow' && o.payment_status !== 'held') throw badRequest('payment_not_confirmed');
     if (d.status === 'cancelled' && role !== 'buyer' && !d.note) throw badRequest('validation_error', { note: 'required' });
 
     await client.query(
@@ -214,6 +221,9 @@ router.post('/orders/:id/status', writeLimiter, async (req, res) => {
       [d.status, d.note || null, role, id],
     );
     await client.query('INSERT INTO order_events (order_id, status, actor_id, actor_role, note) VALUES ($1, $2, $3, $4, $5)', [id, d.status, req.user.id, role, d.note || null]);
+    if (d.status === 'cancelled' && ['submitted', 'held'].includes(o.payment_status)) {
+      await client.query("UPDATE orders SET payment_status = 'refund_due', payment_updated_at = now() WHERE id = $1", [id]);
+    }
     if (d.status === 'delivered' && o.product_id) {
       // A delivered order is a documented sale: the listing is sold to this buyer (unlocks the review).
       await client.query(`UPDATE products SET availability = 'sold', sold_to_id = $1, updated_at = now() WHERE id = $2 AND availability = 'available'`, [o.buyer_id, o.product_id]);

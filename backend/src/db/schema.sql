@@ -681,3 +681,18 @@ ALTER TABLE upgrade_requests ADD CONSTRAINT upgrade_requests_kind_check CHECK (k
 ALTER TABLE upgrade_requests DROP CONSTRAINT IF EXISTS upgrade_requests_target_check;
 ALTER TABLE upgrade_requests ADD CONSTRAINT upgrade_requests_target_check CHECK (kind = 'verify' OR (kind = 'plan' AND plan_key IS NOT NULL AND months IS NOT NULL) OR (kind = 'bump' AND product_id IS NOT NULL) OR (product_id IS NOT NULL AND days IS NOT NULL));
 CREATE UNIQUE INDEX IF NOT EXISTS upgrade_requests_one_pending_plan ON upgrade_requests(user_id) WHERE status = 'pending' AND kind = 'plan';
+
+-- ---------- Secure payment (escrow): the platform holds the money until the buyer confirms ----------
+ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_payment_method_check;
+ALTER TABLE orders ADD CONSTRAINT orders_payment_method_check CHECK (payment_method IN ('cod', 'escrow'));
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status TEXT;
+DO $$ BEGIN
+  ALTER TABLE orders ADD CONSTRAINT orders_payment_status_check CHECK (payment_status IS NULL OR payment_status IN ('awaiting_payment', 'submitted', 'held', 'release_due', 'released', 'disputed', 'refund_due', 'refunded'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS pay_channel TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS pay_ref VARCHAR(80);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS pay_receipt_file_id INT REFERENCES files(id) ON DELETE SET NULL;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payout_ref VARCHAR(120);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS dispute_reason VARCHAR(500);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_updated_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS orders_payment_status_idx ON orders (payment_status) WHERE payment_status IS NOT NULL;
