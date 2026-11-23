@@ -7,6 +7,7 @@ import { api } from '../lib/api.js';
 import { compressImage } from '../lib/image.js';
 import MerchantStatus from '../components/MerchantStatus.jsx';
 import { useDocumentTitle } from '../lib/hooks.js';
+import { StorePlans } from '../components/StorePlans.jsx';
 
 export default function StoreSettings() {
   const { t } = useI18n();
@@ -66,6 +67,7 @@ export default function StoreSettings() {
       <PageHeader title={t('store.settings')}>
         {store && <Link to={`/stores/${store.slug}`} className="btn-outline"><Icon name="store" className="h-4 w-4" />{t('store.view')}</Link>}
       </PageHeader>
+      <StorePlans store={store} onChange={() => api('/stores/me').then(({ store: s }) => s && setStore(s))} />
       {store && !store.is_active && <div className="mb-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{t('notifications.types.store_disabled', { name: store.name })}</div>}
       <form onSubmit={submit} className="card space-y-4 p-5">
         <ErrorBox error={error} />

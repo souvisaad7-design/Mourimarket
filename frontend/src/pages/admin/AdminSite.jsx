@@ -250,6 +250,22 @@ export function AdminPayments() {
           </Field>
         </div>
         <fieldset>
+          <legend className="label">💼 {t('plans.title')}</legend>
+          <ul className="space-y-2">
+            {(s.pricing.storePlans || []).map((p, i) => {
+              const setP = (patch) => put('pricing', { storePlans: s.pricing.storePlans.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
+              return (
+                <li key={i} className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 p-2.5 text-sm">
+                  <input className="input w-28 py-2" value={p.name.ar} onChange={(e) => setP({ name: { ...p.name, ar: e.target.value } })} aria-label="ar" />
+                  <input className="input w-24 py-2" dir="ltr" value={p.name.fr} onChange={(e) => setP({ name: { ...p.name, fr: e.target.value, en: e.target.value } })} aria-label="fr" />
+                  <label className="flex items-center gap-1">{t('upgrades.price')}<input className="input w-24 py-2" type="number" min="0" dir="ltr" value={p.price} onChange={(e) => setP({ price: Math.max(0, parseInt(e.target.value, 10) || 0) })} />MRU</label>
+                  <label className="flex items-center gap-1">⭐<input className="input w-16 py-2" type="number" min="0" dir="ltr" value={p.featuredPerMonth} onChange={(e) => setP({ featuredPerMonth: Math.max(0, parseInt(e.target.value, 10) || 0) })} />/{t('plans.month')}</label>
+                </li>
+              );
+            })}
+          </ul>
+        </fieldset>
+        <fieldset>
           <legend className="label">{t('admin.vipPlans')}</legend>
           <ul className="space-y-2">
             {plans.map((p, i) => (

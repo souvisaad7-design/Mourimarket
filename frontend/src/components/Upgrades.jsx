@@ -16,7 +16,7 @@ export const isFeaturable = (p) => p.status === 'approved' && p.availability ===
 
 /** Request form: account verification, or featuring one listing, paid by mobile money + receipt photo. */
 export function UpgradeModal({ request, products = [], onClose, onDone }) {
-  const { t, price } = useI18n();
+  const { t, price, lang } = useI18n();
   const { meta, notify } = useApp();
   const SITE_PAYMENT = useSettings().settings.payment;
   const cfg = meta.upgrades || { verifyPrice: 0, featurePlans: [], paymentMethods: [] };
@@ -24,6 +24,7 @@ export function UpgradeModal({ request, products = [], onClose, onDone }) {
   const featurable = products.filter(isFeaturable);
   const [productId, setProductId] = useState('');
   const [days, setDays] = useState(0);
+  const [months, setMonths] = useState(1);
   const [method, setMethod] = useState('bankily');
   const [ref, setRef] = useState('');
   const [note, setNote] = useState('');
@@ -43,7 +44,8 @@ export function UpgradeModal({ request, products = [], onClose, onDone }) {
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
   if (!request) return null;
-  const amount = kind === 'verify' ? cfg.verifyPrice : kind === 'bump' ? cfg.bumpPrice || 0 : (cfg.featurePlans.find((p) => p.days === days)?.price || 0);
+  const plan = kind === 'plan' ? (cfg.storePlans || []).find((p) => p.key === request.plan) : null;
+  const amount = kind === 'verify' ? cfg.verifyPrice : kind === 'plan' ? (plan?.price || 0) * months : kind === 'bump' ? cfg.bumpPrice || 0 : (cfg.featurePlans.find((p) => p.days === days)?.price || 0);
 
   const pick = async (e) => {
     const f = e.target.files?.[0];
@@ -70,6 +72,7 @@ export function UpgradeModal({ request, products = [], onClose, onDone }) {
       fd.append('kind', kind);
       if (kind === 'feature') { fd.append('productId', productId); fd.append('days', String(days)); }
       if (kind === 'bump') fd.append('productId', String(request.product.id));
+      if (kind === 'plan') { fd.append('planKey', request.plan); fd.append('months', String(months)); }
       fd.append('paymentMethod', method);
       if (ref.trim()) fd.append('paymentRef', ref.trim());
       if (note.trim()) fd.append('note', note.trim());
@@ -86,9 +89,21 @@ export function UpgradeModal({ request, products = [], onClose, onDone }) {
 
   const number = SITE_PAYMENT[method];
   return (
-    <Modal open onClose={onClose} title={kind === 'verify' ? t('upgrades.verifyTitle') : kind === 'bump' ? t('bump.paidTitle', { title: request.product?.title || '' }) : t('upgrades.featureTitle')} size="lg">
+    <Modal open onClose={onClose} title={kind === 'plan' ? t('plans.buyTitle', { name: plan?.name?.[lang] || plan?.name?.ar || '' }) : kind === 'verify' ? t('upgrades.verifyTitle') : kind === 'bump' ? t('bump.paidTitle', { title: request.product?.title || '' }) : t('upgrades.featureTitle')} size="lg">
       <form onSubmit={submit} className="space-y-5">
         <ErrorBox error={error && !error.fields ? error : null} />
+        {kind === 'plan' && (
+          <fieldset>
+            <legend className="label">{t('plans.months')}</legend>
+            <div className="grid grid-cols-4 gap-2">
+              {[1, 3, 6, 12].map((m) => (
+                <label key={m} className={`cursor-pointer rounded-xl border-2 p-2 text-center text-sm font-semibold ${months === m ? 'border-brand-600 bg-brand-50' : 'border-slate-200'}`}>
+                  <input type="radio" className="sr-only" name="months" checked={months === m} onChange={() => setMonths(m)} />{t('plans.monthsN', { n: m })}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
 
         {kind === 'feature' && (
           <>

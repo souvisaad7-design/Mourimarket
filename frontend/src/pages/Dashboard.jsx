@@ -45,6 +45,11 @@ function SellerDashboard() {
   const paid = Boolean(meta.upgrades); // paid verification/featuring (off: the site is free)
   const upgrades = useApi(paid ? '/upgrade-requests' : null);
   const [upgrade, setUpgrade] = useState(null);
+  const myStore = useApi(paid && user.account_type === 'merchant' ? '/stores/me' : null);
+  const credits = myStore.data?.store?.plan_until && new Date(myStore.data.store.plan_until) > new Date() ? myStore.data.store.feature_credits : 0;
+  const featureWithCredit = async (p) => {
+    try { await api(`/products/${p.id}/feature-credit`, { method: 'POST' }); notify(t('plans.featuredDone')); reload(); myStore.reload(); } catch { notify(t('common.error')); }
+  };
   const [bumpWait, setBumpWait] = useState(null); // { product, next }
   const bump = async (p) => {
     try {
@@ -152,6 +157,9 @@ function SellerDashboard() {
                 ) : (
                   <button className="btn-outline px-3 py-2 text-xs" onClick={() => relist(p)}>{t('dashboard.markAvailable')}</button>
                 ))}
+                {credits > 0 && isFeaturable(p) && (
+                  <button className="btn-accent px-3 py-2 text-xs" onClick={() => featureWithCredit(p)}>⭐ {t('plans.useCredit', { n: credits })}</button>
+                )}
                 {paid && isFeaturable(p) && !pendingFeature.has(p.id) && (
                   <button className="btn-outline border-gold-400 px-3 py-2 text-xs text-gold-600" onClick={() => setUpgrade({ kind: 'feature', product: p })}>
                     <Icon name="star" filled className="h-4 w-4" />{t('upgrades.featureThis')}

@@ -342,7 +342,9 @@ router.get('/upgrade-requests', async (req, res) => {
 });
 
 const upgradeSchema = z.object({
-  kind: z.enum(['verify', 'feature', 'bump']),
+  kind: z.enum(['verify', 'feature', 'bump', 'plan']),
+  planKey: z.string().max(20).optional(),
+  months: z.coerce.number().int().min(1).max(12).optional(),
   productId: z.coerce.number().int().positive().optional(),
   days: z.coerce.number().int().positive().optional(),
   paymentMethod: z.enum(PAYMENT_METHODS),
@@ -363,9 +365,16 @@ router.post('/upgrade-requests', writeLimiter, upload.single('receipt'), async (
 
   let amount;
   let product = null;
+  let plan = null;
   if (data.kind === 'verify') {
     if (me.is_verified) throw conflict('already_verified');
     amount = (await getSettings()).pricing.verifyPrice;
+  } else if (data.kind === 'plan') {
+    if (me.account_type !== 'merchant') throw forbidden('merchants_only');
+    plan = (await getSettings()).pricing.storePlans.find((x) => x.key === data.planKey);
+    if (!plan) throw badRequest('validation_error', { planKey: 'invalid' });
+    if (!data.months) throw badRequest('validation_error', { months: 'required' });
+    amount = plan.price * data.months;
   } else {
     const pricing = (await getSettings()).pricing;
     const plan = data.kind === 'bump' ? { price: pricing.bumpPrice } : pricing.featurePlans.find((x) => x.days === data.days);
@@ -381,10 +390,10 @@ router.post('/upgrade-requests', writeLimiter, upload.single('receipt'), async (
     const fileId = await savePrivateFile(req.file, client);
     try {
       const { rows } = await client.query(
-        `INSERT INTO upgrade_requests (user_id, kind, product_id, days, amount, payment_method, payment_ref, note, receipt_file_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, kind, product_id, days, amount, status, created_at`,
+        `INSERT INTO upgrade_requests (user_id, kind, product_id, days, amount, payment_method, payment_ref, note, receipt_file_id, plan_key, months)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id, kind, product_id, days, amount, status, created_at, plan_key, months`,
         [req.user.id, data.kind, product?.id ?? null, data.kind === 'feature' ? data.days : null, amount,
-          data.paymentMethod, data.paymentRef, data.note, fileId],
+          data.paymentMethod, data.paymentRef, data.note, fileId, plan?.key ?? null, plan ? data.months : null],
       );
       return rows[0];
     } catch (err) {
@@ -396,7 +405,7 @@ router.post('/upgrade-requests', writeLimiter, upload.single('receipt'), async (
   // Let the admins know there is something to review.
   const admins = await query("SELECT id FROM users WHERE role = 'admin' AND is_active");
   await Promise.all(admins.rows.map((a) => notify(a.id, `upgrade_request_${data.kind}`, {
-    name: req.user.name, title: product?.title || null,
+    name: req.user.name, title: product?.title || plan?.name?.ar || null,
   }, '/admin/requests')));
 
   res.status(201).json({ request });

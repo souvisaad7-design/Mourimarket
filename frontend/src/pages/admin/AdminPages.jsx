@@ -473,7 +473,7 @@ export function AdminUpgrades() {
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <Tabs value={status} onChange={(v) => set('status', v === 'pending' ? '' : v)} options={['pending', 'approved', 'rejected'].map((s) => [s, label(s)])} />
-        <Tabs value={kind} onChange={(v) => set('kind', v)} options={[['', t('admin.allKinds')], ['verify', t('upgrades.kind.verify')], ['feature', t('upgrades.kind.feature')], ['bump', t('upgrades.kind.bump')]]} />
+        <Tabs value={kind} onChange={(v) => set('kind', v)} options={[['', t('admin.allKinds')], ['verify', t('upgrades.kind.verify')], ['feature', t('upgrades.kind.feature')], ['bump', t('upgrades.kind.bump')], ['plan', t('upgrades.kind.plan')]]} />
       </div>
       <ErrorBox error={error} />
       {loading ? <Spinner /> : !data?.items?.length ? <EmptyState icon="shield" title={t('common.empty')} /> : (

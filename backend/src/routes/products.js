@@ -215,6 +215,25 @@ router.post('/:id/bump', requireAuth, async (req, res) => {
   res.json({ bumpedAt: rows[0].bumped_at });
 });
 
+/** POST /api/products/:id/feature-credit – a store on a monthly plan features a listing for 7 days from its credits. */
+router.post('/:id/feature-credit', requireAuth, async (req, res) => {
+  const product = await loadProduct(req.params.id);
+  if (product.seller_id !== req.user.id) throw forbidden();
+  if (product.status !== 'approved' || product.availability !== 'available') throw badRequest('product_not_featurable');
+  const featured = await tx(async (client) => {
+    const { rowCount } = await client.query(
+      'UPDATE stores SET feature_credits = feature_credits - 1 WHERE owner_id = $1 AND feature_credits > 0 AND plan_until > now()', [req.user.id],
+    );
+    if (!rowCount) throw badRequest('no_feature_credits');
+    const { rows } = await client.query(
+      `UPDATE products SET featured_until = GREATEST(COALESCE(featured_until, now()), now()) + interval '7 days', updated_at = now()
+       WHERE id = $1 RETURNING featured_until`, [product.id],
+    );
+    return rows[0].featured_until;
+  });
+  res.json({ featuredUntil: featured });
+});
+
 /** POST /api/products/:id/view { source } – the listing page counts one view per visit (never the owner's own). */
 const viewLimiter = limiter('listing-view', { windowMs: 60 * 1000, limit: 120 });
 router.post('/:id/view', optionalAuth, viewLimiter, async (req, res) => {

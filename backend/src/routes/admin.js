@@ -307,7 +307,7 @@ export default router;
 router.get('/upgrade-requests', async (req, res) => {
   const { limit, offset, page } = pagination(req.query, { defaultLimit: 30 });
   const status = ['pending', 'approved', 'rejected'].includes(req.query.status) ? req.query.status : 'pending';
-  const kind = ['verify', 'feature', 'bump'].includes(req.query.kind) ? req.query.kind : '';
+  const kind = ['verify', 'feature', 'bump', 'plan'].includes(req.query.kind) ? req.query.kind : '';
   const params = [status, kind];
   const where = `WHERE r.status = $1 AND ($2 = '' OR r.kind = $2)`;
   const [items, total, counts] = await Promise.all([
@@ -362,6 +362,16 @@ router.patch('/upgrade-requests/:id', async (req, res) => {
     if (data.status === 'approved') {
       if (r.kind === 'verify') {
         await client.query('UPDATE users SET is_verified = true, updated_at = now() WHERE id = $1', [r.user_id]);
+      } else if (r.kind === 'plan') {
+        const plan = (await getSettings()).pricing.storePlans.find((x) => x.key === r.plan_key);
+        const { rows } = await client.query(
+          `UPDATE stores SET plan = $1, plan_until = GREATEST(COALESCE(plan_until, now()), now()) + make_interval(days => 30 * $2::int),
+             feature_credits = feature_credits + $3, updated_at = now()
+           WHERE owner_id = $4 RETURNING id, name AS title, plan_until`,
+          [r.plan_key, r.months, (plan?.featuredPerMonth || 0) * r.months, r.user_id],
+        );
+        if (!rows[0]) throw badRequest('store_required');
+        product = { id: null, title: rows[0].title };
       } else if (r.kind === 'bump') {
         const { rows } = await client.query("UPDATE products SET bumped_at = now() WHERE id = $1 AND status = 'approved' RETURNING id, title", [r.product_id]);
         if (!rows[0]) throw badRequest('product_not_featurable');
@@ -381,11 +391,12 @@ router.patch('/upgrade-requests/:id', async (req, res) => {
       `UPDATE upgrade_requests SET status = $1, admin_note = $2, reviewed_by = $3, reviewed_at = now() WHERE id = $4`,
       [data.status, data.note || null, req.user.id, id],
     );
-    if (r.kind !== 'verify' && !product) {
+    if (r.kind !== 'verify' && r.kind !== 'plan' && !product) {
       product = (await client.query('SELECT id, title FROM products WHERE id = $1', [r.product_id])).rows[0] || null;
     }
     if (data.status === 'approved') {
       if (r.kind === 'verify') await notify(r.user_id, 'account_verified', {}, `/users/${r.user_id}`, client);
+      else if (r.kind === 'plan') await notify(r.user_id, 'plan_active', { plan: r.plan_key, months: r.months }, '/dashboard/store', client);
       else if (r.kind === 'bump') await notify(r.user_id, 'product_bumped', { title: product.title }, `/products/${product.id}`, client);
       else await notify(r.user_id, 'product_featured', { title: product.title, days: r.days }, `/products/${product.id}`, client);
     } else {

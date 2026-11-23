@@ -1652,3 +1652,47 @@ describe('car inspection reports', () => {
     assert.equal(n, 1);
   });
 });
+
+describe('monthly store plans', () => {
+  let merchant; let admin; let pid;
+  before(async () => {
+    merchant = await login('fatimetou@example.mr'); admin = await login('admin@maurimarket.mr', 'Admin12345');
+    const s = (await call('/api/admin/settings', { token: admin })).data.settings;
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { features: { ...s.features, paidUpgrades: true } } });
+    pid = (await pool.query("SELECT p.id FROM products p JOIN users u ON u.id = p.seller_id WHERE u.email = 'fatimetou@example.mr' AND p.status = 'approved' AND p.availability = 'available' ORDER BY p.id DESC LIMIT 1")).rows[0].id;
+  });
+  after(async () => {
+    const s = (await call('/api/admin/settings', { token: admin })).data.settings;
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { features: { ...s.features, paidUpgrades: false } } });
+  });
+
+  it('a merchant buys a plan; once approved the store gets credits and the Pro badge', async () => {
+    const plans = (await call('/api/meta')).data.upgrades.storePlans;
+    assert.deepEqual(plans.map((p) => p.key), ['pro', 'premium']);
+    assert.equal((await call(`/api/products/${pid}/feature-credit`, { method: 'POST', token: merchant })).data.error, 'no_feature_credits');
+    const fd = new FormData();
+    for (const [k, v] of Object.entries({ kind: 'plan', planKey: 'pro', months: '2', paymentMethod: 'bankily' })) fd.append(k, v);
+    fd.append('receipt', new Blob([PNG], { type: 'image/png' }), 'r.png');
+    const r = await call('/api/upgrade-requests', { method: 'POST', token: merchant, form: fd });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    assert.equal(r.data.request.amount, 3000, '2 months × 1,500');
+    const ap = await call(`/api/admin/upgrade-requests/${r.data.request.id}`, { method: 'PATCH', token: admin, body: { status: 'approved' } });
+    assert.equal(ap.status, 200, JSON.stringify(ap.data));
+    const store = (await call('/api/stores/me', { token: merchant })).data.store;
+    assert.equal(store.plan, 'pro');
+    assert.equal(store.feature_credits, 10, '5 per month × 2');
+    assert.ok(new Date(store.plan_until) > new Date(Date.now() + 59 * 86400000));
+    const list = (await call('/api/stores')).data.items;
+    assert.equal(list[0].slug, store.slug, 'Pro stores first');
+    assert.equal(list[0].pro, true);
+  });
+
+  it('credits feature a listing for 7 days, one credit each', async () => {
+    const r = await call(`/api/products/${pid}/feature-credit`, { method: 'POST', token: merchant });
+    assert.equal(r.status, 200);
+    assert.ok(new Date(r.data.featuredUntil) > new Date(Date.now() + 6.9 * 86400000));
+    assert.equal((await call('/api/stores/me', { token: merchant })).data.store.feature_credits, 9);
+    const other = await login('mohamed@example.mr');
+    assert.equal((await call(`/api/products/${pid}/feature-credit`, { method: 'POST', token: other })).status, 403);
+  });
+});

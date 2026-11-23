@@ -22,7 +22,7 @@ router.get('/meta', async (_req, res) => {
     phoneVerification: await phoneVerificationOn(),
     videoUploads: videoEnabled(),
     freeBumpDays: pricing.freeBumpDays,
-    upgrades: features.paidUpgrades ? { verifyPrice: pricing.verifyPrice, bumpPrice: pricing.bumpPrice, featurePlans: pricing.featurePlans, paymentMethods: PAYMENT_METHODS } : null,
+    upgrades: features.paidUpgrades ? { verifyPrice: pricing.verifyPrice, bumpPrice: pricing.bumpPrice, storePlans: pricing.storePlans, featurePlans: pricing.featurePlans, paymentMethods: PAYMENT_METHODS } : null,
   });
 });
 
@@ -113,16 +113,17 @@ router.get('/stores', async (req, res) => {
   const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : '';
   const { rows } = await query(
     `SELECT s.id, s.name, s.slug, s.logo_url, s.description, s.city, s.created_at, u.is_verified AS verified,
+       (s.plan IS NOT NULL AND s.plan_until > now()) AS pro,
        (SELECT COUNT(*) FROM products p WHERE p.store_id = s.id AND p.status = 'approved' AND p.availability = 'available') AS product_count
      FROM stores s JOIN users u ON u.id = s.owner_id
      WHERE s.is_active AND u.is_active AND u.account_type = 'merchant' AND ($1 = '' OR s.name ILIKE '%' || $1 || '%')
-     ORDER BY product_count DESC, s.created_at DESC`,
+     ORDER BY (s.plan IS NOT NULL AND s.plan_until > now()) DESC, product_count DESC, s.created_at DESC`,
     [q],
   );
   res.json({ items: rows });
 });
 
-const STORE_FIELDS = 'id, owner_id, name, slug, logo_url, description, phone, whatsapp, email, city, is_active, created_at';
+const STORE_FIELDS = 'id, owner_id, name, slug, logo_url, description, phone, whatsapp, email, city, is_active, created_at, plan, plan_until, feature_credits';
 
 router.get('/stores/me', requireAuth, async (req, res) => {
   const { rows } = await query(`SELECT ${STORE_FIELDS} FROM stores WHERE owner_id = $1`, [req.user.id]);
@@ -180,7 +181,7 @@ router.put('/stores/me', requireAuth, upload.single('logo'), async (req, res) =>
 
 router.get('/stores/:slug', async (req, res) => {
   const { rows } = await query(
-    `SELECT s.id, s.owner_id, s.name, s.slug, s.logo_url, s.description, s.phone, s.whatsapp, s.email, s.city, s.created_at,
+    `SELECT s.id, s.owner_id, s.name, s.slug, s.logo_url, s.description, s.phone, s.whatsapp, s.email, s.city, s.created_at, (s.plan IS NOT NULL AND s.plan_until > now()) AS pro,
        u.name AS owner_name, u.is_verified AS verified,
        (SELECT ROUND(AVG(rating)::numeric, 1) FROM reviews WHERE seller_id = s.owner_id) AS rating,
        (SELECT COUNT(*) FROM reviews WHERE seller_id = s.owner_id) AS reviews_count

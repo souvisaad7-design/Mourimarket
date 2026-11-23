@@ -5,6 +5,7 @@ import { EmptyState, ErrorBox, Icon, PageHeader, Pagination, Spinner, Stars, Ver
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
+import { ProBadge } from '../components/StorePlans.jsx';
 
 function StoreLogo({ store, size = 'h-16 w-16' }) {
   return store.logo_url ? <img src={store.logo_url} alt="" className={`${size} shrink-0 rounded-2xl object-cover`} /> : (
@@ -36,7 +37,7 @@ export function Stores() {
             <Link key={s.id} to={`/stores/${s.slug}`} className="card flex gap-4 p-5 transition hover:shadow-md">
               <StoreLogo store={s} />
               <div className="min-w-0">
-                <h2 className="flex items-center gap-1 truncate font-bold">{s.name}{s.verified && <VerifiedBadge small />}</h2>
+                <h2 className="flex items-center gap-1 truncate font-bold">{s.name}{s.verified && <VerifiedBadge small />}{s.pro && <ProBadge />}</h2>
                 {s.description && <p className="mt-1 line-clamp-2 text-sm text-slate-600">{s.description}</p>}
                 <p className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
                   <span>{t('store.products', { n: number(s.product_count) })}</span>
@@ -73,7 +74,7 @@ export function StoreDetail() {
         <div className="card -mt-16 flex flex-col gap-5 p-6 sm:flex-row">
           <StoreLogo store={s} size="h-24 w-24" />
           <div className="flex-1">
-            <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold">{s.name}{s.verified && <VerifiedBadge label />}</h1>
+            <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold">{s.name}{s.verified && <VerifiedBadge label />}{s.pro && <ProBadge />}</h1>
             <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
               {s.reviews_count > 0 && <span className="flex items-center gap-1"><Stars value={s.rating} />({s.reviews_count})</span>}
               {s.city && <span className="flex items-center gap-1"><Icon name="pin" className="h-4 w-4" />{cityName(meta.cities, s.city)}</span>}

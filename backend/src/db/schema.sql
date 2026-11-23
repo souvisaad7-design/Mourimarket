@@ -669,3 +669,15 @@ CREATE INDEX IF NOT EXISTS inspections_product_idx ON inspections (product_id);
 CREATE INDEX IF NOT EXISTS inspections_status_idx ON inspections (status, created_at);
 CREATE UNIQUE INDEX IF NOT EXISTS inspections_one_open ON inspections (product_id) WHERE status IN ('requested', 'scheduled');
 ALTER TABLE inspections ENABLE ROW LEVEL SECURITY;
+
+-- ---------- Monthly store plans (featured-listing credits, Pro badge) ----------
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS plan TEXT;
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS plan_until TIMESTAMPTZ;
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS feature_credits INT NOT NULL DEFAULT 0;
+ALTER TABLE upgrade_requests ADD COLUMN IF NOT EXISTS plan_key TEXT;
+ALTER TABLE upgrade_requests ADD COLUMN IF NOT EXISTS months INT;
+ALTER TABLE upgrade_requests DROP CONSTRAINT IF EXISTS upgrade_requests_kind_check;
+ALTER TABLE upgrade_requests ADD CONSTRAINT upgrade_requests_kind_check CHECK (kind IN ('verify', 'feature', 'bump', 'plan'));
+ALTER TABLE upgrade_requests DROP CONSTRAINT IF EXISTS upgrade_requests_target_check;
+ALTER TABLE upgrade_requests ADD CONSTRAINT upgrade_requests_target_check CHECK (kind = 'verify' OR (kind = 'plan' AND plan_key IS NOT NULL AND months IS NOT NULL) OR (kind = 'bump' AND product_id IS NOT NULL) OR (product_id IS NOT NULL AND days IS NOT NULL));
+CREATE UNIQUE INDEX IF NOT EXISTS upgrade_requests_one_pending_plan ON upgrade_requests(user_id) WHERE status = 'pending' AND kind = 'plan';

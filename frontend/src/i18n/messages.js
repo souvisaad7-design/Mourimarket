@@ -1943,6 +1943,38 @@ deepMerge(en, {
   errors: { bulk_unreadable: 'Could not read the file. Use the template as Excel or CSV.', bulk_no_title: 'No “title” column in the first row.' },
 });
 
+// ---------- v34: monthly store plans ----------
+deepMerge(ar, {
+  plans: {
+    title: 'باقات المتجر الشهرية', until: 'حتى {date}', credits: 'رصيدك: {n} تمييز لإعلاناتك (7 أيام لكل تمييز). استخدمه من لوحة البائع.',
+    month: 'شهر', featured: '{n} إعلانات مميزة كل شهر', badge: 'شارة «متجر محترف»', priority: 'أولوية في صفحة المتاجر', subscribe: 'اشترك', renew: 'تجديد',
+    buyTitle: 'الاشتراك في باقة «{name}»', months: 'المدة', monthsN: '{n} شهر', useCredit: 'ميّز برصيدك ({n})', featuredDone: 'تم تمييز الإعلان لمدة 7 أيام ⭐',
+  },
+  upgrades: { kind: { plan: 'باقة متجر' } },
+  errors: { no_feature_credits: 'لا يوجد رصيد تمييز. اشترك في باقة أو جدّدها.', store_required: 'يجب إنشاء المتجر أولاً.', merchants_only: 'الباقات متاحة لحسابات التجار.' },
+  notifications: { types: { plan_active: 'تم تفعيل باقة متجرك لمدة {months} شهر ⭐', upgrade_rejected_plan: 'لم يُقبل طلب الباقة. السبب: {reason}', upgrade_request_plan: '{name} طلب الاشتراك في باقة «{title}»' } },
+});
+deepMerge(fr, {
+  plans: {
+    title: 'Abonnements boutique', until: 'jusqu’au {date}', credits: 'Votre crédit : {n} mise(s) en avant (7 jours chacune). Utilisez-le depuis l’espace vendeur.',
+    month: 'mois', featured: '{n} annonces à la une par mois', badge: 'Badge « Boutique Pro »', priority: 'Priorité dans la page Boutiques', subscribe: 'S’abonner', renew: 'Renouveler',
+    buyTitle: 'Abonnement « {name} »', months: 'Durée', monthsN: '{n} mois', useCredit: 'Mettre à la une ({n})', featuredDone: 'Annonce à la une pour 7 jours ⭐',
+  },
+  upgrades: { kind: { plan: 'Abonnement' } },
+  errors: { no_feature_credits: 'Plus de crédit. Abonnez-vous ou renouvelez.', store_required: 'Créez d’abord la boutique.', merchants_only: 'Réservé aux comptes commerçants.' },
+  notifications: { types: { plan_active: 'Abonnement de votre boutique activé pour {months} mois ⭐', upgrade_rejected_plan: 'Abonnement refusé. Motif : {reason}', upgrade_request_plan: '{name} demande l’abonnement « {title} »' } },
+});
+deepMerge(en, {
+  plans: {
+    title: 'Monthly store plans', until: 'until {date}', credits: 'Your balance: {n} featured listing(s) (7 days each). Use it from your seller dashboard.',
+    month: 'month', featured: '{n} featured listings per month', badge: '“Pro store” badge', priority: 'Priority on the Stores page', subscribe: 'Subscribe', renew: 'Renew',
+    buyTitle: 'Subscribe to “{name}”', months: 'Duration', monthsN: '{n} mo', useCredit: 'Feature with credit ({n})', featuredDone: 'Listing featured for 7 days ⭐',
+  },
+  upgrades: { kind: { plan: 'Store plan' } },
+  errors: { no_feature_credits: 'No credits left. Subscribe or renew.', store_required: 'Create your store first.', merchants_only: 'Plans are for merchant accounts.' },
+  notifications: { types: { plan_active: 'Your store plan is active for {months} month(s) ⭐', upgrade_rejected_plan: 'Plan request declined. Reason: {reason}', upgrade_request_plan: '{name} asked for the “{title}” plan' } },
+});
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },
