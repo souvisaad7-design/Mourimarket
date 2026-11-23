@@ -627,3 +627,14 @@ ALTER TABLE wanted_ads ENABLE ROW LEVEL SECURITY;
 -- A conversation can be about a listing or about a "wanted" ad (a seller answering a buyer's request).
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS wanted_id INT REFERENCES wanted_ads(id) ON DELETE SET NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS conversations_wanted_unique ON conversations (wanted_id, buyer_id, seller_id) WHERE wanted_id IS NOT NULL;
+
+-- ---------- Seller statistics: listing views per day and source ----------
+CREATE TABLE IF NOT EXISTS product_views_daily (
+  product_id INT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  day        DATE NOT NULL,
+  source     TEXT NOT NULL,
+  views      INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (product_id, day, source)
+);
+CREATE INDEX IF NOT EXISTS product_views_day_idx ON product_views_daily (day);
+ALTER TABLE product_views_daily ENABLE ROW LEVEL SECURITY;

@@ -1806,6 +1806,32 @@ deepMerge(en, {
   notifications: { types: { wanted_reply: '{from} has what you are looking for: “{title}”' } },
 });
 
+// ---------- v30: seller statistics ----------
+deepMerge(ar, { stats: {
+  title: 'إحصائياتي', period: 'الفترة', lastDays: 'آخر {n} يوماً', views: 'المشاهدات', viewsUnit: 'مشاهدة', chats: 'محادثات جديدة', replyRate: 'معدل الرد',
+  replySpeed: 'سرعة الرد: {v}', favorites: 'في المفضلة', live: '{n} إعلان منشور', daily: 'المشاهدات حسب اليوم', asTable: 'عرض كجدول', sources: 'من أين جاء الزوار',
+  sourcesHint: 'روابط المشاركة عبر زر واتساب في صفحة الإعلان تُحسب «واتساب».', top: 'أفضل إعلاناتك', listing: 'الإعلان', noViews: 'لا توجد مشاهدات في هذه الفترة.',
+  noListings: 'لا توجد إعلانات بعد.', minutes: '{n} دقيقة', hours: '{n} ساعة', daysN: '{n} يوم',
+  tip: 'الرد السريع يزيد فرص البيع: فعّل التنبيهات على هاتفك لتعرف فوراً بكل رسالة.',
+  source: { site: 'من داخل الموقع', direct: 'مباشر / تطبيقات', whatsapp: 'واتساب', facebook: 'فيسبوك', google: 'جوجل', instagram: 'إنستغرام', tiktok: 'تيك توك', qr: 'رمز QR', other: 'مواقع أخرى' },
+} });
+deepMerge(fr, { stats: {
+  title: 'Mes statistiques', period: 'Période', lastDays: '{n} derniers jours', views: 'Vues', viewsUnit: 'vues', chats: 'Nouvelles conversations', replyRate: 'Taux de réponse',
+  replySpeed: 'Délai de réponse : {v}', favorites: 'En favoris', live: '{n} annonce(s) en ligne', daily: 'Vues par jour', asTable: 'Voir en tableau', sources: 'D’où viennent les visiteurs',
+  sourcesHint: 'Les liens partagés avec le bouton WhatsApp de l’annonce comptent comme « WhatsApp ».', top: 'Vos meilleures annonces', listing: 'Annonce', noViews: 'Aucune vue sur cette période.',
+  noListings: 'Aucune annonce pour l’instant.', minutes: '{n} min', hours: '{n} h', daysN: '{n} j',
+  tip: 'Répondre vite aide à vendre : activez les notifications sur votre téléphone pour voir chaque message tout de suite.',
+  source: { site: 'Depuis le site', direct: 'Direct / applis', whatsapp: 'WhatsApp', facebook: 'Facebook', google: 'Google', instagram: 'Instagram', tiktok: 'TikTok', qr: 'QR code', other: 'Autres sites' },
+} });
+deepMerge(en, { stats: {
+  title: 'My statistics', period: 'Period', lastDays: 'Last {n} days', views: 'Views', viewsUnit: 'views', chats: 'New conversations', replyRate: 'Reply rate',
+  replySpeed: 'Reply time: {v}', favorites: 'In favourites', live: '{n} live listing(s)', daily: 'Views per day', asTable: 'Show as a table', sources: 'Where visitors come from',
+  sourcesHint: 'Links shared with the WhatsApp button on a listing count as “WhatsApp”.', top: 'Your best listings', listing: 'Listing', noViews: 'No views in this period.',
+  noListings: 'No listings yet.', minutes: '{n} min', hours: '{n} h', daysN: '{n} d',
+  tip: 'Answering fast sells more: turn on phone notifications to see every message right away.',
+  source: { site: 'Within the site', direct: 'Direct / apps', whatsapp: 'WhatsApp', facebook: 'Facebook', google: 'Google', instagram: 'Instagram', tiktok: 'TikTok', qr: 'QR code', other: 'Other sites' },
+} });
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },

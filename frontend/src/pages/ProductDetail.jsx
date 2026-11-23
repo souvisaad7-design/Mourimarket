@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Gallery from '../components/Gallery.jsx';
 import { FavoriteButton, ProductGrid, discountPercent } from '../components/ProductCard.jsx';
@@ -12,6 +12,7 @@ import { useApi, useDocumentTitle } from '../lib/hooks.js';
 import { useSettings } from '../context/SettingsContext.jsx';
 import { OrderDeliveryButton } from './Delivery.jsx';
 import { AttributeTable } from '../components/Attributes.jsx';
+import { taggedUrl, viewSource } from '../lib/viewSource.js';
 
 function ReportModal({ productId, open, onClose }) {
   const { t } = useI18n();
@@ -153,7 +154,7 @@ function ShareBar({ product }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="text-sm font-semibold text-slate-600">{t('product.share')}:</span>
-      <a href={`https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`} target="_blank" rel="noreferrer"
+      <a href={`https://wa.me/?text=${encodeURIComponent(`${text}\n${taggedUrl(url, 'wa')}`)}`} target="_blank" rel="noreferrer"
         className="btn bg-[#25D366] px-3 py-1.5 text-xs text-white hover:brightness-95">{t('product.whatsapp')}</a>
       {canShare && <button type="button" onClick={nativeShare} className="btn-outline px-3 py-1.5 text-xs"><Icon name="share" className="h-4 w-4" />{t('product.share')}</button>}
       <button type="button" onClick={copy} className="btn-outline px-3 py-1.5 text-xs"><Icon name="link" className="h-4 w-4" />{t('product.copyLink')}</button>
@@ -196,6 +197,8 @@ export default function ProductDetail() {
   const [reportOpen, setReportOpen] = useState(false);
   const { query: here } = useGeo();
   const { data, loading, error, reload } = useApi(`/products/${id}${here ? `?lat=${here.lat}&lng=${here.lng}` : ''}`, undefined, [id, here?.lat, here?.lng]);
+  // One view per visit, with where it came from (for the seller's statistics).
+  useEffect(() => { api(`/products/${id}/view`, { method: 'POST', body: { source: viewSource(window.location.pathname) } }).catch(() => {}); }, [id]);
   const product = data?.product;
   const similar = useApi(product ? `/products?category=${product.category_slug}&limit=5` : null, undefined, [product?.id]);
   useDocumentTitle(product?.title);

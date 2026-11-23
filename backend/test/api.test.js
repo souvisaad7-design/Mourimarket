@@ -1537,3 +1537,39 @@ describe('"wanted" ads', () => {
     assert.equal((await call(`/api/wanted/${id}`)).status, 404);
   });
 });
+
+describe('seller statistics', () => {
+  let seller; let buyer; let pid;
+  before(async () => {
+    seller = await login('fatimetou@example.mr'); buyer = await login('buyer@example.mr');
+    pid = (await pool.query("SELECT p.id FROM products p JOIN users u ON u.id = p.seller_id WHERE u.email = 'fatimetou@example.mr' AND p.status = 'approved' AND p.availability = 'available' ORDER BY p.id LIMIT 1")).rows[0].id;
+  });
+
+  it('counts one view per visit, by source, never the owner’s own', async () => {
+    const view = (source, token) => call(`/api/products/${pid}/view`, { method: 'POST', token, body: { source } });
+    await view('whatsapp'); await view('whatsapp'); await view('google'); await view('site', buyer);
+    await view("nonsense'--");
+    await call(`/api/products/${pid}`); // loading the data is not a view
+    await view('site', seller); // the seller looking at their own listing
+    const s = (await call('/api/seller/stats?days=7', { token: seller })).data;
+    const src = Object.fromEntries(s.sources.map((x) => [x.source, x.views]));
+    assert.deepEqual([src.whatsapp, src.google, src.site, src.other], [2, 1, 1, 1]);
+    assert.equal(s.totals.views, 5);
+    assert.equal(s.daily.length, 7);
+    assert.equal(s.daily.at(-1).views, 5);
+    assert.equal(s.top[0].id, pid);
+    assert.equal(s.top[0].views, 5);
+  });
+
+  it('reply rate and median reply time', async () => {
+    const r = await call('/api/conversations', { method: 'POST', token: buyer, body: { productId: pid, body: 'هل ما زال متاحاً؟' } });
+    let s = (await call('/api/seller/stats', { token: seller })).data.totals;
+    assert.equal(s.chats, 1);
+    assert.equal(s.replyRate, 0);
+    await call(`/api/conversations/${r.data.conversationId}/messages`, { method: 'POST', token: seller, body: { body: 'نعم متاح' } });
+    s = (await call('/api/seller/stats', { token: seller })).data.totals;
+    assert.equal(s.replyRate, 100);
+    assert.equal(s.medianReplyMinutes, 0);
+    assert.equal((await call('/api/seller/stats')).status, 401);
+  });
+});

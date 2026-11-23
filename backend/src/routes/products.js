@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { limiter } from '../lib/rateLimit.js';
 import { onApproved } from '../lib/alerts.js';
 import { attrFilters, validateAttrs } from '../lib/attributes.js';
+import { recordView } from './stats.js';
 import { deleteVideo, ownVideoUrl, videoEnabled, videoUploadToken, VIDEO_TYPES } from '../lib/video.js';
 import { requireVerifiedPhone } from '../middleware/phone.js';
 import { z } from 'zod';
@@ -193,6 +194,18 @@ function assertOwner(product, user) {
   if (product.seller_id !== user.id && user.role !== 'admin') throw forbidden();
 }
 
+/** POST /api/products/:id/view { source } – the listing page counts one view per visit (never the owner's own). */
+const viewLimiter = limiter('listing-view', { windowMs: 60 * 1000, limit: 120 });
+router.post('/:id/view', optionalAuth, viewLimiter, async (req, res) => {
+  const id = parseInt(req.params.id, 10) || 0;
+  const { rows } = await query("SELECT seller_id FROM products WHERE id = $1 AND status = 'approved'", [id]);
+  if (!rows[0]) return res.status(204).end();
+  if (req.user && (req.user.id === rows[0].seller_id || req.user.role === 'admin')) return res.status(204).end();
+  await query('UPDATE products SET views = views + 1 WHERE id = $1', [id]);
+  await recordView(id, String(req.body?.source || '').slice(0, 20));
+  res.status(204).end();
+});
+
 /** GET /api/products/:id – detail. Unapproved listings are visible to their owner and admins only. */
 router.get('/:id', optionalAuth, async (req, res) => {
   const id = parseInt(req.params.id, 10);
@@ -223,7 +236,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
       : { rowCount: 0 },
     query('SELECT id, rating, comment, created_at FROM reviews WHERE product_id = $1', [id]),
   ]);
-  if (!isOwner) await query('UPDATE products SET views = views + 1 WHERE id = $1', [id]);
+
 
   product.images = images.rows;
   product.is_favorite = fav.rowCount > 0;

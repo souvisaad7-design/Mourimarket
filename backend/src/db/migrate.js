@@ -6,6 +6,7 @@ import { pool } from '../db.js';
 const dir = path.dirname(fileURLToPath(import.meta.url));
 
 const TABLES = [
+  'product_views_daily',
   'wanted_ads',
   'saved_searches',
   'push_subscriptions', 'app_secrets',
