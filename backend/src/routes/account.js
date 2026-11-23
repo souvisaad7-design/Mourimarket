@@ -9,7 +9,7 @@ import { badRequest, conflict, forbidden, notFound, pagination, parse } from '..
 import { notify } from '../lib/notify.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireVerifiedPhone } from '../middleware/phone.js';
-import { savePrivateFile, upload } from '../middleware/upload.js';
+import { chatUpload, saveChatMedia, savePrivateFile, sendFile, upload } from '../middleware/upload.js';
 import { PRODUCT_FROM, PRODUCT_SELECT } from './products.js';
 
 const router = Router();
@@ -54,6 +54,7 @@ const CONVERSATION_SELECT = `
   CASE WHEN cv.buyer_id = $1 THEN cv.seller_id ELSE cv.buyer_id END AS other_id,
   CASE WHEN cv.buyer_id = $1 THEN us.name ELSE ub.name END AS other_name,
   (SELECT body FROM messages m WHERE m.conversation_id = cv.id ORDER BY created_at DESC, id DESC LIMIT 1) AS last_message,
+  (SELECT kind FROM messages m WHERE m.conversation_id = cv.id ORDER BY created_at DESC, id DESC LIMIT 1) AS last_kind,
   (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = cv.id AND m.sender_id <> $1 AND m.read_at IS NULL) AS unread`;
 
 const CONVERSATION_FROM = `
@@ -117,7 +118,7 @@ async function loadConversation(id, userId) {
 router.get('/conversations/:id', async (req, res) => {
   const conversation = await loadConversation(req.params.id, req.user.id);
   const { rows } = await query(
-    'SELECT id, sender_id, body, read_at, created_at FROM messages WHERE conversation_id = $1 ORDER BY created_at, id',
+    'SELECT id, sender_id, body, kind, amount, offer_status, file_id, duration, read_at, created_at FROM messages WHERE conversation_id = $1 ORDER BY created_at, id',
     [conversation.id],
   );
   await query(
@@ -146,6 +147,91 @@ router.post('/conversations/:id/messages', requireVerifiedPhone, writeLimiter, a
     { from: req.user.name, title: conversation.product_title, conversationId: conversation.id },
     `/messages/${conversation.id}`);
   res.status(201).json({ message: rows[0] });
+});
+
+// ---------- Price offers ("make an offer", accept / decline / counter) ----------
+
+const MSG_FIELDS = 'id, sender_id, body, kind, amount, offer_status, file_id, duration, read_at, created_at';
+const amountSchema = z.coerce.number().int().min(1, 'min_1').max(1e12);
+
+
+async function placeOffer(conversation, userId, userName, amount, client = { query }) {
+  // Only one open offer at a time: a new one replaces the previous.
+  await client.query("UPDATE messages SET offer_status = 'superseded' WHERE conversation_id = $1 AND kind = 'offer' AND offer_status = 'pending'", [conversation.id]);
+  const { rows } = await client.query(
+    `INSERT INTO messages (conversation_id, sender_id, body, kind, amount, offer_status) VALUES ($1, $2, '', 'offer', $3, 'pending') RETURNING ${MSG_FIELDS}`,
+    [conversation.id, userId, amount],
+  );
+  await client.query('UPDATE conversations SET last_message_at = now() WHERE id = $1', [conversation.id]);
+  await notify(conversation.other_id, 'offer_new', { from: userName, title: conversation.product_title, amount, conversationId: conversation.id }, `/messages/${conversation.id}`, client);
+  return rows[0];
+}
+
+/** POST /api/conversations/:id/offers { amount } – propose a price. */
+router.post('/conversations/:id/offers', requireVerifiedPhone, writeLimiter, async (req, res) => {
+  const conversation = await loadConversation(req.params.id, req.user.id);
+  const { amount } = parse(z.object({ amount: amountSchema }), req.body);
+  if (!conversation.product_id || conversation.product_availability !== 'available') throw badRequest('product_sold');
+  const message = await tx((client) => placeOffer(conversation, req.user.id, req.user.name, amount, client));
+  res.status(201).json({ message });
+});
+
+/** POST /api/conversations/:id/offers/:messageId { action: accept | decline | counter | withdraw, amount? } */
+router.post('/conversations/:id/offers/:messageId', requireVerifiedPhone, writeLimiter, async (req, res) => {
+  const conversation = await loadConversation(req.params.id, req.user.id);
+  const d = parse(z.object({ action: z.enum(['accept', 'decline', 'counter', 'withdraw']), amount: amountSchema.optional() }), req.body);
+  const result = await tx(async (client) => {
+    const offer = (await client.query(
+      "SELECT * FROM messages WHERE id = $1 AND conversation_id = $2 AND kind = 'offer' FOR UPDATE", [parseInt(req.params.messageId, 10) || 0, conversation.id],
+    )).rows[0];
+    if (!offer) throw notFound('offer_not_found');
+    if (offer.offer_status !== 'pending') throw conflict('offer_closed');
+    const mine = offer.sender_id === req.user.id;
+    if (d.action === 'withdraw' ? !mine : mine) throw forbidden('not_allowed'); // you answer the other person's offer
+    const status = { accept: 'accepted', decline: 'declined', counter: 'countered', withdraw: 'withdrawn' }[d.action];
+    await client.query('UPDATE messages SET offer_status = $1 WHERE id = $2', [status, offer.id]);
+    let counter = null;
+    if (d.action === 'counter') {
+      if (!d.amount) throw badRequest('validation_error', { amount: 'required' });
+      counter = await placeOffer(conversation, req.user.id, req.user.name, d.amount, client);
+    } else if (d.action !== 'withdraw') {
+      await client.query('UPDATE conversations SET last_message_at = now() WHERE id = $1', [conversation.id]);
+      await notify(offer.sender_id, `offer_${status}`, { from: req.user.name, title: conversation.product_title, amount: Number(offer.amount), conversationId: conversation.id }, `/messages/${conversation.id}`, client);
+    }
+    return { status, counter };
+  });
+  res.json(result);
+});
+
+// ---------- Photos and voice notes ----------
+
+/** POST /api/conversations/:id/media (multipart "file", optional "duration" in seconds) */
+router.post('/conversations/:id/media', requireVerifiedPhone, writeLimiter, chatUpload.single('file'), async (req, res) => {
+  const conversation = await loadConversation(req.params.id, req.user.id);
+  if (!req.file) throw badRequest('validation_error', { file: 'required' });
+  const duration = Math.min(600, Math.max(0, parseInt(req.body?.duration, 10) || 0)) || null;
+  const message = await tx(async (client) => {
+    const file = await saveChatMedia(req.file, client);
+    const { rows } = await client.query(
+      `INSERT INTO messages (conversation_id, sender_id, body, kind, file_id, duration) VALUES ($1, $2, '', $3, $4, $5) RETURNING ${MSG_FIELDS}`,
+      [conversation.id, req.user.id, file.kind, file.id, file.kind === 'audio' ? duration : null],
+    );
+    await client.query('UPDATE conversations SET last_message_at = now() WHERE id = $1', [conversation.id]);
+    return rows[0];
+  });
+  const isSeller = req.user.id === conversation.seller_id;
+  await notify(conversation.other_id, isSeller ? 'seller_reply' : 'new_message',
+    { from: req.user.name, title: conversation.product_title, conversationId: conversation.id }, `/messages/${conversation.id}`);
+  res.status(201).json({ message });
+});
+
+/** GET /api/conversations/:id/files/:fileId – a photo / voice note, for the two people in the conversation only. */
+router.get('/conversations/:id/files/:fileId', async (req, res) => {
+  const conversation = await loadConversation(req.params.id, req.user.id);
+  const fileId = parseInt(req.params.fileId, 10) || 0;
+  const ok = (await query('SELECT 1 FROM messages WHERE conversation_id = $1 AND file_id = $2', [conversation.id, fileId])).rowCount;
+  if (!ok) throw notFound();
+  return sendFile(res, fileId, { isPrivate: true });
 });
 
 // ---------- Notifications ----------

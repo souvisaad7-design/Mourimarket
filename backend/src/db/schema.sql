@@ -587,3 +587,17 @@ WHERE status = 'approved' AND (alerted_at IS NULL OR live_price IS NULL) AND upd
 
 -- ---------- Phone verification (SMS code) ----------
 ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMPTZ;
+
+-- ---------- Chat: price offers, photos and voice notes ----------
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'text';
+DO $$ BEGIN
+  ALTER TABLE messages ADD CONSTRAINT messages_kind_check CHECK (kind IN ('text', 'offer', 'image', 'audio'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS amount BIGINT;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS offer_status TEXT;
+DO $$ BEGIN
+  ALTER TABLE messages ADD CONSTRAINT messages_offer_status_check CHECK (offer_status IS NULL OR offer_status IN ('pending', 'accepted', 'declined', 'countered', 'withdrawn', 'superseded'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS file_id INT REFERENCES files(id) ON DELETE SET NULL;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS duration SMALLINT;
+CREATE INDEX IF NOT EXISTS idx_messages_file ON messages(file_id) WHERE file_id IS NOT NULL;

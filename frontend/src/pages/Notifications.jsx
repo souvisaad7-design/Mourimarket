@@ -11,6 +11,7 @@ const ICON_FOR = {
   sale_recorded: 'check', new_review: 'star', store_enabled: 'store', store_disabled: 'store',
   product_featured: 'star', account_verified: 'shield',
   merchant_request: 'store', merchant_approved: 'store', merchant_rejected: 'x',
+  offer_new: 'star', offer_accepted: 'check', offer_declined: 'x',
   saved_search_match: 'search', price_drop: 'bolt', push_test: 'bell',
   order_new: 'bell', order_status: 'check', order_courier: 'user', order_available: 'bell', order_assigned: 'bell', order_unassigned: 'x',
   delivery_rated: 'star', courier_application: 'users', courier_approved: 'check', courier_rejected: 'x', courier_suspended: 'x',
@@ -45,7 +46,7 @@ export default function Notifications() {
           {data.items.map((n) => {
             const vars = { ...n.data };
             if (n.type === 'order_status') vars.status = t(`delivery.status.${n.data?.status}`);
-            for (const k of ['old', 'price']) if (typeof vars[k] === 'number') vars[k] = vars[k].toLocaleString('en-US');
+            for (const k of ['old', 'price', 'amount']) if (typeof vars[k] === 'number') vars[k] = vars[k].toLocaleString('en-US');
             const text = t(`notifications.types.${n.type}`, vars);
             const content = (
               <div className={`flex items-start gap-3 p-4 ${n.is_read ? '' : 'bg-brand-50/60'}`}>

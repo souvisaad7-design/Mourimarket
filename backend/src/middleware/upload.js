@@ -49,12 +49,43 @@ export async function savePrivateFile(file, client = { query }) {
   return rows[0].id;
 }
 
+/** Real type of a voice note (browsers record webm/ogg; iPhone records mp4/aac). */
+function sniffAudio(buf) {
+  if (buf.length < 12) return null;
+  if (buf[0] === 0x1a && buf[1] === 0x45 && buf[2] === 0xdf && buf[3] === 0xa3) return 'audio/webm';
+  if (buf.toString('ascii', 0, 4) === 'OggS') return 'audio/ogg';
+  if (buf.toString('ascii', 4, 8) === 'ftyp') return 'audio/mp4';
+  if (buf.toString('ascii', 0, 3) === 'ID3' || (buf[0] === 0xff && (buf[1] & 0xe0) === 0xe0 && (buf[1] & 0x06) !== 0)) return 'audio/mpeg';
+  if (buf[0] === 0xff && (buf[1] & 0xf6) === 0xf0) return 'audio/aac';
+  return null;
+}
+
+/** Chat attachments: one photo or one voice note (≤ 5 MB), checked by content. */
+export const chatUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    if (!/^(image|audio|video\/webm)/.test(file.mimetype)) return cb(badRequest('invalid_file_type'));
+    cb(null, true);
+  },
+});
+
+/** Save a chat photo / voice note as a private file. Returns { id, kind }. */
+export async function saveChatMedia(file, client = { query }) {
+  const image = sniff(file.buffer);
+  const audio = image ? null : sniffAudio(file.buffer);
+  if (!image && !audio) throw badRequest('invalid_file_type');
+  const { rows } = await client.query('INSERT INTO files (mime, data, is_private) VALUES ($1, $2, true) RETURNING id', [image || audio, file.buffer]);
+  return { id: rows[0].id, kind: image ? 'image' : 'audio' };
+}
+
 /** Send a stored file (public or private) with safe headers. */
 export async function sendFile(res, id, { isPrivate = false } = {}) {
   const { rows } = await query('SELECT mime, data FROM files WHERE id = $1 AND is_private = $2', [id, isPrivate]);
   if (!rows[0]) return res.status(404).end();
   res.set({
     'Content-Type': rows[0].mime,
+    'Accept-Ranges': 'none',
     'Cache-Control': isPrivate ? 'private, no-store' : 'public, max-age=31536000, s-maxage=31536000, immutable',
     'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'",
     'X-Content-Type-Options': 'nosniff',

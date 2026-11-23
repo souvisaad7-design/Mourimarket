@@ -1350,3 +1350,61 @@ describe('phone verification by SMS code', () => {
     assert.ok(codes.includes(429), `limited: ${codes}`);
   });
 });
+
+describe('chat: price offers, photos and voice notes', () => {
+  let buyer; let seller; let other; let cid;
+  // smallest valid WebM header (EBML magic) and an Ogg page header
+  const WEBM = Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.alloc(60, 1)]);
+  before(async () => {
+    buyer = await login('buyer@example.mr'); seller = await login('mohamed@example.mr'); other = await login('sidi@example.mr');
+    const pid = (await pool.query("SELECT p.id FROM products p JOIN users u ON u.id = p.seller_id WHERE u.email = 'mohamed@example.mr' AND p.status = 'approved' AND p.availability = 'available' ORDER BY p.id DESC LIMIT 1")).rows[0].id;
+    cid = (await call('/api/conversations', { method: 'POST', token: buyer, body: { productId: pid, body: 'مرحبا، هل السعر قابل للتفاوض؟' } })).data.conversationId;
+  });
+  const offers = async () => (await call(`/api/conversations/${cid}`, { token: buyer })).data.messages.filter((m) => m.kind === 'offer');
+
+  it('offer → counter → accept, with the right person answering each time', async () => {
+    assert.equal((await call(`/api/conversations/${cid}/offers`, { method: 'POST', token: buyer, body: { amount: 0 } })).status, 400);
+    const o1 = (await call(`/api/conversations/${cid}/offers`, { method: 'POST', token: buyer, body: { amount: 15000 } })).data.message;
+    assert.equal(o1.offer_status, 'pending');
+    assert.equal((await call(`/api/conversations/${cid}/offers/${o1.id}`, { method: 'POST', token: buyer, body: { action: 'accept' } })).status, 403, 'not your own offer');
+    assert.equal((await call(`/api/conversations/${cid}/offers/${o1.id}`, { method: 'POST', token: other, body: { action: 'accept' } })).status, 403, 'strangers cannot see the conversation');
+    const c = await call(`/api/conversations/${cid}/offers/${o1.id}`, { method: 'POST', token: seller, body: { action: 'counter', amount: 17000 } });
+    assert.equal(c.data.status, 'countered');
+    const o2 = c.data.counter;
+    assert.equal(Number(o2.amount), 17000);
+    const n = (await pool.query("SELECT data FROM notifications n JOIN users u ON u.id = n.user_id WHERE n.type = 'offer_new' AND u.email = 'buyer@example.mr' ORDER BY n.id DESC LIMIT 1")).rows[0].data;
+    assert.equal(n.amount, 17000);
+    assert.equal((await call(`/api/conversations/${cid}/offers/${o2.id}`, { method: 'POST', token: buyer, body: { action: 'accept' } })).data.status, 'accepted');
+    assert.equal((await call(`/api/conversations/${cid}/offers/${o2.id}`, { method: 'POST', token: buyer, body: { action: 'decline' } })).status, 409, 'already closed');
+    assert.deepEqual((await offers()).map((m) => m.offer_status), ['countered', 'accepted']);
+    const accepted = (await pool.query("SELECT 1 FROM notifications n JOIN users u ON u.id = n.user_id WHERE n.type = 'offer_accepted' AND u.email = 'mohamed@example.mr'")).rowCount;
+    assert.equal(accepted, 1);
+  });
+
+  it('a new offer replaces an open one; the author can withdraw', async () => {
+    const a = (await call(`/api/conversations/${cid}/offers`, { method: 'POST', token: buyer, body: { amount: 14000 } })).data.message;
+    const b = (await call(`/api/conversations/${cid}/offers`, { method: 'POST', token: buyer, body: { amount: 14500 } })).data.message;
+    assert.equal((await offers()).find((m) => m.id === a.id).offer_status, 'superseded');
+    assert.equal((await call(`/api/conversations/${cid}/offers/${b.id}`, { method: 'POST', token: seller, body: { action: 'withdraw' } })).status, 403);
+    assert.equal((await call(`/api/conversations/${cid}/offers/${b.id}`, { method: 'POST', token: buyer, body: { action: 'withdraw' } })).data.status, 'withdrawn');
+  });
+
+  it('photos and voice notes are private to the two people', async () => {
+    const send = (buf, name, type, extra = {}) => { const fd = new FormData(); fd.append('file', new Blob([buf], { type }), name); for (const [k, v] of Object.entries(extra)) fd.append(k, v); return call(`/api/conversations/${cid}/media`, { method: 'POST', token: buyer, form: fd }); };
+    const img = (await send(PNG, 'p.png', 'image/png')).data.message;
+    assert.equal(img.kind, 'image');
+    const voice = (await send(WEBM, 'v.webm', 'audio/webm', { duration: '7' })).data.message;
+    assert.equal(voice.kind, 'audio');
+    assert.equal(voice.duration, 7);
+    assert.equal((await send(Buffer.from('<script>alert(1)</script>'), 'x.mp3', 'audio/mpeg')).data.error, 'invalid_file_type');
+    const get = (tok, id) => fetch(`${base}/api/conversations/${cid}/files/${id}`, { headers: { Authorization: `Bearer ${tok}` } });
+    const r = await get(seller, voice.file_id);
+    assert.equal(r.status, 200);
+    assert.equal(r.headers.get('content-type'), 'audio/webm');
+    assert.match(r.headers.get('cache-control'), /private/);
+    assert.equal((await get(other, voice.file_id)).status, 403);
+    assert.equal((await fetch(`${base}/uploads/f/${voice.file_id}`)).status, 404, 'not on the public route');
+    const list = (await call('/api/conversations', { token: seller })).data.items.find((c) => c.id === cid);
+    assert.equal(list.last_kind, 'audio');
+  });
+});

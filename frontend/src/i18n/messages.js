@@ -1681,6 +1681,53 @@ deepMerge(en, {
   },
 });
 
+// ---------- v26: chat — price offers, photos, voice notes ----------
+deepMerge(ar, {
+  chat: {
+    makeOffer: 'قدّم عرض سعر', photo: 'صورة', voice: 'رسالة صوتية', recording: 'جارٍ التسجيل…', voiceNote: 'رسالة صوتية',
+    youOffered: 'عرضك', theyOffered: 'عرض سعر', accept: 'قبول', decline: 'رفض', counter: 'عرض مقابل', withdraw: 'سحب العرض',
+    askedPrice: 'السعر المطلوب', yourPrice: 'السعر الذي تقترحه', sendOffer: 'إرسال العرض',
+    offerStatus: { pending: 'بانتظار الرد', accepted: 'تم القبول ✓', declined: 'مرفوض', countered: 'رُدّ عليه بعرض آخر', withdrawn: 'مسحوب', superseded: 'استُبدل بعرض أحدث' },
+    preview: { offer: '💰 عرض سعر', image: '📷 صورة', audio: '🎤 رسالة صوتية' },
+  },
+  errors: { mic_denied: 'لم يُسمح باستخدام الميكروفون. فعّله من إعدادات المتصفح.', offer_closed: 'تمت الإجابة على هذا العرض من قبل.', invalid_file_type: 'نوع الملف غير مدعوم.', offer_not_found: 'العرض غير موجود.' },
+  notifications: { types: {
+    offer_new: '{from} قدّم عرض سعر {amount} أوقية على «{title}»',
+    offer_accepted: 'قبل {from} عرضك {amount} أوقية على «{title}» 🎉',
+    offer_declined: 'رفض {from} عرضك {amount} أوقية على «{title}»',
+  } },
+});
+deepMerge(fr, {
+  chat: {
+    makeOffer: 'Faire une offre', photo: 'Photo', voice: 'Vocal', recording: 'Enregistrement…', voiceNote: 'Message vocal',
+    youOffered: 'Votre offre', theyOffered: 'Offre de prix', accept: 'Accepter', decline: 'Refuser', counter: 'Contre-offre', withdraw: 'Retirer l’offre',
+    askedPrice: 'Prix demandé', yourPrice: 'Votre prix', sendOffer: 'Envoyer l’offre',
+    offerStatus: { pending: 'En attente', accepted: 'Acceptée ✓', declined: 'Refusée', countered: 'Contre-offre faite', withdrawn: 'Retirée', superseded: 'Remplacée' },
+    preview: { offer: '💰 Offre de prix', image: '📷 Photo', audio: '🎤 Message vocal' },
+  },
+  errors: { mic_denied: 'Micro non autorisé. Autorisez-le dans les réglages du navigateur.', offer_closed: 'Cette offre a déjà reçu une réponse.', invalid_file_type: 'Type de fichier non pris en charge.', offer_not_found: 'Offre introuvable.' },
+  notifications: { types: {
+    offer_new: '{from} propose {amount} MRU pour « {title} »',
+    offer_accepted: '{from} a accepté votre offre de {amount} MRU pour « {title} » 🎉',
+    offer_declined: '{from} a refusé votre offre de {amount} MRU pour « {title} »',
+  } },
+});
+deepMerge(en, {
+  chat: {
+    makeOffer: 'Make an offer', photo: 'Photo', voice: 'Voice', recording: 'Recording…', voiceNote: 'Voice note',
+    youOffered: 'Your offer', theyOffered: 'Price offer', accept: 'Accept', decline: 'Decline', counter: 'Counter', withdraw: 'Withdraw offer',
+    askedPrice: 'Asking price', yourPrice: 'Your price', sendOffer: 'Send offer',
+    offerStatus: { pending: 'Awaiting reply', accepted: 'Accepted ✓', declined: 'Declined', countered: 'Countered', withdrawn: 'Withdrawn', superseded: 'Replaced' },
+    preview: { offer: '💰 Price offer', image: '📷 Photo', audio: '🎤 Voice note' },
+  },
+  errors: { mic_denied: 'Microphone not allowed. Allow it in your browser settings.', offer_closed: 'This offer was already answered.', invalid_file_type: 'This file type is not supported.', offer_not_found: 'Offer not found.' },
+  notifications: { types: {
+    offer_new: '{from} offered {amount} MRU for “{title}”',
+    offer_accepted: '{from} accepted your offer of {amount} MRU for “{title}” 🎉',
+    offer_declined: '{from} declined your offer of {amount} MRU for “{title}”',
+  } },
+});
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },
