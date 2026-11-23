@@ -605,3 +605,6 @@ CREATE INDEX IF NOT EXISTS idx_messages_file ON messages(file_id) WHERE file_id 
 -- ---------- Category-specific details (car make, year, mileage; rooms, area…) ----------
 ALTER TABLE products ADD COLUMN IF NOT EXISTS attrs JSONB NOT NULL DEFAULT '{}'::jsonb;
 CREATE INDEX IF NOT EXISTS idx_products_attrs ON products USING gin (attrs);
+
+-- ---------- Short video on a listing (Vercel Blob URL) ----------
+ALTER TABLE products ADD COLUMN IF NOT EXISTS video_url TEXT;

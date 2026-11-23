@@ -12,7 +12,7 @@ import { getSettings } from '../lib/settings.js';
 const router = Router();
 
 // Same policy as vercel.json, so pages rendered here behave like the static ones.
-export const HTML_CSP = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self'; media-src 'self' blob:; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests";
+export const HTML_CSP = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://vercel.com https://blob.vercel-storage.com https://*.blob.vercel-storage.com; media-src 'self' blob: https://*.public.blob.vercel-storage.com; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests";
 
 const DEFAULT_NAME = 'سوق شنقيط';
 const DEFAULT_DESC = 'سوق شنقيط (Souk Chinguetti) – سوقك الموريتاني في مكان واحد. بيع واشترِ السيارات والهواتف والعقارات والأثاث وأكثر في كل مدن موريتانيا.';

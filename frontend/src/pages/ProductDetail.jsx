@@ -222,6 +222,11 @@ export default function ProductDetail() {
         <div className="space-y-6">
           <Gallery images={product.images} title={product.title}
             badge={product.is_featured && <span className="badge gap-1 bg-gold-400 text-ink shadow"><Icon name="star" filled className="h-3 w-3" />{t('common.featured')}</span>} />
+          {product.video_url && (
+            <section className="card overflow-hidden p-0" aria-label={t('video.title')}>
+              <video src={product.video_url} controls playsInline preload="metadata" className="max-h-[70vh] w-full bg-black" />
+            </section>
+          )}
           <div className="card p-4"><ShareBar product={product} /></div>
           <div className="card p-5">
             <h2 className="mb-3 text-lg font-bold">{t('product.description')}</h2>

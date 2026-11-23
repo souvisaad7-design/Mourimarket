@@ -1754,6 +1754,23 @@ deepMerge(en, { attrs: {
     deal: { sale: 'For sale', rent: 'For rent' }, propertyType: { house: 'House', apartment: 'Apartment', land: 'Land', shop: 'Shop', office: 'Office', room: 'Room' } },
 } });
 
+// ---------- v28: short video on listings ----------
+deepMerge(ar, {
+  video: { title: 'فيديو قصير', hint: 'حتى 60 ثانية (50 ميغابايت تقريباً). مفيد جداً للسيارات والعقارات.', add: 'أضف فيديو', remove: 'حذف الفيديو', uploading: 'جارٍ رفع الفيديو…',
+    badType: 'صيغة الفيديو غير مدعومة (MP4 أو MOV أو WebM).', tooBig: 'الفيديو أكبر من 60 ميغابايت.', tooLong: 'الفيديو أطول من 60 ثانية. قصّه ثم أعد المحاولة.', failed: 'تعذّر رفع الفيديو، حاول مرة أخرى.', badge: 'فيديو' },
+  errors: { video_disabled: 'رفع الفيديو غير مفعّل حالياً.' },
+});
+deepMerge(fr, {
+  video: { title: 'Courte vidéo', hint: 'Jusqu’à 60 secondes (~50 Mo). Très utile pour les voitures et l’immobilier.', add: 'Ajouter une vidéo', remove: 'Supprimer la vidéo', uploading: 'Envoi de la vidéo…',
+    badType: 'Format non pris en charge (MP4, MOV ou WebM).', tooBig: 'La vidéo dépasse 60 Mo.', tooLong: 'La vidéo dépasse 60 secondes. Coupez-la puis réessayez.', failed: 'Échec de l’envoi, réessayez.', badge: 'Vidéo' },
+  errors: { video_disabled: 'L’envoi de vidéos est désactivé.' },
+});
+deepMerge(en, {
+  video: { title: 'Short video', hint: 'Up to 60 seconds (~50 MB). Very useful for cars and property.', add: 'Add a video', remove: 'Remove video', uploading: 'Uploading video…',
+    badType: 'Unsupported video format (MP4, MOV or WebM).', tooBig: 'The video is larger than 60 MB.', tooLong: 'The video is longer than 60 seconds. Trim it and try again.', failed: 'Upload failed, please try again.', badge: 'Video' },
+  errors: { video_disabled: 'Video uploads are off.' },
+});
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { limiter } from '../lib/rateLimit.js';
 import { onApproved } from '../lib/alerts.js';
 import { attrFilters, validateAttrs } from '../lib/attributes.js';
+import { deleteVideo, ownVideoUrl, videoEnabled, videoUploadToken, VIDEO_TYPES } from '../lib/video.js';
 import { requireVerifiedPhone } from '../middleware/phone.js';
 import { z } from 'zod';
 import { config } from '../config.js';
@@ -20,7 +21,7 @@ const router = Router();
 // Shared SELECT for product cards / detail.
 export const PRODUCT_SELECT = `
   p.id, p.title, p.price, p.old_price, p.city, p.condition, p.status, p.availability, p.views,
-  p.created_at, p.updated_at, p.category_id, p.seller_id, p.store_id, p.attrs,
+  p.created_at, p.updated_at, p.category_id, p.seller_id, p.store_id, p.attrs, p.video_url,
   c.slug AS category_slug, c.name_ar AS category_name_ar, c.name_fr AS category_name_fr, c.name_en AS category_name_en,
   (SELECT url FROM product_images i WHERE i.product_id = p.id ORDER BY sort_order, id LIMIT 1) AS cover_url,
   u.name AS seller_name, u.is_verified AS seller_verified, s.name AS store_name, s.slug AS store_slug,
@@ -256,6 +257,7 @@ const productSchema = z.object({
   area: z.string().trim().max(80).optional().transform((v) => v || null),
   district: z.string().trim().max(80).optional().transform((v) => v || null),
   locExact: z.preprocess((v) => v === true || v === 'true' || v === '1' || v === 'on', z.boolean()).default(false),
+  videoUrl: z.string().trim().max(400).optional().transform((v) => v || null),
 }).refine((d) => (d.lat === null) === (d.lng === null), { message: 'required', path: ['lat'] });
 
 function emptyToNull(v) {
@@ -283,6 +285,14 @@ async function assertCategory(id, client) {
   return rows[0].slug;
 }
 
+/** POST /api/products/video-token { ext } – a one-time key to upload one short video straight to storage. */
+router.post('/video-token', requireAuth, requireVerifiedPhone, limiter('video-token', { windowMs: 60 * 60 * 1000, limit: 15, keyGenerator: (req) => String(req.user.id) }), async (req, res) => {
+  if (!videoEnabled()) throw badRequest('video_disabled');
+  const ext = String(req.body?.ext || '').toLowerCase();
+  if (!VIDEO_TYPES[ext]) throw badRequest('invalid_file_type');
+  res.json(await videoUploadToken(req.user.id, ext));
+});
+
 /** POST /api/products – create a listing (multipart, field "images"). */
 // Anti-spam: at most 20 new listings per hour per account (admins are not limited).
 const postLimiter = limiter('listings-post', { windowMs: 60 * 60 * 1000, limit: 20, keyGenerator: (req) => String(req.user.id), skip: (req) => req.user?.role === 'admin' });
@@ -305,13 +315,14 @@ router.post('/', requireAuth, requireVerifiedPhone, postLimiter, upload.array('i
   const status = isAdmin || (await getSettings()).features.autoApprove ? 'approved' : 'pending';
   const product = await tx(async (client) => {
     const attrs = validateAttrs(await assertCategory(data.categoryId, client), req.body.attrs);
+    if (data.videoUrl && !ownVideoUrl(data.videoUrl, req.user.id)) throw badRequest('validation_error', { videoUrl: 'invalid' });
     const storeId = await storeIdFor(sellerId, client);
     const { rows } = await client.query(
       `INSERT INTO products (seller_id, category_id, store_id, title, description, price, old_price, city, condition, status,
-         lat, lng, area, district, loc_exact, attrs)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id, status, seller_id`,
+         lat, lng, area, district, loc_exact, attrs, video_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id, status, seller_id`,
       [sellerId, data.categoryId, storeId, data.title, data.description, data.price, data.oldPrice ?? null, data.city, data.condition, status,
-        data.lat, data.lng, data.area, data.district, data.locExact, attrs],
+        data.lat, data.lng, data.area, data.district, data.locExact, attrs, data.videoUrl],
     );
     for (const [i, file] of files.entries()) {
       await client.query('INSERT INTO product_images (product_id, url, sort_order) VALUES ($1, $2, $3)', [
@@ -339,6 +350,7 @@ router.put('/:id', requireAuth, upload.array('images', MAX_IMAGES), async (req, 
 
   const removed = await tx(async (client) => {
     const attrs = validateAttrs(await assertCategory(data.categoryId, client), req.body.attrs);
+    if (data.videoUrl && data.videoUrl !== product.video_url && !ownVideoUrl(data.videoUrl, req.user.id)) throw badRequest('validation_error', { videoUrl: 'invalid' });
     const del = await client.query(
       'DELETE FROM product_images WHERE product_id = $1 AND id = ANY($2::int[]) RETURNING url',
       [product.id, removeIds],
@@ -359,15 +371,16 @@ router.put('/:id', requireAuth, upload.array('images', MAX_IMAGES), async (req, 
       `UPDATE products SET title = $1, description = $2, price = $3, category_id = $4, city = $5, condition = $6,
          status = CASE WHEN $7 THEN status ELSE 'pending' END,
          rejection_reason = CASE WHEN $7 THEN rejection_reason ELSE NULL END,
-         old_price = $9, lat = $10, lng = $11, area = $12, district = $13, loc_exact = $14, attrs = $15,
+         old_price = $9, lat = $10, lng = $11, area = $12, district = $13, loc_exact = $14, attrs = $15, video_url = $16,
          updated_at = now()
        WHERE id = $8`,
       [data.title, data.description, data.price, data.categoryId, data.city, data.condition, keepApproved, product.id, data.oldPrice ?? null,
-        data.lat, data.lng, data.area, data.district, data.locExact, attrs],
+        data.lat, data.lng, data.area, data.district, data.locExact, attrs, data.videoUrl],
     );
     return del.rows.map((r) => r.url);
   });
   removeUploads(removed);
+  if (product.video_url && product.video_url !== data.videoUrl) deleteVideo(product.video_url);
   await onApproved(product.id); // no-op unless the edit kept the listing live
   res.json({ ok: true });
 });
@@ -425,6 +438,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
   const { rows } = await query('SELECT url FROM product_images WHERE product_id = $1', [product.id]);
   await query('DELETE FROM products WHERE id = $1', [product.id]);
   removeUploads(rows.map((r) => r.url));
+  deleteVideo(product.video_url);
   if (req.user.id !== product.seller_id) {
     await notify(product.seller_id, 'product_deleted', { title: product.title });
   }

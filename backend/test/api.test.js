@@ -1450,3 +1450,45 @@ describe('category details and filters', () => {
     assert.equal((await call("/api/products?category=vehicles&a.brand=x'--&a.year.min=1;drop&a.evil=1")).status, 200);
   });
 });
+
+describe('short videos on listings', () => {
+  let seller; let other; let sellerId; let catId;
+  const HOST = 'teststore123.public.blob.vercel-storage.com';
+  before(async () => {
+    process.env.BLOB_READ_WRITE_TOKEN = 'vercel_blob_rw_TestStore123_0123456789abcdefghijklmnopqrstuv';
+    seller = await login('mohamed@example.mr'); other = await login('sidi@example.mr');
+    sellerId = (await call('/api/auth/me', { token: seller })).data.user.id;
+    catId = (await call('/api/categories')).data.items[0].id;
+  });
+  after(() => { delete process.env.BLOB_READ_WRITE_TOKEN; });
+  const post = (token, videoUrl) => {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries({ title: 'سيارة مع فيديو', description: 'شاهد الفيديو لتعرف حالتها', price: '1000', city: 'nouakchott', condition: 'used', categoryId: String(catId), videoUrl })) fd.append(k, v);
+    fd.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+    return call('/api/products', { method: 'POST', token, form: fd });
+  };
+
+  it('gives a one-video upload key, only for video types', async () => {
+    assert.equal((await call('/api/meta')).data.videoUploads, true);
+    assert.equal((await call('/api/products/video-token', { method: 'POST', body: { ext: 'mp4' } })).status, 401);
+    assert.equal((await call('/api/products/video-token', { method: 'POST', token: seller, body: { ext: 'exe' } })).data.error, 'invalid_file_type');
+    const r = (await call('/api/products/video-token', { method: 'POST', token: seller, body: { ext: 'mp4' } })).data;
+    assert.match(r.pathname, new RegExp(`^videos/u${sellerId}/[0-9a-f-]{36}\\.mp4$`));
+    assert.match(r.token, /^vercel_blob_client_/);
+    assert.equal(r.contentType, 'video/mp4');
+  });
+
+  it('accepts only a video this user uploaded to our store', async () => {
+    const mine = `https://${HOST}/videos/u${sellerId}/123e4567-e89b-12d3-a456-426614174000.mp4`;
+    const ok = await post(seller, mine);
+    assert.equal(ok.status, 201, JSON.stringify(ok.data));
+    assert.equal((await pool.query('SELECT video_url FROM products WHERE id = $1', [ok.data.product.id])).rows[0].video_url, mine);
+    for (const bad of [
+      `https://evil.example/videos/u${sellerId}/123e4567-e89b-12d3-a456-426614174000.mp4`,
+      `https://${HOST}/videos/u999/123e4567-e89b-12d3-a456-426614174000.mp4`,
+      `http://${HOST}/videos/u${sellerId}/123e4567-e89b-12d3-a456-426614174000.mp4`,
+      `https://${HOST}/videos/u${sellerId}/x.mp4?redirect=evil`,
+    ]) assert.equal((await post(seller, bad)).data.fields?.videoUrl, 'invalid', bad);
+    assert.equal((await post(other, mine)).data.fields?.videoUrl, 'invalid', 'someone else’s video');
+  });
+});

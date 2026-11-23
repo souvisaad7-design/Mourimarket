@@ -69,6 +69,7 @@ export default function ProductCard({ product, onFavoriteChange }) {
           <div className="flex h-full items-center justify-center text-slate-400"><Icon name="image" className="h-10 w-10" /></div>
         )}
         <FavoriteButton product={product} className="absolute end-2 top-2" onChange={onFavoriteChange} />
+        {product.video_url && <span className="absolute bottom-2 end-2 flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-bold text-white" title={t('video.title')}>▶ {t('video.badge')}</span>}
         <div className="absolute start-2 top-2 flex flex-wrap gap-1">
           {off > 0 && !sold && <span className="badge bg-brand-600 px-2 text-white shadow-sm"><bdi dir="ltr">{`-${off}%`}</bdi></span>}
           {product.is_featured && !sold && <span className="badge gap-1 bg-gold-400 text-ink shadow-sm"><Icon name="star" filled className="h-3 w-3" />{t('common.featured')}</span>}
