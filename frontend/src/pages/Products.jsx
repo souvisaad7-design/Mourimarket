@@ -8,6 +8,7 @@ import { useApi, useDocumentTitle } from '../lib/hooks.js';
 import LocationBar from '../components/LocationBar.jsx';
 import MapView, { MAURITANIA } from '../components/MapView.jsx';
 import { useGeo } from '../context/LocationContext.jsx';
+import { SaveSearchButton } from './SavedSearches.jsx';
 
 // `near` is the radius in km around the visitor; their position itself never goes in the URL.
 const FILTER_KEYS = ['q', 'category', 'city', 'minPrice', 'maxPrice', 'condition', 'sort', 'availability', 'featured', 'deals', 'near', 'view', 'page'];
@@ -110,6 +111,7 @@ export default function Products() {
           <h1 className="text-2xl font-bold">{title}</h1>
           {data && <p className="mt-1 text-sm text-slate-500">{t('common.results', { n: number(data.total) })}</p>}
         </div>
+        <SaveSearchButton filters={current} />
         <div className="flex items-center gap-2">
           <button className="btn-outline lg:hidden" onClick={() => setShowFilters(!showFilters)}><Icon name="filter" className="h-4 w-4" />{t('common.filters')}</button>
           <label className="sr-only" htmlFor="sort">{t('products.sort')}</label>

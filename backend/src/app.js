@@ -20,6 +20,7 @@ import geoRoutes from './routes/geo.js';
 import orderRoutes from './routes/orders.js';
 import seoRoutes, { HTML_CSP } from './routes/seo.js';
 import pushRoutes from './routes/push.js';
+import alertRoutes from './routes/alerts.js';
 
 export function createApp() {
   const app = express();
@@ -79,6 +80,7 @@ export function createApp() {
   app.use('/api/geo', geoRoutes);
   app.use('/api/push', pushRoutes);
   app.use('/api', orderRoutes);
+  app.use('/api', alertRoutes);
   app.use('/api', publicRoutes);
   app.use('/api', accountRoutes);
   app.use('/api', (_req, res) => res.status(404).json({ error: 'not_found' }));

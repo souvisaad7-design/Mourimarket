@@ -118,6 +118,7 @@ function UserMenu() {
             <Link className={item} to="/orders"><span className="w-4 text-center" aria-hidden="true">📦</span>{t('delivery.nav.orders')}</Link>
             <Link className={item} to="/courier"><span className="w-4 text-center" aria-hidden="true">🛵</span>{t('delivery.nav.courier')}</Link>
             <Link className={item} to="/favorites"><Icon name="heart" className="h-4 w-4" />{t('nav.favorites')}</Link>
+            <Link className={item} to="/saved-searches"><Icon name="bell" className="h-4 w-4" />{t('alerts.title')}</Link>
             <Link className={item} to="/profile"><Icon name="user" className="h-4 w-4" />{t('nav.profile')}</Link>
             {user.role === 'admin' && <Link className={item} to="/admin"><Icon name="shield" className="h-4 w-4" />{t('nav.admin')}</Link>}
             <button className={`${item} w-full text-rose-600`} onClick={() => { logout(); navigate('/'); }}>

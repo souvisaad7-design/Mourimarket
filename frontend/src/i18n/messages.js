@@ -1590,6 +1590,47 @@ deepMerge(en, {
   notifications: { types: { push_test: 'This is a test notification from {site} ✅' } },
 });
 
+// ---------- v24: saved searches and price-drop alerts ----------
+deepMerge(ar, {
+  alerts: {
+    title: 'تنبيهات البحث', notifyMe: 'أعلمني بالجديد', on: 'التنبيه مفعّل', saved: 'سنعلمك بكل إعلان جديد يطابق هذا البحث 🔔', search: 'بحث محفوظ',
+    intro: 'نرسل لك تنبيهاً (وعلى هاتفك إن فعّلت التنبيهات) عند نشر إعلان جديد يطابق بحثك.',
+    empty: 'لا توجد عمليات بحث محفوظة', start: 'ابحث ثم اضغط «أعلمني بالجديد»', active: 'مفعّل', paused: 'متوقف', hits: '{n} إعلان مطابق حتى الآن',
+    view: 'عرض النتائج', pause: 'إيقاف', resume: 'تفعيل', priceDropHint: 'سنعلمك عندما ينخفض سعر أي إعلان في مفضلتك.',
+  },
+  errors: { too_many_saved_searches: 'وصلت للحد الأقصى (20 بحثاً محفوظاً). احذف بعضها أولاً.' },
+  notifications: { types: {
+    saved_search_match: 'إعلان جديد يطابق بحثك «{name}»: {title}',
+    price_drop: 'نزل سعر «{title}» من {old} إلى {price} أوقية 🔻',
+  } },
+});
+deepMerge(fr, {
+  alerts: {
+    title: 'Alertes de recherche', notifyMe: 'M’alerter', on: 'Alerte activée', saved: 'Nous vous préviendrons de chaque nouvelle annonce correspondante 🔔', search: 'Recherche enregistrée',
+    intro: 'Vous recevez une notification (aussi sur votre téléphone si activé) dès qu’une nouvelle annonce correspond à votre recherche.',
+    empty: 'Aucune recherche enregistrée', start: 'Lancez une recherche puis touchez « M’alerter »', active: 'Active', paused: 'En pause', hits: '{n} annonce(s) trouvée(s)',
+    view: 'Voir les résultats', pause: 'Pause', resume: 'Réactiver', priceDropHint: 'Nous vous prévenons quand le prix d’une annonce de vos favoris baisse.',
+  },
+  errors: { too_many_saved_searches: 'Limite atteinte (20 recherches). Supprimez-en d’abord.' },
+  notifications: { types: {
+    saved_search_match: 'Nouvelle annonce pour « {name} » : {title}',
+    price_drop: 'Baisse de prix : « {title} » passe de {old} à {price} MRU 🔻',
+  } },
+});
+deepMerge(en, {
+  alerts: {
+    title: 'Search alerts', notifyMe: 'Notify me', on: 'Alert on', saved: 'We’ll tell you about every new listing that matches 🔔', search: 'Saved search',
+    intro: 'You get a notification (on your phone too, if turned on) as soon as a new listing matches your search.',
+    empty: 'No saved searches yet', start: 'Search, then tap “Notify me”', active: 'Active', paused: 'Paused', hits: '{n} matching listing(s) so far',
+    view: 'See results', pause: 'Pause', resume: 'Resume', priceDropHint: 'We’ll tell you when the price of a listing in your favourites drops.',
+  },
+  errors: { too_many_saved_searches: 'Limit reached (20 saved searches). Delete some first.' },
+  notifications: { types: {
+    saved_search_match: 'New listing for “{name}”: {title}',
+    price_drop: 'Price drop: “{title}” went from {old} to {price} MRU 🔻',
+  } },
+});
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },

@@ -38,6 +38,7 @@ const [AdminAccount, AdminFiles, AdminReviews, AdminSettings, AdminSitemap, Admi
   ['AdminAccount', 'AdminFiles', 'AdminReviews', 'AdminSettings', 'AdminSitemap', 'AdminTexts', 'AdminAppearance', 'AdminAlerts', 'AdminPayments'].map((n) => lazyNamed(adminSite, n));
 import StoreSettings from './pages/StoreSettings.jsx';
 import { Checkout, Courier, OrderDetail, Orders, RedirectToCourier } from './pages/Delivery.jsx';
+import SavedSearches from './pages/SavedSearches.jsx';
 const adminDelivery = () => import('./pages/admin/AdminDelivery.jsx');
 const [AdminOrders, AdminCouriers] = ['AdminOrders', 'AdminCouriers'].map((n) => lazyNamed(adminDelivery, n));
 const AdminDeliveryPricing = lazyNamed(adminSite, 'AdminDeliveryPricing');
@@ -109,6 +110,7 @@ export default function App() {
         <Route path="notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
         <Route path="checkout/:productId" element={<RequireAuth><Checkout /></RequireAuth>} />
         <Route path="orders" element={<RequireAuth><Orders /></RequireAuth>} />
+        <Route path="saved-searches" element={<RequireAuth><SavedSearches /></RequireAuth>} />
         <Route path="orders/:id" element={<RequireAuth><OrderDetail /></RequireAuth>} />
         <Route path="courier" element={<RequireAuth><Courier /></RequireAuth>} />
         <Route path="delivery/join" element={<RedirectToCourier />} />

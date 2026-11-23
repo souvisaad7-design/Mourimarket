@@ -30,6 +30,7 @@ export function pushText(type, data = {}, lang = 'ar') {
   const site = m.brand?.name || messages.ar.brand.name;
   const vars = { ...data };
   if (type === 'order_status' && data.status) vars.status = m.delivery?.status?.[data.status] || data.status;
+  for (const k of ['old', 'price']) if (typeof vars[k] === 'number') vars[k] = vars[k].toLocaleString('en-US');
   const tpl = m.notifications?.types?.[type] || messages.ar.notifications?.types?.[type];
   const body = tpl ? fill(tpl, vars).replace(/\{site\}/g, site) : (m.notifications?.title || 'Notification');
   return { title: site, body };

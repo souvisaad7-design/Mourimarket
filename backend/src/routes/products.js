@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { limiter } from '../lib/rateLimit.js';
+import { onApproved } from '../lib/alerts.js';
 import { z } from 'zod';
 import { config } from '../config.js';
 import { query, tx } from '../db.js';
@@ -316,6 +317,7 @@ router.post('/', requireAuth, postLimiter, upload.array('images', MAX_IMAGES), a
     }
     return rows[0];
   });
+  if (product.status === 'approved') await onApproved(product.id);
   res.status(201).json({ product });
 });
 
@@ -363,6 +365,7 @@ router.put('/:id', requireAuth, upload.array('images', MAX_IMAGES), async (req, 
     return del.rows.map((r) => r.url);
   });
   removeUploads(removed);
+  await onApproved(product.id); // no-op unless the edit kept the listing live
   res.json({ ok: true });
 });
 

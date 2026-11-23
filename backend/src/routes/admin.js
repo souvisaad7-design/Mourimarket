@@ -11,6 +11,7 @@ import { assertCity, cityKey, getCities, invalidateCities } from '../lib/cities.
 import { requireAdmin, requireAuth, signToken } from '../middleware/auth.js';
 import { removeUploads, saveFile, sendFile, upload } from '../middleware/upload.js';
 import { PRODUCT_FROM, PRODUCT_SELECT } from './products.js';
+import { onApproved } from '../lib/alerts.js';
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -166,6 +167,7 @@ router.patch('/products/:id/status', async (req, res) => {
   if (data.status !== 'pending') {
     await notify(p.seller_id, `product_${data.status}`, { title: p.title, reason: data.reason || null }, `/products/${p.id}`);
   }
+  if (data.status === 'approved') await onApproved(p.id);
   res.json({ ok: true });
 });
 

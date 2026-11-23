@@ -13,6 +13,7 @@ export default function Favorites() {
   return (
     <div className="container-page py-8">
       <PageHeader title={t('favorites.title')} />
+      <p className="mb-4 rounded-xl bg-brand-50 px-3 py-2 text-sm text-brand-900">🔔 {t('alerts.priceDropHint')}</p>
       <ErrorBox error={error} />
       {loading ? <Spinner /> : data?.items?.length ? (
         <ProductGrid items={data.items} onFavoriteChange={onFavoriteChange} />

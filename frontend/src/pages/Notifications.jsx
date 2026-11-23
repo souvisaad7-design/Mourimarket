@@ -11,6 +11,7 @@ const ICON_FOR = {
   sale_recorded: 'check', new_review: 'star', store_enabled: 'store', store_disabled: 'store',
   product_featured: 'star', account_verified: 'shield',
   merchant_request: 'store', merchant_approved: 'store', merchant_rejected: 'x',
+  saved_search_match: 'search', price_drop: 'bolt', push_test: 'bell',
   order_new: 'bell', order_status: 'check', order_courier: 'user', order_available: 'bell', order_assigned: 'bell', order_unassigned: 'x',
   delivery_rated: 'star', courier_application: 'users', courier_approved: 'check', courier_rejected: 'x', courier_suspended: 'x',
   upgrade_request_verify: 'shield', upgrade_request_feature: 'star', upgrade_rejected_verify: 'x', upgrade_rejected_feature: 'x',
@@ -42,7 +43,10 @@ export default function Notifications() {
       {loading ? <Spinner /> : !data?.items?.length ? <EmptyState icon="bell" title={t('notifications.empty')} /> : (
         <ul className="card divide-y divide-slate-100 overflow-hidden">
           {data.items.map((n) => {
-            const text = t(`notifications.types.${n.type}`, n.type === 'order_status' ? { ...n.data, status: t(`delivery.status.${n.data?.status}`) } : n.data);
+            const vars = { ...n.data };
+            if (n.type === 'order_status') vars.status = t(`delivery.status.${n.data?.status}`);
+            for (const k of ['old', 'price']) if (typeof vars[k] === 'number') vars[k] = vars[k].toLocaleString('en-US');
+            const text = t(`notifications.types.${n.type}`, vars);
             const content = (
               <div className={`flex items-start gap-3 p-4 ${n.is_read ? '' : 'bg-brand-50/60'}`}>
                 <span className={`rounded-full p-2 ${n.is_read ? 'bg-slate-100 text-slate-500' : 'bg-brand-100 text-brand-800'}`}><Icon name={ICON_FOR[n.type] || 'bell'} className="h-4 w-4" /></span>

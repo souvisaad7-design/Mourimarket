@@ -1224,3 +1224,74 @@ describe('web push', () => {
     assert.equal((await call('/api/push/test', { method: 'POST', token: seller })).data.sent, 0);
   });
 });
+
+describe('saved searches and price-drop alerts', () => {
+  let buyer; let seller; let admin; let catSlug; let catId;
+  const post = async (fields) => {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries({ description: 'بحالة ممتازة ونظيفة جداً', condition: 'used', city: 'nouakchott', categoryId: catId, ...fields })) fd.append(k, String(v));
+    fd.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+    return (await call('/api/products', { method: 'POST', token: seller, form: fd })).data.product.id;
+  };
+  const alertsFor = async (type, pid) => (await pool.query(
+    "SELECT n.user_id FROM notifications n JOIN users u ON u.id = n.user_id WHERE n.type = $1 AND (n.data->>'id')::int = $2 AND u.email = 'buyer@example.mr'", [type, pid])).rowCount;
+  before(async () => {
+    buyer = await login('buyer@example.mr'); seller = await login('mohamed@example.mr'); admin = await login('admin@maurimarket.mr', 'Admin12345');
+    ({ slug: catSlug, id: catId } = (await pool.query("SELECT slug, id FROM categories WHERE slug = 'vehicles'")).rows[0]);
+  });
+
+  it('saves a search (validated, no duplicates, owner only)', async () => {
+    assert.equal((await call('/api/saved-searches', { method: 'POST', body: { name: 'x', filters: { q: 'a' } } })).status, 401);
+    assert.equal((await call('/api/saved-searches', { method: 'POST', token: buyer, body: { name: 'فارغ', filters: {} } })).data.fields.filters, 'empty_search');
+    assert.equal((await call('/api/saved-searches', { method: 'POST', token: buyer, body: { name: 'x', filters: { minPrice: 9, maxPrice: 1 } } })).status, 400);
+    const body = { name: 'هايلكس نواكشوط', filters: { q: 'هايلكس', category: catSlug, city: 'nouakchott', maxPrice: 400000 } };
+    const r = await call('/api/saved-searches', { method: 'POST', token: buyer, body });
+    assert.equal(r.status, 201);
+    assert.equal((await call('/api/saved-searches', { method: 'POST', token: buyer, body })).data.existing, true);
+    assert.equal((await call('/api/saved-searches', { token: buyer })).data.items.length, 1);
+    assert.equal((await call(`/api/saved-searches/${r.data.id}`, { method: 'DELETE', token: seller })).status, 404, 'not someone else’s');
+  });
+
+  it('a matching new listing alerts once, when approved; non-matching ones do not', async () => {
+    const match = await post({ title: 'تويوتا الهايلكس 2015 للبيع', price: 380000 });
+    const tooExpensive = await post({ title: 'تويوتا هايلكس 2020', price: 900000 });
+    const otherCity = await post({ title: 'هايلكس نظيفة', price: 300000, city: 'nouadhibou' });
+    assert.equal(await alertsFor('saved_search_match', match), 0, 'nothing while under review');
+    for (const id of [match, tooExpensive, otherCity]) await call(`/api/admin/products/${id}/status`, { method: 'PATCH', token: admin, body: { status: 'approved' } });
+    assert.equal(await alertsFor('saved_search_match', match), 1);
+    assert.equal(await alertsFor('saved_search_match', tooExpensive), 0);
+    assert.equal(await alertsFor('saved_search_match', otherCity), 0);
+    // re-approval does not send it again
+    await call(`/api/admin/products/${match}/status`, { method: 'PATCH', token: admin, body: { status: 'approved' } });
+    assert.equal(await alertsFor('saved_search_match', match), 1);
+    const s = (await call('/api/saved-searches', { token: buyer })).data.items[0];
+    assert.equal(s.hits, 1);
+    // paused searches stay quiet
+    await call(`/api/saved-searches/${s.id}`, { method: 'PATCH', token: buyer, body: { isActive: false } });
+    const another = await post({ title: 'هايلكس ممتازة', price: 350000 });
+    await call(`/api/admin/products/${another}/status`, { method: 'PATCH', token: admin, body: { status: 'approved' } });
+    assert.equal(await alertsFor('saved_search_match', another), 0);
+  });
+
+  it('a lower price alerts the people who saved the listing, even after the edit is re-reviewed', async () => {
+    const pid = await post({ title: 'سيارة مرسيدس C200', price: 500000 });
+    await call(`/api/admin/products/${pid}/status`, { method: 'PATCH', token: admin, body: { status: 'approved' } });
+    await call(`/api/favorites/${pid}`, { method: 'POST', token: buyer });
+    const edit = async (price) => {
+      const fd = new FormData();
+      for (const [k, v] of Object.entries({ title: 'سيارة مرسيدس C200', description: 'بحالة ممتازة ونظيفة جداً', price, categoryId: catId, city: 'nouakchott', condition: 'used' })) fd.append(k, String(v));
+      return call(`/api/products/${pid}`, { method: 'PUT', token: seller, form: fd });
+    };
+    assert.equal((await edit(550000)).status, 200);
+    await call(`/api/admin/products/${pid}/status`, { method: 'PATCH', token: admin, body: { status: 'approved' } });
+    assert.equal(await alertsFor('price_drop', pid), 0, 'a price rise says nothing');
+    await edit(450000); // back to review
+    assert.equal(await alertsFor('price_drop', pid), 0, 'not before buyers can see it');
+    await call(`/api/admin/products/${pid}/status`, { method: 'PATCH', token: admin, body: { status: 'approved' } });
+    assert.equal(await alertsFor('price_drop', pid), 1);
+    const n = (await pool.query("SELECT data FROM notifications WHERE type = 'price_drop' AND (data->>'id')::int = $1", [pid])).rows[0].data;
+    assert.deepEqual([n.old, n.price], [550000, 450000]);
+    const sellerGot = (await pool.query("SELECT 1 FROM notifications n JOIN users u ON u.id = n.user_id WHERE n.type = 'price_drop' AND u.email = 'mohamed@example.mr'")).rowCount;
+    assert.equal(sellerGot, 0);
+  });
+});

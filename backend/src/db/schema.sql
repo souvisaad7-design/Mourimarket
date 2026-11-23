@@ -562,3 +562,25 @@ CREATE TABLE IF NOT EXISTS app_secrets (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE app_secrets ENABLE ROW LEVEL SECURITY;
+
+-- ---------- Saved searches and price-drop alerts ----------
+CREATE TABLE IF NOT EXISTS saved_searches (
+  id          SERIAL PRIMARY KEY,
+  user_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name        VARCHAR(120) NOT NULL,
+  filters     JSONB NOT NULL,            -- { q, category, city, minPrice, maxPrice, condition }
+  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+  hits        INT NOT NULL DEFAULT 0,
+  last_hit_at TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS saved_searches_user_idx ON saved_searches (user_id);
+CREATE INDEX IF NOT EXISTS saved_searches_active_idx ON saved_searches (is_active) WHERE is_active;
+ALTER TABLE saved_searches ENABLE ROW LEVEL SECURITY;
+-- When the "new listing" alerts went out for a listing (they go out once, when it first goes live).
+ALTER TABLE products ADD COLUMN IF NOT EXISTS alerted_at TIMESTAMPTZ;
+-- The price buyers last saw while the listing was live (to detect a drop after an edit and re-review).
+ALTER TABLE products ADD COLUMN IF NOT EXISTS live_price BIGINT;
+-- Listings already live before alerts existed: no "new listing" alert for them, and their current price is the reference.
+UPDATE products SET alerted_at = COALESCE(alerted_at, updated_at), live_price = COALESCE(live_price, price)
+WHERE status = 'approved' AND (alerted_at IS NULL OR live_price IS NULL) AND updated_at < now() - interval '1 day';
