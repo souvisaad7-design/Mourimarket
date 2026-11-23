@@ -541,3 +541,24 @@ BEGIN
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM authenticated', f); END IF;
   END LOOP;
 END $$;
+
+-- ---------- Web Push (notifications on the phone while the site is closed) ----------
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id          SERIAL PRIMARY KEY,
+  user_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  endpoint    TEXT NOT NULL UNIQUE,
+  p256dh      TEXT NOT NULL,
+  auth        TEXT NOT NULL,
+  lang        VARCHAR(2) NOT NULL DEFAULT 'ar',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_ok_at  TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS push_subscriptions_user_idx ON push_subscriptions (user_id);
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+-- Keys the server generates for itself (e.g. the VAPID key pair); never sent to browsers except the public part.
+CREATE TABLE IF NOT EXISTS app_secrets (
+  key        TEXT PRIMARY KEY,
+  value      JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE app_secrets ENABLE ROW LEVEL SECURITY;

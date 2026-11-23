@@ -1176,3 +1176,51 @@ describe('link previews and search engines', () => {
     assert.match(rb.html, /Sitemap: http:\/\/localhost:\d+\/sitemap\.xml/);
   });
 });
+
+describe('web push', () => {
+  let buyer; let seller; let sent = [];
+  const sub = (n, lang = 'fr') => ({ endpoint: `https://push.example.test/send/${n}`, keys: { p256dh: 'B'.repeat(87), auth: 'A'.repeat(22) }, lang });
+  before(async () => {
+    const { setPushSender } = await import('../src/lib/push.js');
+    setPushSender(async (s, body) => {
+      if (s.endpoint.endsWith('/gone')) { const e = new Error('gone'); e.statusCode = 410; throw e; }
+      sent.push({ endpoint: s.endpoint, ...JSON.parse(body) });
+    });
+    buyer = await login('buyer@example.mr'); seller = await login('mohamed@example.mr');
+  });
+
+  it('gives the public key and validates subscriptions', async () => {
+    const k = (await call('/api/push/key')).data.publicKey;
+    assert.match(k, /^[A-Za-z0-9_-]{80,}$/);
+    assert.equal((await call('/api/push/key')).data.publicKey, k, 'the same key every time');
+    assert.equal((await call('/api/push/subscribe', { method: 'POST', body: sub(1) })).status, 401);
+    assert.equal((await call('/api/push/subscribe', { method: 'POST', token: seller, body: { ...sub(1), endpoint: 'http://insecure.test/x' } })).status, 400);
+    assert.equal((await call('/api/push/subscribe', { method: 'POST', token: seller, body: sub('seller-phone', 'fr') })).status, 201);
+    assert.equal((await call('/api/push/subscribe', { method: 'POST', token: seller, body: { ...sub('gone'), lang: 'ar' } })).status, 201);
+    const { rows } = await pool.query("SELECT value FROM app_secrets WHERE key = 'vapid'");
+    assert.ok(rows[0].value.privateKey, 'the private key stays in the database');
+  });
+
+  it('a new message reaches the seller’s phone, in their language, and dead devices are forgotten', async () => {
+    sent = [];
+    const pid = (await pool.query("SELECT p.id FROM products p JOIN users u ON u.id = p.seller_id WHERE u.email = 'mohamed@example.mr' AND p.status = 'approved' AND p.availability = 'available' LIMIT 1")).rows[0].id;
+    const r = await call('/api/conversations', { method: 'POST', token: buyer, body: { productId: pid, body: 'Bonjour, toujours disponible ?' } });
+    assert.ok([200, 201].includes(r.status), JSON.stringify(r.data));
+    await new Promise((res) => setTimeout(res, 300));
+    const toSeller = sent.find((x) => x.endpoint.endsWith('/seller-phone'));
+    assert.ok(toSeller, 'pushed to the seller');
+    assert.equal(toSeller.title, 'Souk Chinguetti');
+    assert.match(toSeller.body, /vous a écrit|message/i);
+    assert.match(toSeller.url, /^\/messages\/\d+$/);
+    const gone = await pool.query("SELECT 1 FROM push_subscriptions WHERE endpoint LIKE '%/gone'");
+    assert.equal(gone.rowCount, 0, 'expired subscription removed');
+  });
+
+  it('test push, and unsubscribing at logout', async () => {
+    sent = [];
+    assert.equal((await call('/api/push/test', { method: 'POST', token: seller })).data.sent, 1);
+    assert.match(sent[0].body, /test/i);
+    await call('/api/push/subscribe', { method: 'DELETE', body: { endpoint: sub('seller-phone').endpoint } });
+    assert.equal((await call('/api/push/test', { method: 'POST', token: seller })).data.sent, 0);
+  });
+});

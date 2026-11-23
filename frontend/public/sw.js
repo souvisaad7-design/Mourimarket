@@ -4,7 +4,7 @@
  * - Page navigations: network-first, falling back to the cached app shell.
  * - API calls are never cached (always fresh data).
  */
-const VERSION = 'mm-v1.2.0';
+const VERSION = 'mm-v1.3.0';
 const SHELL = `${VERSION}-shell`;
 const STATIC = `${VERSION}-static`;
 const IMAGES = `${VERSION}-images`;
@@ -62,4 +62,32 @@ self.addEventListener('fetch', (event) => {
       return cached || network;
     }));
   }
+});
+
+// ---------- Web Push: show the notification, open the right page when tapped ----------
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch { data = { body: event.data && event.data.text() }; }
+  const title = data.title || 'سوق شنقيط';
+  event.waitUntil(self.registration.showNotification(title, {
+    body: data.body || '',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: data.tag,
+    renotify: Boolean(data.tag),
+    data: { url: data.url || '/notifications' },
+    dir: 'auto',
+  }));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = new URL((event.notification.data && event.notification.data.url) || '/', self.location.origin);
+  if (target.origin !== self.location.origin) return; // only pages of this site
+  event.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const open = wins.find((w) => new URL(w.url).origin === self.location.origin);
+    if (open) { await open.focus(); return open.navigate(target.href).catch(() => self.clients.openWindow(target.href)); }
+    return self.clients.openWindow(target.href);
+  })());
 });

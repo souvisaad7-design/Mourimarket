@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import HeroCarousel from '../components/HeroCarousel.jsx';
+import { PushBanner } from '../components/PushPrompt.jsx';
 import { ProductGrid, ProductGridSkeleton } from '../components/ProductCard.jsx';
 import { CategoryIcon, EmptyState, Icon, VerifiedBadge, useCityName } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
@@ -158,6 +159,7 @@ export default function Home() {
   return (
     <div className="container-page space-y-3.5 py-3 sm:space-y-10 sm:py-5">
       {show.hero && <HeroCarousel />}
+      <PushBanner />
 
       {show.categories && <section>
         <SectionTitle action={<PillLink to="/categories">{t('home.allCategories')}</PillLink>}>{t('home.browseCategories')}</SectionTitle>

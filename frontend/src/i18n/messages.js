@@ -1555,6 +1555,41 @@ deepMerge(ar, v22.ar);
 deepMerge(fr, v22.fr);
 deepMerge(en, v22.en);
 
+// ---------- v23: notifications on the phone (Web Push) ----------
+deepMerge(ar, {
+  push: {
+    title: 'التنبيهات على هاتفك', text: 'اعرف فوراً عندما يراسلك مشترٍ أو يتغيّر طلبك، حتى والموقع مغلق.',
+    onText: 'مفعّلة على هذا الجهاز: ستصلك الرسائل والطلبات فوراً.', enable: 'تفعيل', disable: 'إيقاف', test: 'تجربة', testSent: 'أرسلنا تنبيهاً تجريبياً إلى أجهزتك',
+    enabled: 'تم تفعيل التنبيهات على هذا الجهاز 🔔', denied: 'رفضتَ التنبيهات لهذا الموقع. فعّلها من إعدادات المتصفح ثم أعد المحاولة.',
+    unsupported: 'هذا المتصفح لا يدعم التنبيهات. جرّب Chrome على أندرويد أو الكمبيوتر.',
+    iosHint: 'على آيفون: اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية»، وافتح الموقع من الأيقونة لتفعيل التنبيهات.',
+    bannerTitle: 'لا تفوّت أي مشترٍ', bannerText: 'فعّل التنبيهات لتصلك الرسائل على هاتفك فوراً.', later: 'لاحقاً',
+  },
+  notifications: { types: { push_test: 'هذا تنبيه تجريبي من {site} ✅' } },
+});
+deepMerge(fr, {
+  push: {
+    title: 'Notifications sur votre téléphone', text: 'Sachez tout de suite quand un acheteur vous écrit ou qu’une commande avance, même site fermé.',
+    onText: 'Activées sur cet appareil : messages et commandes arrivent immédiatement.', enable: 'Activer', disable: 'Désactiver', test: 'Tester', testSent: 'Notification de test envoyée à vos appareils',
+    enabled: 'Notifications activées sur cet appareil 🔔', denied: 'Vous avez bloqué les notifications pour ce site. Autorisez-les dans les réglages du navigateur.',
+    unsupported: 'Ce navigateur ne gère pas les notifications. Essayez Chrome sur Android ou ordinateur.',
+    iosHint: 'Sur iPhone : touchez Partager puis « Sur l’écran d’accueil », et ouvrez le site depuis l’icône pour activer les notifications.',
+    bannerTitle: 'Ne ratez aucun acheteur', bannerText: 'Activez les notifications pour recevoir vos messages tout de suite.', later: 'Plus tard',
+  },
+  notifications: { types: { push_test: 'Ceci est une notification de test de {site} ✅' } },
+});
+deepMerge(en, {
+  push: {
+    title: 'Notifications on your phone', text: 'Know right away when a buyer messages you or an order moves, even with the site closed.',
+    onText: 'On for this device: messages and orders arrive instantly.', enable: 'Turn on', disable: 'Turn off', test: 'Test', testSent: 'Test notification sent to your devices',
+    enabled: 'Notifications are on for this device 🔔', denied: 'Notifications are blocked for this site. Allow them in your browser settings and try again.',
+    unsupported: 'This browser cannot show notifications. Try Chrome on Android or a computer.',
+    iosHint: 'On iPhone: tap Share, then “Add to Home Screen”, and open the site from that icon to turn on notifications.',
+    bannerTitle: 'Never miss a buyer', bannerText: 'Turn on notifications to get your messages on your phone right away.', later: 'Later',
+  },
+  notifications: { types: { push_test: 'This is a test notification from {site} ✅' } },
+});
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },

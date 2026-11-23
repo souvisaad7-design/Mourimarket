@@ -59,7 +59,11 @@ export function AppProvider({ children }) {
   }, [user, refreshCounts]);
 
   const login = useCallback((token, u) => { setToken(token); setUser(u); refreshUser(); }, [refreshUser]);
-  const logout = useCallback(() => { setToken(null); setUser(null); }, []);
+  const logout = useCallback(() => {
+    // This phone stops receiving the account's notifications.
+    import('../lib/push.js').then((m) => m.disablePush()).catch(() => {});
+    setToken(null); setUser(null);
+  }, []);
   const reloadMeta = useCallback(() => api('/meta').then(setMeta).catch(() => {}), []);
   // Cities, prices and categories are edited in /admin: refresh them when the visitor comes back to the tab.
   useEffect(() => {

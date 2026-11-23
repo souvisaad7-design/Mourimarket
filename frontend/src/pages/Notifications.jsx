@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { EmptyState, ErrorBox, Icon, PageHeader, Spinner } from '../components/ui.jsx';
+import { PushToggle } from '../components/PushPrompt.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
@@ -36,6 +37,7 @@ export default function Notifications() {
       <PageHeader title={t('notifications.title')}>
         {data?.items?.some((n) => !n.is_read) && <button className="btn-outline" onClick={markAll}><Icon name="check" className="h-4 w-4" />{t('notifications.markAll')}</button>}
       </PageHeader>
+      <PushToggle className="mb-4" />
       <ErrorBox error={error} />
       {loading ? <Spinner /> : !data?.items?.length ? <EmptyState icon="bell" title={t('notifications.empty')} /> : (
         <ul className="card divide-y divide-slate-100 overflow-hidden">
