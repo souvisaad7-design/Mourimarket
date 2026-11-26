@@ -10,6 +10,7 @@ import { conflict, forbidden, notFound, parse, slugify } from '../lib/http.js';
 import { requireAuth } from '../middleware/auth.js';
 import { removeUploads, saveFile, upload } from '../middleware/upload.js';
 import { getSettings } from '../lib/settings.js';
+import { aiStatus } from '../lib/ai.js';
 import { PRODUCT_FROM, PRODUCT_SELECT } from './products.js';
 
 const router = Router();
@@ -21,6 +22,7 @@ router.get('/meta', async (_req, res) => {
     cities, reportReasons: REPORT_REASONS, currency: 'MRU',
     phoneVerification: await phoneVerificationOn(),
     videoUploads: videoEnabled(),
+    ai: await aiStatus(),
     freeBumpDays: pricing.freeBumpDays,
     upgrades: features.paidUpgrades ? { verifyPrice: pricing.verifyPrice, bumpPrice: pricing.bumpPrice, storePlans: pricing.storePlans, featurePlans: pricing.featurePlans, paymentMethods: PAYMENT_METHODS } : null,
   });
@@ -33,7 +35,8 @@ router.get('/settings', async (_req, res) => {
     getSettings(),
     query('SELECT id, title, subtitle, cta, link, image_url FROM banners WHERE is_active ORDER BY sort_order, id'),
   ]);
-  res.json({ settings, banners: banners.rows });
+  const { ai: _ai, ...publicSettings } = settings; // AI budgets and limits stay private
+  res.json({ settings: publicSettings, banners: banners.rows });
 });
 
 /** GET /api/pages – published custom pages (for menus and the footer). */

@@ -14,7 +14,7 @@ const NAV = [
   ['dashboard', [['', 'overview', 'grid']]],
   ['review', [
     ['listings', 'listings', 'image', 'pending_products'], ['merchants', 'merchantsTab', 'store', 'pending_merchants'],
-    ['reports', 'reports', 'flag', 'open_reports'], ['requests', 'requests', 'star', 'pending_upgrades'], ['inspections', 'inspections', 'check', 'pending_inspections'],
+    ['reports', 'reports', 'flag', 'open_reports'], ['requests', 'requests', 'star', 'pending_upgrades'], ['inspections', 'inspections', 'check', 'pending_inspections'], ['ai', 'soukAi', 'bolt', 'open_ai_flags'],
   ]],
   ['delivery', [
     ['orders', 'deliveryOrders', 'grid', 'pending_orders'], ['couriers', 'deliveryCouriers', 'users', 'pending_couriers'], ['escrow', 'escrow', 'shield', 'escrow_todo'], ['delivery', 'deliveryPricing', 'globe'],

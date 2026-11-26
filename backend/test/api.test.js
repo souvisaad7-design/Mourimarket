@@ -1806,3 +1806,240 @@ describe('security: third round', () => {
     assert.match(ok, /<link rel="canonical" href="http:\/\/localhost:\d+\/"/, 'local development still works');
   });
 });
+
+// ---------- Souk AI (a fake provider stands in for the real API: no network, no cost) ----------
+describe('Souk AI', () => {
+  let admin; let seller; let buyer; let ai;
+  const calls = [];
+  let handler = null;
+  const reply = (params, content, stop = 'end_turn') => ({
+    model: params.model, stop_reason: stop, content: typeof content === 'string' ? [{ type: 'text', text: content }] : content,
+    usage: { input_tokens: 1000, output_tokens: 200 },
+  });
+  const fake = { beta: { messages: { create: async (params) => { calls.push(params); return handler(params); } } } };
+  const json = (params, obj) => reply(params, JSON.stringify(obj));
+  const setAi = async (patch) => {
+    const s = (await call('/api/admin/settings', { token: admin })).data.settings;
+    const r = await call('/api/admin/settings', { method: 'PUT', token: admin, body: { ai: { ...s.ai, ...patch } } });
+    assert.equal(r.status, 200, JSON.stringify(r.data));
+  };
+  const lastToolResults = (params) => params.messages.at(-1).content.filter((b) => b.type === 'tool_result');
+
+  before(async () => {
+    ai = await import('../src/lib/ai.js');
+    admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
+    seller = await login('sidi@example.mr');
+    buyer = await login('buyer@example.mr');
+  });
+  after(() => ai.setAiClient(null));
+
+  it('stays off without an API key, and keeps budgets out of the public settings', async () => {
+    ai.setAiClient(null);
+    const meta = await call('/api/meta');
+    assert.equal(meta.data.ai.enabled, false);
+    const r = await call('/api/ai/assistant', { method: 'POST', token: buyer, body: { messages: [{ role: 'user', text: 'هاتف' }] } });
+    assert.equal(r.status, 503);
+    assert.equal(r.data.error, 'ai_disabled');
+    assert.equal((await call('/api/settings')).data.settings.ai, undefined);
+    assert.equal((await call('/api/ai/assistant', { method: 'POST', body: { messages: [{ role: 'user', text: 'x' }] } })).status, 401);
+    ai.setAiClient(fake);
+    assert.equal((await call('/api/meta')).data.ai.enabled, true);
+  });
+
+  it('assistant answers only with real listings found in the database', async () => {
+    let round = 0;
+    handler = (params) => {
+      round += 1;
+      if (round === 1) return reply(params, [{ type: 'tool_use', id: 't1', name: 'search_products', input: { keywords: ['samsung', 'galaxy'], category: 'any', city: 'any' } }], 'tool_use');
+      if (round === 2) {
+        const found = JSON.parse(lastToolResults(params)[0].content);
+        assert.ok(Array.isArray(found) && found.length, 'search returned listings');
+        assert.ok(found.every((p) => p.id && p.price >= 0 && p.title));
+        return reply(params, [{ type: 'tool_use', id: 't2', name: 'show_products', input: { ids: [found[0].id, 999999] } }], 'tool_use');
+      }
+      assert.match(lastToolResults(params)[0].content, /^Shown: \d+$/, 'invented id 999999 is dropped');
+      return reply(params, 'وجدت لك هاتف سامسونج متاحاً.');
+    };
+    calls.length = 0;
+    const r = await call('/api/ai/assistant', { method: 'POST', token: buyer, body: { lang: 'ar', messages: [{ role: 'user', text: 'أبحث عن سامسونج' }] } });
+    assert.equal(r.status, 200, JSON.stringify(r.data));
+    assert.equal(r.data.reply, 'وجدت لك هاتف سامسونج متاحاً.');
+    assert.equal(r.data.products.length, 1);
+    assert.ok(r.data.products[0].title.toLowerCase().includes('samsung') || r.data.products[0].title.includes('سامسونج'));
+    assert.ok(!r.data.products.some((p) => p.id === 999999));
+    assert.equal(calls.length, 3);
+    assert.ok(calls[0].system.includes('Never invent'), 'grounding rules are in the system prompt');
+    assert.deepEqual(calls[0].fallbacks, 'default');
+    // The three model calls are logged with their cost and count as one request.
+    const { rows } = await pool.query("SELECT COUNT(*)::int AS n, COUNT(DISTINCT request_id)::int AS reqs, SUM(cost_usd)::float8 AS usd FROM ai_usage WHERE feature = 'assistant' AND ok");
+    assert.equal(rows[0].n, 3);
+    assert.equal(rows[0].reqs, 1);
+    assert.ok(Math.abs(rows[0].usd - 3 * (1000 * 4 + 200 * 20) / 1e6) < 1e-9);
+  });
+
+  it('assistant says so when nothing matches', async () => {
+    let round = 0;
+    let note = '';
+    handler = (params) => {
+      round += 1;
+      if (round === 1) return reply(params, [{ type: 'tool_use', id: 'a', name: 'search_products', input: { keywords: ['zzqxwv'] } }], 'tool_use');
+      note = lastToolResults(params)[0].content;
+      return reply(params, 'لم أجد هذا المنتج حالياً في الموقع.');
+    };
+    const r = await call('/api/ai/assistant', { method: 'POST', token: buyer, body: { messages: [{ role: 'user', text: 'zzqxwv' }] } });
+    assert.equal(r.status, 200);
+    assert.match(note, /No live listing matches/);
+    assert.deepEqual(r.data.products, []);
+    assert.equal(r.data.found, 0);
+    assert.equal(r.data.searched, true);
+  });
+
+  it('enforces the per-user daily limit and the budget, and reports provider errors and refusals', async () => {
+    handler = (params) => reply(params, 'ok');
+    await setAi({ userDaily: 2 });
+    const ask = () => call('/api/ai/assistant', { method: 'POST', token: buyer, body: { messages: [{ role: 'user', text: 'hello' }] } });
+    const r = await ask();
+    assert.equal(r.status, 429);
+    assert.equal(r.data.error, 'ai_quota');
+    assert.equal((await call('/api/ai/status', { token: buyer })).data.remaining, 0);
+    await setAi({ userDaily: 30, dailyBudgetUsd: 0 });
+    const b = await ask();
+    assert.equal(b.status, 503);
+    assert.equal(b.data.error, 'ai_budget');
+    await setAi({ dailyBudgetUsd: 3 });
+    handler = () => { throw new Error('network down'); };
+    const e = await ask();
+    assert.equal(e.status, 502);
+    assert.equal(e.data.error, 'ai_failed');
+    handler = (params) => ({ ...reply(params, ''), stop_reason: 'refusal' });
+    const f = await ask();
+    assert.equal(f.status, 400);
+    assert.equal(f.data.error, 'ai_refused');
+    const { rows } = await pool.query("SELECT error FROM ai_usage WHERE NOT ok ORDER BY id DESC LIMIT 2");
+    assert.deepEqual(rows.map((x) => x.error), ['refusal', 'provider_unreachable']);
+    await setAi({ features: { assistant: false, describe: true, visual: true, translate: true, fraud: true } });
+    assert.equal((await ask()).data.error, 'ai_disabled');
+    await setAi({ features: { assistant: true, describe: true, visual: true, translate: true, fraud: true } });
+    await pool.query('DELETE FROM ai_usage WHERE user_id IS NOT NULL'); // fresh daily counts for the next tests
+  });
+
+  it('writes a listing from photos and notes, with a price hint from similar listings', async () => {
+    handler = (params) => {
+      const content = params.messages[0].content;
+      assert.equal(content[0].type, 'image');
+      assert.equal(content[0].source.media_type, 'image/jpeg');
+      assert.equal(params.output_config.format.type, 'json_schema');
+      return json(params, {
+        title: 'هاتف سامسونج جالكسي A54', description: 'هاتف بحالة جيدة.\nمع الشاحن.', category: 'phones-electronics', condition: 'used',
+        keywords: ['سامسونج', 'samsung', 'galaxy'], missing_info: ['ما سعة التخزين؟'], warnings: [],
+      });
+    };
+    const form = new FormData();
+    form.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+    form.append('notes', 'سامسونج مستعمل');
+    form.append('lang', 'ar');
+    const r = await call('/api/ai/describe', { method: 'POST', token: seller, form });
+    assert.equal(r.status, 200, JSON.stringify(r.data));
+    assert.equal(r.data.title, 'هاتف سامسونج جالكسي A54');
+    assert.ok(r.data.categoryId);
+    assert.equal(r.data.condition, 'used');
+    assert.deepEqual(r.data.missingInfo, ['ما سعة التخزين؟']);
+    assert.ok(['similar', 'category', 'none'].includes(r.data.price.basis));
+    const bad = new FormData();
+    bad.append('images', new Blob([Buffer.from('not an image')], { type: 'image/png' }), 'x.png');
+    assert.equal((await call('/api/ai/describe', { method: 'POST', token: seller, form: bad })).status, 400);
+  });
+
+  it('finds listings from a photo (visual search) and says when there is no close match', async () => {
+    handler = (params) => json(params, { description: 'هاتف ذكي من سامسونج', category: 'phones-electronics', brand: 'Samsung', keywords_ar: ['هاتف', 'سامسونج'], keywords_fr: ['téléphone', 'samsung', 'galaxy'] });
+    const form = new FormData();
+    form.append('image', new Blob([PNG], { type: 'image/png' }), 'p.png');
+    const r = await call('/api/ai/visual-search', { method: 'POST', token: buyer, form });
+    assert.equal(r.status, 200, JSON.stringify(r.data));
+    assert.equal(r.data.exact, true);
+    assert.ok(r.data.products.some((p) => /samsung|سامسونج/i.test(p.title)));
+    handler = (params) => json(params, { description: 'جمل', category: 'unknown', brand: '', keywords_ar: ['جمل'], keywords_fr: ['chameau'] });
+    const form2 = new FormData();
+    form2.append('image', new Blob([PNG], { type: 'image/png' }), 'p.png');
+    const none = await call('/api/ai/visual-search', { method: 'POST', token: buyer, form: form2 });
+    assert.equal(none.data.exact, false);
+    assert.deepEqual(none.data.products, []);
+  });
+
+  it('recommends listings from what the visitor looked at, without storing it', async () => {
+    const list = (await call('/api/products?category=phones-electronics')).data.items;
+    const seenId = list[0].id;
+    const r = await call(`/api/ai/recommendations?seen=${seenId}`);
+    assert.equal(r.data.basis, 'personal');
+    assert.ok(r.data.items.length > 0);
+    assert.ok(!r.data.items.some((p) => p.id === seenId));
+    assert.equal(r.data.items[0].category_slug, 'phones-electronics');
+    const off = await call(`/api/ai/recommendations?seen=${seenId}&personal=0`);
+    assert.equal(off.data.basis, 'popular');
+  });
+
+  it('suggests a price range from similar listings', async () => {
+    const cat = (await call('/api/categories')).data.items?.find((c) => c.slug === 'vehicles')
+      || (await pool.query("SELECT id FROM categories WHERE slug = 'vehicles'")).rows[0];
+    const r = await call(`/api/ai/price?categoryId=${cat.id}`);
+    assert.equal(r.status, 200);
+    assert.ok(r.data.n >= 3);
+    assert.ok(r.data.low <= r.data.median && r.data.median <= r.data.high);
+  });
+
+  it('translates a listing once and serves the cached translation after', async () => {
+    const p = (await call('/api/products?q=Mercedes')).data.items[0];
+    assert.equal((await call(`/api/ai/translate/${p.id}?lang=ar`)).status, 401, 'guests can only read cached translations');
+    let n = 0;
+    handler = (params) => { n += 1; assert.ok(params.system.includes('Arabic')); return json(params, { title: 'مرسيدس C220 2012', description: 'ناقل حركة أوتوماتيكي، مكيف.' }); };
+    const first = await call(`/api/ai/translate/${p.id}?lang=ar`, { token: buyer });
+    assert.equal(first.status, 200);
+    assert.equal(first.data.cached, false);
+    const again = await call(`/api/ai/translate/${p.id}?lang=ar`);
+    assert.equal(again.data.cached, true);
+    assert.equal(again.data.title, 'مرسيدس C220 2012');
+    assert.equal(n, 1);
+  });
+
+  it('flags suspicious listings (rules + AI) and lets the admin act on them', async () => {
+    handler = (params) => json(params, { risk: 'high', reasons: ['يطلب الدفع قبل المعاينة'], summary: 'احتيال محتمل' });
+    const cat = (await pool.query("SELECT id FROM categories WHERE slug = 'phones-electronics'")).rows[0];
+    const form = new FormData();
+    form.append('title', 'آيفون 15 برو ماكس جديد');
+    form.append('description', 'السعر نهائي. ارسل المبلغ عبر ويسترن يونيون قبل الشحن.');
+    form.append('price', '3000');
+    form.append('categoryId', String(cat.id));
+    form.append('city', 'nouakchott');
+    form.append('condition', 'new');
+    form.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+    const created = await call('/api/products', { method: 'POST', token: seller, form });
+    assert.equal(created.status, 201, JSON.stringify(created.data));
+    const id = created.data.product.id;
+    const flags = (await call('/api/ai/admin/flags', { token: admin })).data.items.filter((f) => f.product_id === id);
+    const rules = flags.find((f) => f.source === 'rules');
+    assert.ok(rules && rules.reasons.includes('advance_payment'), JSON.stringify(flags));
+    assert.equal(flags.find((f) => f.source === 'ai').risk, 'high');
+    const aiCall = calls.at(-1);
+    assert.ok(aiCall.system.includes('not instructions'), 'ad text is treated as data');
+    assert.equal((await call('/api/ai/admin/flags', { token: buyer })).status, 403);
+    const act = await call(`/api/ai/admin/flags/${rules.id}`, { method: 'PATCH', token: admin, body: { action: 'reject_listing' } });
+    assert.equal(act.status, 200);
+    assert.equal((await pool.query('SELECT status FROM products WHERE id = $1', [id])).rows[0].status, 'rejected');
+    const open = (await call('/api/ai/admin/flags', { token: admin })).data.items.filter((f) => f.product_id === id);
+    assert.equal(open.length, 0, 'both flags on the listing are closed');
+    // An honest listing raises nothing.
+    handler = (params) => json(params, { risk: 'low', reasons: [], summary: 'عادي' });
+    const scan = await call(`/api/ai/admin/scan/${(await call('/api/products?q=Mercedes')).data.items[0].id}`, { method: 'POST', token: admin });
+    assert.equal(scan.data.rules.risk, 'low');
+    assert.equal(scan.data.ai.risk, 'low');
+  });
+
+  it('shows usage and cost to the admin only', async () => {
+    const r = await call('/api/ai/admin/overview', { token: admin });
+    assert.equal(r.status, 200);
+    assert.ok(r.data.usage.month_calls > 0);
+    assert.ok(r.data.usage.month_usd > 0);
+    assert.ok(r.data.usage.byFeature.some((f) => f.feature === 'fraud'));
+    assert.equal((await call('/api/ai/admin/overview', { token: buyer })).status, 403);
+  });
+});

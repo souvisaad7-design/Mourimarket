@@ -696,3 +696,57 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS payout_ref VARCHAR(120);
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS dispute_reason VARCHAR(500);
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_updated_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS orders_payment_status_idx ON orders (payment_status) WHERE payment_status IS NOT NULL;
+
+-- ---------- Souk AI: cost log, translation cache, fraud flags ----------
+-- One row per call to the AI provider (or per refusal by our own limits), to watch usage and cost.
+CREATE TABLE IF NOT EXISTS ai_usage (
+  id             BIGSERIAL PRIMARY KEY,
+  feature        VARCHAR(30) NOT NULL,
+  request_id     UUID,
+  user_id        INT REFERENCES users(id) ON DELETE SET NULL,
+  model          VARCHAR(60),
+  input_tokens   INT NOT NULL DEFAULT 0,
+  output_tokens  INT NOT NULL DEFAULT 0,
+  cache_read     INT NOT NULL DEFAULT 0,
+  cache_write    INT NOT NULL DEFAULT 0,
+  cost_usd       NUMERIC(12, 6) NOT NULL DEFAULT 0,
+  ok             BOOLEAN NOT NULL DEFAULT true,
+  error          VARCHAR(80),
+  ms             INT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ai_usage_created_idx ON ai_usage (created_at);
+CREATE INDEX IF NOT EXISTS ai_usage_user_idx ON ai_usage (user_id, feature, created_at);
+ALTER TABLE ai_usage ENABLE ROW LEVEL SECURITY;
+
+-- Machine translations of a listing, reused until its title / description change.
+CREATE TABLE IF NOT EXISTS ai_translations (
+  product_id   INT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  lang         VARCHAR(2) NOT NULL CHECK (lang IN ('ar', 'fr', 'en')),
+  source_hash  CHAR(64) NOT NULL,
+  title        VARCHAR(200) NOT NULL,
+  description  TEXT NOT NULL,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (product_id, lang)
+);
+ALTER TABLE ai_translations ENABLE ROW LEVEL SECURITY;
+
+-- Suspicious listings / accounts found by the rules or by the AI review, for the admin to check.
+CREATE TABLE IF NOT EXISTS fraud_flags (
+  id           SERIAL PRIMARY KEY,
+  product_id   INT REFERENCES products(id) ON DELETE CASCADE,
+  user_id      INT REFERENCES users(id) ON DELETE CASCADE,
+  source       VARCHAR(10) NOT NULL CHECK (source IN ('rules', 'ai')),
+  risk         VARCHAR(10) NOT NULL CHECK (risk IN ('low', 'medium', 'high')),
+  score        INT NOT NULL DEFAULT 0,
+  reasons      JSONB NOT NULL DEFAULT '[]'::jsonb,
+  summary      VARCHAR(500),
+  status       VARCHAR(10) NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'dismissed', 'actioned')),
+  handled_by   INT REFERENCES users(id) ON DELETE SET NULL,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  handled_at   TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS fraud_flags_status_idx ON fraud_flags (status, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS fraud_flags_one_open ON fraud_flags (product_id, source) WHERE status = 'open' AND product_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS fraud_flags_one_open_user ON fraud_flags (user_id, source) WHERE status = 'open' AND product_id IS NULL;
+ALTER TABLE fraud_flags ENABLE ROW LEVEL SECURITY;

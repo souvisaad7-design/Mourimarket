@@ -8,6 +8,7 @@ import { useI18n } from '../i18n/index.jsx';
 import { useSettings } from '../context/SettingsContext.jsx';
 import { useGeo } from '../context/LocationContext.jsx';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
+import { AiPromo, Recommendations } from './SoukAI.jsx';
 
 export function CategoryTiles({ categories }) {
   const { tl } = useI18n();
@@ -139,6 +140,7 @@ function FeatureStrip() {
   );
 }
 
+
 export default function Home() {
   const { t, number } = useI18n();
   const { categories, meta } = useApp();
@@ -165,6 +167,9 @@ export default function Home() {
         <SectionTitle action={<PillLink to="/categories">{t('home.allCategories')}</PillLink>}>{t('home.browseCategories')}</SectionTitle>
         <CategoryTiles categories={categories} />
       </section>}
+
+      <AiPromo />
+      <Recommendations limit={8} compact />
 
       {show.latest && <section>
         <SectionTitle action={<PillLink to="/products">{t('common.viewAll')}</PillLink>}>{t('home.latest')}</SectionTitle>

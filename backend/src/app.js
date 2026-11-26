@@ -25,6 +25,7 @@ import wantedRoutes from './routes/wanted.js';
 import statsRoutes from './routes/stats.js';
 import inspectionRoutes from './routes/inspections.js';
 import escrowRoutes from './routes/escrow.js';
+import aiRoutes from './routes/ai.js';
 
 export function createApp() {
   const app = express();
@@ -80,6 +81,7 @@ export function createApp() {
   app.use('/api/auth/forgot-password', authLimiter);
   app.use('/api/auth', authRoutes);
   app.use('/api/products', productRoutes);
+  app.use('/api/ai', aiRoutes);
   app.use('/api', inspectionRoutes);
   app.use('/api', escrowRoutes);
   app.use('/api/admin', adminRoutes);

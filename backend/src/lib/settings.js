@@ -69,6 +69,15 @@ export const SECTIONS = {
     link: z.string().trim().max(300).refine((v) => v === '' || internal(v) || /^https:\/\//i.test(v), 'link'),
   }),
   features: z.object({ registration: z.boolean(), autoApprove: z.boolean(), paidUpgrades: z.boolean(), phoneVerification: z.boolean() }),
+  // Souk AI: master switch, model, per-feature switches, per-user daily limit and spending caps (US$).
+  ai: z.object({
+    enabled: z.boolean(),
+    model: z.enum(['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5']),
+    features: z.object({ assistant: z.boolean(), describe: z.boolean(), visual: z.boolean(), translate: z.boolean(), fraud: z.boolean() }),
+    userDaily: z.number().int().min(1).max(500),
+    dailyBudgetUsd: z.number().min(0).max(10_000),
+    monthlyBudgetUsd: z.number().min(0).max(100_000),
+  }),
   payment: z.object({ bankily: text(40), masrvi: text(40), sedad: text(40), accountName: text(80) }),
   texts: z.object({ ar: langTexts, fr: langTexts, en: langTexts }),
 };
@@ -90,6 +99,11 @@ export const defaults = () => ({
   social: { facebook: '', instagram: '', tiktok: '', x: '', youtube: '' },
   announcement: { enabled: false, tone: 'gold', style: 'static', link: '' },
   features: { registration: true, autoApprove: config.autoApprove, paidUpgrades: process.env.PAID_UPGRADES === 'true', phoneVerification: true },
+  ai: {
+    enabled: true, model: 'claude-opus-5-5',
+    features: { assistant: true, describe: true, visual: true, translate: true, fraud: true },
+    userDaily: 30, dailyBudgetUsd: 3, monthlyBudgetUsd: 30,
+  },
   payment: { bankily: '', masrvi: '', sedad: '', accountName: 'سوق شنقيط' },
   texts: { ar: {}, fr: {}, en: {} },
 });

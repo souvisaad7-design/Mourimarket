@@ -13,6 +13,7 @@ import { useSettings } from '../context/SettingsContext.jsx';
 import { OrderDeliveryButton } from './Delivery.jsx';
 import { AttributeTable } from '../components/Attributes.jsx';
 import { taggedUrl, viewSource } from '../lib/viewSource.js';
+import { rememberView } from '../lib/souk-ai.js';
 import { InspectionReport } from '../components/Inspection.jsx';
 
 function ReportModal({ productId, open, onClose }) {
@@ -190,6 +191,50 @@ function MobileActionBar({ product }) {
   );
 }
 
+const isArabic = (text) => {
+  const letters = String(text).replace(/[^\p{L}]/gu, '');
+  return letters.length > 0 && (letters.match(/\p{Script=Arabic}/gu) || []).length / letters.length > 0.5;
+};
+
+/** Description card, with "✨ translate" (Souk AI) when the listing is written in another language. */
+function Description({ product }) {
+  const { t, lang } = useI18n();
+  const { meta } = useApp();
+  const [tr, setTr] = useState(null);
+  const [show, setShow] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const text = `${product.title} ${product.description || ''}`;
+  const offer = meta.ai?.features?.translate && product.status === 'approved' && (lang === 'en' || (lang === 'ar') !== isArabic(text));
+  const translate = async () => {
+    if (tr) { setShow(!show); return; }
+    setBusy(true); setError(null);
+    try { setTr(await api(`/ai/translate/${product.id}`, { query: { lang } })); setShow(true); } catch (err) { setError(err); } finally { setBusy(false); }
+  };
+  return (
+    <div className="card p-5">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-bold">{t('product.description')}</h2>
+        {offer && (
+          <button type="button" onClick={translate} disabled={busy} className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 hover:bg-emerald-100">
+            {busy ? t('ai.translating') : show ? t('ai.showOriginal') : `✨ ${t('ai.translate')}`}
+          </button>
+        )}
+      </div>
+      <ErrorBox error={error} />
+      {show && tr ? (
+        <div>
+          <p className="mb-2 font-semibold">{tr.title}</p>
+          <p className="whitespace-pre-line leading-relaxed text-slate-700">{tr.description}</p>
+          <p className="mt-3 text-[11px] text-slate-400">✨ {t('ai.translatedBy')}</p>
+        </div>
+      ) : (
+        <p className="whitespace-pre-line leading-relaxed text-slate-700">{product.description}</p>
+      )}
+    </div>
+  );
+}
+
 export default function ProductDetail() {
   const { id } = useParams();
   const { t, tl, price, date, number, ago } = useI18n();
@@ -199,7 +244,10 @@ export default function ProductDetail() {
   const { query: here } = useGeo();
   const { data, loading, error, reload } = useApi(`/products/${id}${here ? `?lat=${here.lat}&lng=${here.lng}` : ''}`, undefined, [id, here?.lat, here?.lng]);
   // One view per visit, with where it came from (for the seller's statistics).
-  useEffect(() => { api(`/products/${id}/view`, { method: 'POST', body: { source: viewSource(window.location.pathname) } }).catch(() => {}); }, [id]);
+  useEffect(() => {
+    api(`/products/${id}/view`, { method: 'POST', body: { source: viewSource(window.location.pathname) } }).catch(() => {});
+    rememberView(Number(id)); // on this device only, for "recommended for you"
+  }, [id]);
   const product = data?.product;
   const similar = useApi(product ? `/products?category=${product.category_slug}&limit=5` : null, undefined, [product?.id]);
   useDocumentTitle(product?.title);
@@ -233,10 +281,7 @@ export default function ProductDetail() {
             </section>
           )}
           <div className="card p-4"><ShareBar product={product} /></div>
-          <div className="card p-5">
-            <h2 className="mb-3 text-lg font-bold">{t('product.description')}</h2>
-            <p className="whitespace-pre-line leading-relaxed text-slate-700">{product.description}</p>
-          </div>
+          <Description product={product} />
           <div className="card p-5">
             <h2 className="mb-3 text-lg font-bold">{t('product.details')}</h2>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-4">

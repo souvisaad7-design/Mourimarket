@@ -10,6 +10,7 @@ import { useGeo } from '../context/LocationContext.jsx';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
 import { AttributeFields } from '../components/Attributes.jsx';
 import VideoField from '../components/VideoField.jsx';
+import { AiWriter, PriceSuggestion } from '../components/AiListing.jsx';
 
 const MAX_IMAGES = 8;
 
@@ -173,6 +174,13 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
               )}
             </div>
           </Field>
+          <AiWriter files={ready.map((f) => f.file)} onFill={(r) => setForm((prev) => ({
+            ...prev,
+            title: r.title || prev.title,
+            description: r.description || prev.description,
+            categoryId: r.categoryId ? String(r.categoryId) : prev.categoryId,
+            condition: r.condition || prev.condition,
+          }))} />
           {ready.length > 0 && savedBytes > 0 && (
             <p className="flex items-center gap-1.5 text-xs font-medium text-brand-700" role="status">
               <Icon name="check" className="h-4 w-4" />
@@ -195,6 +203,7 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
             </Field>
             <Field label={t('form.price')} error={fieldError('price')}>
               <input className="input" type="number" min="0" step="1" inputMode="numeric" value={form.price} onChange={set('price')} required dir="ltr" />
+              <div className="mt-2"><PriceSuggestion categoryId={form.categoryId} title={form.title} condition={form.condition} /></div>
             </Field>
             <Field label={t('form.oldPrice')} error={fieldError('oldPrice')} hint={t('form.oldPriceHelp')} optional>
               <input className="input" type="number" min="0" step="1" inputMode="numeric" value={form.oldPrice} onChange={set('oldPrice')} dir="ltr" />

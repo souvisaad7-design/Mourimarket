@@ -17,6 +17,8 @@ import { optionalAuth, requireAuth } from '../middleware/auth.js';
 import { removeUploads, saveFile, upload } from '../middleware/upload.js';
 import { getSettings } from '../lib/settings.js';
 import { buildSearch, escapeLike, normalize } from '../lib/search.js';
+import { inBackground } from '../lib/ai.js';
+import { reviewListing } from '../lib/fraud.js';
 
 const router = Router();
 
@@ -387,6 +389,7 @@ router.post('/', requireAuth, requireVerifiedPhone, postLimiter, upload.array('i
     return rows[0];
   });
   if (product.status === 'approved') await onApproved(product.id);
+  await inBackground(reviewListing(product.id)); // fraud checks run after the response (awaited only in tests)
   res.status(201).json({ product });
 });
 
@@ -437,6 +440,7 @@ router.put('/:id', requireAuth, upload.array('images', MAX_IMAGES), async (req, 
   removeUploads(removed);
   if (product.video_url && product.video_url !== data.videoUrl) deleteVideo(product.video_url);
   await onApproved(product.id); // no-op unless the edit kept the listing live
+  await inBackground(reviewListing(product.id));
   res.json({ ok: true });
 });
 

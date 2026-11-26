@@ -8,6 +8,7 @@ import { LANGS } from '../i18n/messages.js';
 import { InstallPrompt, OfflineBanner, ThemeToggle } from './AppChrome.jsx';
 import { SearchBar } from './SearchBar.jsx';
 import { Avatar, CategoryIcon, Icon, Logo, SiteMark } from './ui.jsx';
+import { AiFab } from '../pages/SoukAI.jsx';
 
 function Badge({ n }) {
   if (!n) return null;
@@ -424,6 +425,7 @@ export default function Layout() {
       <main className={`flex-1 ${onListing ? '' : 'pb-[calc(90px+env(safe-area-inset-bottom))] sm:pb-0'}`}><Outlet /></main>
       <Footer />
       {!onListing && <MobileTabBar />}
+      <AiFab />
       <Toast />
       <InstallPrompt />
     </div>

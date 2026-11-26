@@ -41,6 +41,8 @@ import { Checkout, Courier, OrderDetail, Orders, RedirectToCourier } from './pag
 import SavedSearches from './pages/SavedSearches.jsx';
 import VerifyPhone from './pages/VerifyPhone.jsx';
 import Wanted from './pages/Wanted.jsx';
+import SoukAI from './pages/SoukAI.jsx';
+const AdminAI = lazy(() => import('./pages/admin/AdminAI.jsx'));
 import SellerStats from './pages/SellerStats.jsx';
 const BulkImport = lazy(() => import('./pages/BulkImport.jsx'));
 const adminDelivery = () => import('./pages/admin/AdminDelivery.jsx');
@@ -97,6 +99,7 @@ export default function App() {
         <Route path="users/:id" element={<SellerProfile />} />
         <Route path="stores" element={<Stores />} />
         <Route path="wanted" element={<Wanted />} />
+        <Route path="ai" element={<SoukAI />} />
         <Route path="stores/:slug" element={<StoreDetail />} />
         <Route path="safety" element={<Safety />} />
         <Route path="about" element={<About />} />
@@ -161,6 +164,7 @@ export default function App() {
         <Route path="delivery" element={<AdminDeliveryPricing />} />
         <Route path="inspections" element={<AdminInspections />} />
         <Route path="escrow" element={<AdminEscrow />} />
+        <Route path="ai" element={<AdminAI />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
         <Route path="stores" element={<AdminStores />} />
       </Route>
