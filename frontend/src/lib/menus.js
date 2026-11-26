@@ -8,6 +8,7 @@ export const BUILTIN_LINKS = {
   wanted: { to: '/wanted', emoji: '🙋', label: 'wanted.nav' },
   social: { to: '/social', emoji: '💬', label: 'social.nav' },
   live: { to: '/live', emoji: '🔴', label: 'live.nav' },
+  eid: { to: '/eid', emoji: '🐑', label: 'eid.nav' },
   about: { to: '/about', icon: 'info', label: 'nav.about' },
   help: { to: '/help', icon: 'help', label: 'nav.help' },
   safety: { to: '/safety', icon: 'shield', label: 'footer.safety' },

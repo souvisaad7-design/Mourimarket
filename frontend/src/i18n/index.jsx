@@ -64,6 +64,14 @@ export function I18nProvider({ children }) {
       tl: (row, field = 'name') => row?.[`${field}_${lang}`] ?? row?.[`${field}_ar`] ?? '',
       price: (n) => `${(lang === 'fr' ? nf : priceFmt).format(Number(n))} MRU`,
       number: (n) => nf.format(n),
+      /** The same amount in old ouguiya (1 MRU = 10 MRO), said the way people say it: «11.5 مليون», «165 ألف». */
+      oldMoney: (n) => {
+        const v = Number(n) * 10;
+        const short = new Intl.NumberFormat(lang === 'fr' ? 'fr-FR' : 'en-US', { maximumFractionDigits: 2 });
+        if (v >= 1_000_000) return t('ouguiya.millions', { n: short.format(v / 1_000_000) });
+        if (v >= 10_000 && v % 1000 === 0) return t('ouguiya.thousands', { n: short.format(v / 1000) });
+        return t('ouguiya.units', { n: nf.format(v) });
+      },
       date: (d) => df.format(new Date(d)),
       dateTime: (d) => dtf.format(new Date(d)),
       ago: (d) => {

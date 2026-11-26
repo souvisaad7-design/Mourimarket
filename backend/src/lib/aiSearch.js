@@ -73,7 +73,7 @@ export async function priceStats({ categoryId, q, condition, excludeId }) {
     if (condition === 'new' || condition === 'used') where.push(`p.condition = ${push(condition)}`);
     if (excludeId) where.push(`p.id <> ${push(excludeId)}`);
     if (withWords) {
-      const s = await buildSearch(q, push);
+      const s = await buildSearch(q, push, { withCategory: false });
       if (!s) return null;
       where.push(s.where);
     }

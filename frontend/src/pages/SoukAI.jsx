@@ -230,7 +230,8 @@ export function Recommendations({ limit, compact = false }) {
 // ---------- 💰 Price check ----------
 
 export function PriceHint({ stats, compact = false }) {
-  const { t, number } = useI18n();
+  const { t, price } = useI18n();
+  const number = (v) => price(v).replace(/\s*MRU$/, ''); // same grouping as prices everywhere (1,150,000)
   if (!stats || stats.basis === 'none' || !stats.n) {
     return compact ? null : <p className="text-sm text-slate-500">{t('ai.priceNone')}</p>;
   }

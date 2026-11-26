@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Gallery from '../components/Gallery.jsx';
 import { FavoriteButton, ProductGrid, discountPercent } from '../components/ProductCard.jsx';
-import { Avatar, ErrorBox, Field, Icon, Modal, Spinner, Stars, VerifiedBadge, useCityName } from '../components/ui.jsx';
+import { Avatar, ErrorBox, Field, Icon, Modal, OldPrice, Spinner, Stars, VerifiedBadge, useCityName } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
@@ -14,6 +14,7 @@ import { OrderDeliveryButton } from './Delivery.jsx';
 import { AttributeTable } from '../components/Attributes.jsx';
 import { taggedUrl, viewSource } from '../lib/viewSource.js';
 import { rememberView } from '../lib/souk-ai.js';
+import StatusImageButton from '../components/StatusImage.jsx';
 import { InspectionReport } from '../components/Inspection.jsx';
 
 function ReportModal({ productId, open, onClose }) {
@@ -160,6 +161,7 @@ function ShareBar({ product }) {
         className="btn bg-[#25D366] px-3 py-1.5 text-xs text-white hover:brightness-95">{t('product.whatsapp')}</a>
       {canShare && <button type="button" onClick={nativeShare} className="btn-outline px-3 py-1.5 text-xs"><Icon name="share" className="h-4 w-4" />{t('product.share')}</button>}
       <button type="button" onClick={copy} className="btn-outline px-3 py-1.5 text-xs"><Icon name="link" className="h-4 w-4" />{t('product.copyLink')}</button>
+      <StatusImageButton product={product} />
     </div>
   );
 }
@@ -309,6 +311,7 @@ export default function ProductDetail() {
             </div>
             <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <p className="text-3xl font-bold text-brand-700"><span className="ltr-nums">{price(product.price)}</span></p>
+              <OldPrice value={product.price} className="text-sm" />
               {discountPercent(product) > 0 && (
                 <>
                   <p className="text-base text-slate-400 line-through"><span className="ltr-nums">{price(product.old_price)}</span></p>

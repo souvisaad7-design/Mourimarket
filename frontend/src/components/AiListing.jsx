@@ -56,7 +56,8 @@ export function AiWriter({ files, onFill }) {
 }
 
 /** Live "similar items sell for X–Y" under the price field (computed from listings, no AI cost). */
-export function PriceSuggestion({ categoryId, title, condition }) {
+export function PriceSuggestion({ categoryId, title, condition, price, onLooksOld }) {
+  const { t } = useI18n();
   const [stats, setStats] = useState(null);
   useEffect(() => {
     if (!categoryId) { setStats(null); return undefined; }
@@ -65,5 +66,17 @@ export function PriceSuggestion({ categoryId, title, condition }) {
     }, 600);
     return () => clearTimeout(id);
   }, [categoryId, title, condition]);
-  return <PriceHint stats={stats} compact />;
+  // A price ~10× what similar items sell for was very likely typed in old ouguiya.
+  const looksOld = onLooksOld && stats?.n >= 3 && price > stats.high * 5 && price / 10 <= stats.high * 2 && price / 10 >= stats.low / 3;
+  return (
+    <>
+      {looksOld && (
+        <div className="mb-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900" role="alert">
+          <p className="font-semibold">⚠️ {t('ouguiya.looksOld')}</p>
+          <button type="button" className="mt-1 font-bold underline" onClick={onLooksOld}>{t('ouguiya.fixOld')}</button>
+        </div>
+      )}
+      <PriceHint stats={stats} compact />
+    </>
+  );
 }

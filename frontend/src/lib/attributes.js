@@ -22,6 +22,16 @@ export const ATTRIBUTES = {
     { key: 'brand', type: 'select', filter: 'eq', options: ['apple', 'samsung', 'huawei', 'xiaomi', 'tecno', 'infinix', 'oppo', 'itel', 'sony', 'lg', 'other'] },
     { key: 'storage', type: 'select', filter: 'eq', options: ['16', '32', '64', '128', '256', '512', '1024'], unit: 'GB' },
   ],
+  // Livestock (and the Eid sheep market): sheep, goats, camels, cattle.
+  livestock: [
+    { key: 'animal', type: 'select', filter: 'eq', options: ['sheep', 'goat', 'camel', 'cow', 'other'] },
+    { key: 'sex', type: 'select', filter: 'eq', options: ['male', 'female'] },
+    { key: 'breed', type: 'select', filter: 'eq', options: ['touabire', 'peul', 'ladoum', 'local', 'mixed', 'other'] },
+    { key: 'ageMonths', type: 'int', min: 0, max: 360, filter: 'range' },
+    { key: 'weightKg', type: 'int', min: 1, max: 2000, filter: 'range', unit: 'kg' },
+    { key: 'heads', type: 'int', min: 1, max: 5000 },
+    { key: 'eidReady', type: 'select', filter: 'eq', options: ['yes', 'no'] },
+  ],
   computers: [
     { key: 'brand', type: 'select', filter: 'eq', options: ['hp', 'dell', 'lenovo', 'apple', 'asus', 'acer', 'msi', 'other'] },
     { key: 'ram', type: 'select', filter: 'eq', options: ['4', '8', '16', '32', '64'], unit: 'GB' },

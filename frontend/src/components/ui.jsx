@@ -296,3 +296,10 @@ export function CategoryIcon({ icon }) {
   const Simple = SIMPLE_ICONS[(icon || '').replace(/\uFE0F/g, '')];
   return Simple ? <Simple /> : icon || null;
 }
+
+/** "= 11.5 مليون أوقية قديمة" under a price: many people still count in old ouguiya. */
+export function OldPrice({ value, className = '' }) {
+  const { t, oldMoney } = useI18n();
+  if (!Number(value)) return null;
+  return <p className={`text-xs text-slate-500 ${className}`} title={t('ouguiya.hint')}>≈ {oldMoney(value)}</p>;
+}

@@ -1,7 +1,7 @@
 // Alerts that bring people back: saved searches ("tell me about any Hilux in Nouakchott under 400,000")
 // and price drops on listings in their favourites.
 import { query } from '../db.js';
-import { normalize, searchTerms } from './search.js';
+import { normalize, searchTerms, termAlternatives } from './search.js';
 import { notify } from './notify.js';
 
 /** Does this listing match the saved filters? (same rules as the search page) */
@@ -13,7 +13,7 @@ export function matches(p, f) {
   if (f.maxPrice != null && Number(p.price) > Number(f.maxPrice)) return false;
   if (f.q) {
     const text = normalize(`${p.title} ${p.description} ${p.category_name || ''}`).replace(/(^|\s)(وال|بال|فال|كال|لل|ال)(?=\S{2,})/g, '$1');
-    if (!searchTerms(f.q).every((term) => text.includes(term))) return false;
+    if (!searchTerms(f.q).every((term) => termAlternatives(term).some((w) => text.includes(w)))) return false;
   }
   return true;
 }

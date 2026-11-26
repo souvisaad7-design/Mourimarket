@@ -69,7 +69,8 @@ async function main() {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { rowCount } = await client.query('SELECT 1 FROM categories LIMIT 1');
+    // Seeded once: the schema itself may add categories (e.g. livestock), so check for users instead.
+    const { rowCount } = await client.query('SELECT 1 FROM users LIMIT 1');
     if (rowCount) {
       console.log('Database already seeded – nothing to do.');
       await client.query('ROLLBACK');
@@ -79,7 +80,8 @@ async function main() {
     const catIds = {};
     for (const [i, [slug, ar, fr, en, icon]] of CATEGORIES.entries()) {
       const { rows } = await client.query(
-        'INSERT INTO categories (slug, name_ar, name_fr, name_en, icon, sort_order) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
+        `INSERT INTO categories (slug, name_ar, name_fr, name_en, icon, sort_order) VALUES ($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (slug) DO UPDATE SET sort_order = EXCLUDED.sort_order RETURNING id`,
         [slug, ar, fr, en, icon, i],
       );
       catIds[slug] = { id: rows[0].id, icon, color: COLORS[i] };

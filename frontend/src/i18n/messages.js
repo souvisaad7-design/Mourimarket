@@ -2427,6 +2427,87 @@ deepMerge(en, {
   },
 });
 
+// v39: old / new ouguiya
+deepMerge(ar, { ouguiya: {
+  millions: '{n} مليون قديمة', thousands: '{n} ألف قديمة', units: '{n} أوقية قديمة', hint: 'الأوقية الجديدة = 10 أوقيات قديمة',
+  priceOld: 'السعر (أوقية قديمة)', wasPriceOld: 'السعر قبل التخفيض (أوقية قديمة)',
+  unit: 'عملة السعر', new: 'أوقية جديدة (MRU)', old: 'أوقية قديمة', savedAs: 'بالجديدة (هكذا سيظهر)',
+  looksOld: 'هذا السعر أعلى بنحو 10 مرات من أسعار المنتجات المشابهة. هل كتبته بالأوقية القديمة؟', fixOld: 'نعم، هذا السعر بالقديمة',
+} });
+deepMerge(fr, { ouguiya: {
+  millions: '{n} millions d’anciens ouguiyas', thousands: '{n} mille anciens ouguiyas', units: '{n} anciens ouguiyas', hint: '1 nouvel ouguiya = 10 anciens ouguiyas',
+  priceOld: 'Prix (anciens ouguiyas)', wasPriceOld: 'Prix avant remise (anciens ouguiyas)',
+  unit: 'Devise du prix', new: 'Nouvel ouguiya (MRU)', old: 'Ancien ouguiya', savedAs: 'en nouveaux ouguiyas (affiché ainsi)',
+  looksOld: 'Ce prix est environ 10 fois plus élevé que celui d’articles similaires. L’avez-vous écrit en anciens ouguiyas ?', fixOld: 'Oui, ce prix est en anciens ouguiyas',
+} });
+deepMerge(en, { ouguiya: {
+  millions: '{n} million old ouguiya', thousands: '{n} thousand old ouguiya', units: '{n} old ouguiya', hint: '1 new ouguiya = 10 old ouguiya',
+  priceOld: 'Price (old ouguiya)', wasPriceOld: 'Price before discount (old ouguiya)',
+  unit: 'Price currency', new: 'New ouguiya (MRU)', old: 'Old ouguiya', savedAs: 'in new ouguiya (shown like this)',
+  looksOld: 'This price is about 10 times what similar items sell for. Did you type it in old ouguiya?', fixOld: 'Yes, this price is in old ouguiya',
+} });
+
+// v40: WhatsApp status image
+deepMerge(ar, { status: { button: 'صورة لحالة واتساب', title: 'صورة جاهزة لحالة واتساب', making: 'جارٍ تجهيز الصورة…', hint: 'انشرها في حالتك: من يمسح الرمز يفتح الإعلان مباشرة.', share: 'مشاركة', download: 'تحميل الصورة', scan: 'امسح الرمز لفتح الإعلان' } });
+deepMerge(fr, { status: { button: 'Image pour statut WhatsApp', title: 'Image prête pour votre statut', making: 'Préparation de l’image…', hint: 'Publiez-la en statut : le QR code ouvre directement l’annonce.', share: 'Partager', download: 'Télécharger', scan: 'Scannez pour voir l’annonce' } });
+deepMerge(en, { status: { button: 'WhatsApp status image', title: 'Ready-made status image', making: 'Preparing the image…', hint: 'Post it as your status: scanning the code opens the listing.', share: 'Share', download: 'Download image', scan: 'Scan to open the listing' } });
+
+// v41: livestock details + Eid sheep market
+deepMerge(ar, {
+  attrs: {
+    animal: 'نوع الحيوان', sex: 'الجنس', breed: 'السلالة', ageMonths: 'العمر (بالأشهر)', weightKg: 'الوزن التقريبي (كغ)', heads: 'عدد الرؤوس', eidReady: 'مناسب للأضحية',
+    opts: {
+      animal: { sheep: 'خروف / كبش', goat: 'ماعز', camel: 'إبل', cow: 'بقر', other: 'أخرى' }, sex: { male: 'ذكر', female: 'أنثى' },
+      breed: { touabire: 'توابير', peul: 'فلاني (بول)', ladoum: 'لادوم', local: 'محلي', mixed: 'مهجّن', other: 'أخرى' }, eidReady: { yes: 'نعم', no: 'لا' },
+    },
+  },
+  eid: {
+    nav: 'سوق الأضاحي', title: 'سوق الأضاحي', subtitle: 'كباش وأضاحي من مربّين وتجار في كل المدن، مرتّبة من الأرخص.', browse: 'تصفّح',
+    daysLeft: 'العيد بعد {n} يوماً', today: 'عيد مبارك! 🎉', sell: 'بِع أضحيتك', allAnimals: 'الكل',
+    maxPrice: 'أقصى سعر (MRU)', minWeight: 'أقل وزن (كغ)', reset: 'إعادة ضبط', count: '{n} إعلاناً', none: 'لا توجد أضاحي بهذه المواصفات الآن.', postWanted: 'اطلب أضحية بمواصفاتك',
+    guideTitle: 'كيف تختار أضحيتك', guide: 'السن: الضأن ما أتمّ ستة أشهر عند كثير من أهل العلم، والماعز سنة، والبقر سنتان، والإبل خمس سنوات.|السلامة من العيوب البيّنة: العوراء والمريضة والعرجاء والهزيلة.|اطلب صوراً واضحة من عدة زوايا، واسأل عن العمر والوزن قبل الذهاب.|احجز التوصيل مبكراً: الطلب يزيد قبل العيد بأيام.',
+    guideNote: 'معلومات عامة للتسهيل، ارجع لأهل العلم في أحكام الأضحية.',
+    safetyTitle: 'اشترِ بأمان', safety: 'عاين الأضحية بنفسك قبل الدفع.|لا ترسل عربوناً لبائع لا تعرفه.|قابل البائع في مكان عام أو في السوق.|بلّغ عن أي إعلان مشبوه من صفحة الإعلان.',
+    adminTitle: 'سوق الأضاحي (موسمي)', adminToggle: 'إظهار سوق الأضاحي', adminHint: 'يظهر شريط في الصفحة الرئيسية ورابط في القائمة، ويختفي تلقائياً بعد العيد.', adminDate: 'تاريخ العيد', adminDateHint: 'لعرض العدّ التنازلي. اتركه فارغاً إن لم يُحدَّد بعد.',
+  },
+});
+deepMerge(fr, {
+  attrs: {
+    animal: 'Animal', sex: 'Sexe', breed: 'Race', ageMonths: 'Âge (mois)', weightKg: 'Poids approximatif (kg)', heads: 'Nombre de têtes', eidReady: 'Convient pour la Tabaski',
+    opts: {
+      animal: { sheep: 'Mouton / bélier', goat: 'Chèvre', camel: 'Chameau', cow: 'Bovin', other: 'Autre' }, sex: { male: 'Mâle', female: 'Femelle' },
+      breed: { touabire: 'Touabire', peul: 'Peul-peul', ladoum: 'Ladoum', local: 'Local', mixed: 'Croisé', other: 'Autre' }, eidReady: { yes: 'Oui', no: 'Non' },
+    },
+  },
+  eid: {
+    nav: 'Marché de la Tabaski', title: 'Marché de la Tabaski', subtitle: 'Moutons et béliers d’éleveurs et de commerçants dans toutes les villes, du moins cher au plus cher.', browse: 'Voir',
+    daysLeft: 'Tabaski dans {n} jours', today: 'Bonne fête ! 🎉', sell: 'Vendre un mouton', allAnimals: 'Tous',
+    maxPrice: 'Prix max (MRU)', minWeight: 'Poids min (kg)', reset: 'Réinitialiser', count: '{n} annonces', none: 'Aucun animal avec ces critères pour le moment.', postWanted: 'Publier une demande',
+    guideTitle: 'Bien choisir son mouton', guide: 'Âge : mouton d’au moins six mois selon de nombreux savants, chèvre un an, bovin deux ans, chameau cinq ans.|Sans défaut apparent : borgne, malade, boiteux ou trop maigre.|Demandez des photos sous plusieurs angles, l’âge et le poids avant de vous déplacer.|Réservez la livraison tôt : la demande monte juste avant la fête.',
+    guideNote: 'Informations générales : référez-vous aux savants pour les règles du sacrifice.',
+    safetyTitle: 'Acheter en sécurité', safety: 'Voyez l’animal avant de payer.|N’envoyez pas d’acompte à un vendeur inconnu.|Rencontrez le vendeur dans un lieu public ou au marché.|Signalez toute annonce suspecte depuis sa page.',
+    adminTitle: 'Marché de la Tabaski (saisonnier)', adminToggle: 'Afficher le marché de la Tabaski', adminHint: 'Bandeau sur l’accueil et lien dans le menu ; disparaît seul après la fête.', adminDate: 'Date de la fête', adminDateHint: 'Pour le compte à rebours. Laissez vide si elle n’est pas encore fixée.',
+  },
+});
+deepMerge(en, {
+  attrs: {
+    animal: 'Animal', sex: 'Sex', breed: 'Breed', ageMonths: 'Age (months)', weightKg: 'Approx. weight (kg)', heads: 'Number of head', eidReady: 'Fit for Eid sacrifice',
+    opts: {
+      animal: { sheep: 'Sheep / ram', goat: 'Goat', camel: 'Camel', cow: 'Cattle', other: 'Other' }, sex: { male: 'Male', female: 'Female' },
+      breed: { touabire: 'Touabire', peul: 'Peul-peul', ladoum: 'Ladoum', local: 'Local', mixed: 'Crossbred', other: 'Other' }, eidReady: { yes: 'Yes', no: 'No' },
+    },
+  },
+  eid: {
+    nav: 'Eid sheep market', title: 'Eid sheep market', subtitle: 'Sheep and rams from breeders and traders in every city, cheapest first.', browse: 'Browse',
+    daysLeft: 'Eid in {n} days', today: 'Eid Mubarak! 🎉', sell: 'Sell an animal', allAnimals: 'All',
+    maxPrice: 'Max price (MRU)', minWeight: 'Min weight (kg)', reset: 'Reset', count: '{n} listings', none: 'No animals match these filters right now.', postWanted: 'Post what you need',
+    guideTitle: 'Choosing your animal', guide: 'Age: sheep at least six months according to many scholars, goats one year, cattle two years, camels five years.|No obvious defect: one-eyed, sick, lame or emaciated.|Ask for clear photos from several angles, the age and weight before you travel.|Book delivery early: demand peaks in the days before Eid.',
+    guideNote: 'General information only: refer to scholars for the rules of the sacrifice.',
+    safetyTitle: 'Buy safely', safety: 'See the animal before paying.|Never send a deposit to a seller you don’t know.|Meet in a public place or at the market.|Report any suspicious listing from its page.',
+    adminTitle: 'Eid sheep market (seasonal)', adminToggle: 'Show the Eid sheep market', adminHint: 'Adds a banner on the home page and a menu link; disappears by itself after Eid.', adminDate: 'Date of Eid', adminDateHint: 'For the countdown. Leave empty if not fixed yet.',
+  },
+});
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },

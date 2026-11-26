@@ -915,3 +915,8 @@ CREATE TABLE IF NOT EXISTS live_signals (
 );
 CREATE INDEX IF NOT EXISTS live_signals_to_idx ON live_signals (to_peer, id);
 ALTER TABLE live_signals ENABLE ROW LEVEL SECURITY;
+
+-- ---------- Livestock category (also used by the seasonal Eid sheep market) ----------
+INSERT INTO categories (slug, name_ar, name_fr, name_en, icon, sort_order)
+VALUES ('livestock', 'المواشي', 'Bétail', 'Livestock', '🐑', 85)
+ON CONFLICT (slug) DO NOTHING;

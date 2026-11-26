@@ -23,6 +23,13 @@ router.get('/meta', async (_req, res) => {
     phoneVerification: await phoneVerificationOn(),
     videoUploads: videoEnabled(),
     ai: await aiStatus(),
+    // Eid sheep market: shown from the admin switch until the day after Eid.
+    eid: (() => {
+      const e = settings.season.eid;
+      if (!e.enabled) return null;
+      const days = e.date ? Math.ceil((new Date(`${e.date}T00:00:00Z`) - Date.now()) / 86_400_000) : null;
+      return days !== null && days < -1 ? null : { date: e.date || null, daysLeft: days };
+    })(),
     freeBumpDays: pricing.freeBumpDays,
     upgrades: features.paidUpgrades ? { verifyPrice: pricing.verifyPrice, bumpPrice: pricing.bumpPrice, storePlans: pricing.storePlans, featurePlans: pricing.featurePlans, paymentMethods: PAYMENT_METHODS } : null,
   });

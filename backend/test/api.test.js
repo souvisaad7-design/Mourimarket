@@ -2240,3 +2240,74 @@ describe('Souk Live', () => {
     assert.ok((await call('/api/social/admin/reports', { token: admin })).data.items.some((r) => r.target_type === 'live'));
   });
 });
+
+// ---------- Smart search (synonyms in Arabic / Hassaniya / French / English, category names) ----------
+describe('Smart search', () => {
+  const titles = async (q, extra = '') => (await call(`/api/products?q=${encodeURIComponent(q)}${extra}`)).data.items.map((p) => p.title);
+  it('finds a listing written in French with an Arabic or Hassaniya word', async () => {
+    for (const q of ['هاتف', 'تلفون', 'الجوال', 'portable']) {
+      assert.ok((await titles(q)).some((t) => t.includes('Samsung Galaxy A54')), q);
+    }
+  });
+  it('understands Hassaniya and French words for cars and matches category names', async () => {
+    const cars = await titles('وته');
+    assert.ok(cars.some((t) => t.includes('Mercedes')), 'Mercedes (no Arabic word "car" in it) found by its category');
+    assert.ok(cars.some((t) => t.includes('هايلكس')));
+    assert.ok((await titles('voiture')).some((t) => t.includes('هايلكس')));
+    assert.ok((await titles('عقارات')).some((t) => t.includes('Appartement')));
+    assert.ok((await titles('frigo')).some((t) => t.includes('Réfrigérateur')));
+  });
+  it('still narrows with several words and tolerates typos', async () => {
+    const r = await titles('هاتف سامسونج');
+    assert.ok(r.some((t) => t.includes('Samsung')));
+    assert.ok(!r.some((t) => t.includes('Mercedes')));
+    assert.ok((await titles('مرسيدس')).some((t) => t.includes('Mercedes')));
+    assert.ok((await titles('Mercedez')).some((t) => t.includes('Mercedes')), 'typo');
+    assert.deepEqual(await titles('zzqxwv'), []);
+  });
+});
+
+// ---------- Livestock + seasonal Eid market ----------
+describe('Eid sheep market', () => {
+  let admin; let seller;
+  before(async () => {
+    admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
+    seller = await login('fatimetou@example.mr');
+  });
+  it('is off by default and shows a countdown once the admin switches it on', async () => {
+    assert.equal((await call('/api/meta')).data.eid, null);
+    const date = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10);
+    assert.equal((await call('/api/admin/settings', { method: 'PUT', token: admin, body: { season: { eid: { enabled: true, date } } } })).status, 200);
+    const eid = (await call('/api/meta')).data.eid;
+    assert.ok(eid.daysLeft >= 9 && eid.daysLeft <= 11, JSON.stringify(eid));
+    assert.equal((await call('/api/admin/settings', { method: 'PUT', token: admin, body: { season: { eid: { enabled: true, date: 'tomorrow' } } } })).status, 400);
+    const past = new Date(Date.now() - 5 * 86_400_000).toISOString().slice(0, 10);
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { season: { eid: { enabled: true, date: past } } } });
+    assert.equal((await call('/api/meta')).data.eid, null, 'hidden by itself after Eid');
+  });
+  it('posts livestock with its details and filters by animal and weight', async () => {
+    const cat = (await call('/api/categories')).data;
+    const live = (cat.items || cat.categories || cat).find((c) => c.slug === 'livestock');
+    assert.ok(live, 'livestock category exists');
+    const post = async (title, attrs) => {
+      const f = new FormData();
+      for (const [k, v] of Object.entries({ title, description: 'كبش سمين بصحة جيدة', price: '9000', categoryId: String(live.id), city: 'nouakchott', condition: 'used', attrs: JSON.stringify(attrs) })) f.append(k, v);
+      f.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+      const r = await call('/api/products', { method: 'POST', token: seller, form: f });
+      assert.equal(r.status, 201, JSON.stringify(r.data));
+      await call(`/api/admin/products/${r.data.product.id}/status`, { method: 'PATCH', token: admin, body: { status: 'approved' } });
+      return r.data.product.id;
+    };
+    const ram = await post('كبش توابير للعيد', { animal: 'sheep', sex: 'male', breed: 'touabire', ageMonths: 14, weightKg: 55, eidReady: 'yes' });
+    const goat = await post('ماعز حلوب', { animal: 'goat', sex: 'female', weightKg: 30 });
+    const ids = async (q) => (await call(`/api/products?category=livestock${q}`)).data.items.map((p) => p.id);
+    assert.deepEqual(await ids('&a.animal=sheep'), [ram]);
+    assert.ok((await ids('')).includes(goat));
+    assert.deepEqual(await ids('&a.weightKg.min=50'), [ram]);
+    const bad = new FormData();
+    for (const [k, v] of Object.entries({ title: 'x كبش', description: 'وصف', price: '1', categoryId: String(live.id), city: 'nouakchott', condition: 'used', attrs: JSON.stringify({ animal: 'dragon' }) })) bad.append(k, v);
+    bad.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+    assert.equal((await call('/api/products', { method: 'POST', token: seller, form: bad })).status, 400);
+    assert.ok((await call(`/api/products?q=${encodeURIComponent('خروف')}`)).data.items.some((p) => p.id === ram), 'synonyms: خروف finds كبش');
+  });
+});

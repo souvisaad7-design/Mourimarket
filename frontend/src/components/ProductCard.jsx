@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
-import { Icon, VerifiedBadge, useCityName } from './ui.jsx';
+import { Icon, OldPrice, VerifiedBadge, useCityName } from './ui.jsx';
 import { useAttrSummary } from './Attributes.jsx';
 
 export function FavoriteButton({ product, className = '', onChange }) {
@@ -82,6 +82,7 @@ export default function ProductCard({ product, onFavoriteChange }) {
         {summary(product) && <p className="mt-0.5 truncate text-[11px] font-semibold text-brand-700">{summary(product)}</p>}
         <p className="mt-1 text-lg font-bold text-brand-700"><span className="ltr-nums">{price(product.price)}</span></p>
         {off > 0 && <p className="-mt-1 text-xs text-slate-400 line-through"><span className="ltr-nums">{price(product.old_price)}</span></p>}
+        <OldPrice value={product.price} className="-mt-0.5 text-[11px]" />
         <div className="mt-1 flex items-center justify-center gap-3 text-xs text-slate-500">
           <span className="flex items-center gap-1 truncate"><Icon name="pin" className="h-3.5 w-3.5 shrink-0" />{cityName(meta.cities, product.city)}</span>
           {product.distance_km != null && <span className="shrink-0 font-semibold text-brand-700" title={t('geo.distanceHint')}>≈ {t('geo.km', { km: String(product.distance_km) })}</span>}

@@ -237,7 +237,10 @@ function Header() {
   // Top menu: the admin's list (Admin → Menus) or the built-in one.
   const { lang } = useI18n();
   const custom = useSettings().settings.menu?.header;
-  const items = (custom || DEFAULT_HEADER).map((it) => resolveLink(it, t, lang)).filter(Boolean);
+  const { meta } = useApp();
+  // While the Eid market is on, it leads the built-in menu.
+  const baseMenu = custom || (meta.eid ? [{ type: 'builtin', key: 'eid' }, ...DEFAULT_HEADER] : DEFAULT_HEADER);
+  const items = baseMenu.map((it) => resolveLink(it, t, lang)).filter(Boolean);
   const mobileItems = custom ? items : [...items, resolveLink({ type: 'builtin', key: 'help' }, t, lang)];
   const here = location.pathname + location.search;
   const isActiveLink = (l) => {

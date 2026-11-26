@@ -106,6 +106,12 @@ export function AdminSettings() {
         <Toggle checked={s.features.phoneVerification !== false} onChange={(v) => put('features', { phoneVerification: v })} label={t('phone.adminLabel')} hint={t('phone.adminHint')} />
         {!providers?.sms && <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">⚠️ {t('phone.adminNoProvider')}</p>}
       </Section>
+      <Section title={`🐑 ${t('eid.adminTitle')}`} onSave={() => save('season', { season: s.season })} busy={busy === 'season'} error={errors.season}>
+        <Toggle checked={s.season.eid.enabled} onChange={(v) => put('season', { eid: { ...s.season.eid, enabled: v } })} label={t('eid.adminToggle')} hint={t('eid.adminHint')} />
+        <Field label={t('eid.adminDate')} hint={t('eid.adminDateHint')}>
+          <input type="date" className="input" dir="ltr" value={s.season.eid.date} onChange={(e) => put('season', { eid: { ...s.season.eid, date: e.target.value } })} />
+        </Field>
+      </Section>
       {updated?.length > 0 && <p className="text-xs text-slate-400">{t('admin.set.lastChange', { name: updated[0].updated_by_name || '—' })}</p>}
     </div>
   );

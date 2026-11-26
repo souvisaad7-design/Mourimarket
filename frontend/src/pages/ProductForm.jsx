@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { CitySelect, ErrorBox, Field, Icon, PageHeader, Spinner, useFieldError } from '../components/ui.jsx';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { CitySelect, ErrorBox, Field, Icon, OldPrice, PageHeader, Spinner, useFieldError } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
@@ -14,6 +14,9 @@ import { AiWriter, PriceSuggestion } from '../components/AiListing.jsx';
 
 const MAX_IMAGES = 8;
 
+/** "I typed old ouguiya by mistake": keep the digits the seller typed, but read them as old ouguiya. */
+const switchUnitKeepDigits = (setForm, setUnit) => { setUnit('old'); setForm((f) => ({ ...f })); };
+
 /**
  * Create (/sell) or edit (/products/:id/edit) a listing.
  * In the admin area it posts for another user: `sellerId`, then `onCreated`.
@@ -21,13 +24,23 @@ const MAX_IMAGES = 8;
 export default function ProductForm({ sellerId, onCreated } = {}) {
   const { id } = useParams();
   const editing = Boolean(id);
-  const { t, tl } = useI18n();
+  const { t, tl, price } = useI18n();
   const { categories, meta, user, notify } = useApp();
   const navigate = useNavigate();
   const [form, setForm] = useState({ title: '', description: '', price: '', oldPrice: '', categoryId: '', city: user.city || '', condition: 'used' });
   // Where the item is: optional pin, moughataa and neighbourhood (see the "Location" section).
   const [loc, setLoc] = useState({ lat: null, lng: null, area: '', district: '', locExact: false });
   const [attrs, setAttrs] = useState({});
+  // Prices can be typed in new ouguiya (MRU) or old ouguiya (MRO, ×10); they are always saved in MRU.
+  const [unit, setUnit] = useState('new');
+  const toNew = (v) => (v === '' || v == null ? '' : String(unit === 'old' ? Math.round(Number(v) / 10) : Number(v)));
+  const switchUnit = (next) => {
+    if (next === unit) return;
+    const conv = (v) => (v === '' ? '' : String(next === 'old' ? Number(v) * 10 : Math.round(Number(v) / 10)));
+    setForm((f) => ({ ...f, price: conv(f.price), oldPrice: conv(f.oldPrice) }));
+    setUnit(next);
+  };
+  const priceNew = Number(toNew(form.price)) || 0;
   const [videoUrl, setVideoUrl] = useState('');
   const [existing, setExisting] = useState([]);
   const [removeIds, setRemoveIds] = useState([]);
@@ -40,6 +53,13 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
   const fieldError = useFieldError(error);
   useDocumentTitle(editing ? t('form.editTitle') : t('form.newTitle'));
 
+  // /sell?category=livestock opens the form with that category chosen (e.g. from the Eid market).
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const slug = searchParams.get('category');
+    const cat = !editing && slug && categories.find((c) => c.slug === slug);
+    if (cat) setForm((f) => (f.categoryId ? f : { ...f, categoryId: String(cat.id) }));
+  }, [categories]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!editing) return;
     api(`/products/${id}`).then(({ product }) => {
@@ -92,7 +112,7 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
     setError(null);
     try {
       const fd = new FormData();
-      Object.entries(form).forEach(([k, v]) => fd.append(k, v));
+      Object.entries(form).forEach(([k, v]) => fd.append(k, k === 'price' || k === 'oldPrice' ? toNew(v) : v));
       fd.append('lat', loc.lat ?? ''); fd.append('lng', loc.lng ?? '');
       fd.append('area', loc.area); fd.append('district', loc.district); fd.append('locExact', loc.locExact ? 'true' : 'false');
       fd.append('attrs', JSON.stringify(attrs));
@@ -201,11 +221,21 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
                 {categories.map((c) => <option key={c.id} value={c.id}>{c.icon} {tl(c)}</option>)}
               </select>
             </Field>
-            <Field label={t('form.price')} error={fieldError('price')}>
+            <Field label={unit === 'old' ? t('ouguiya.priceOld') : t('form.price')} error={fieldError('price')}>
+              <div className="mb-2 grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 text-xs font-semibold" role="radiogroup" aria-label={t('ouguiya.unit')}>
+                {['new', 'old'].map((u) => (
+                  <button key={u} type="button" role="radio" aria-checked={unit === u} onClick={() => switchUnit(u)}
+                    className={`rounded-lg px-2 py-1.5 ${unit === u ? 'bg-surface text-brand-800 shadow' : 'text-slate-500'}`}>{t(`ouguiya.${u}`)}</button>
+                ))}
+              </div>
               <input className="input" type="number" min="0" step="1" inputMode="numeric" value={form.price} onChange={set('price')} required dir="ltr" />
-              <div className="mt-2"><PriceSuggestion categoryId={form.categoryId} title={form.title} condition={form.condition} /></div>
+              {priceNew > 0 && (unit === 'old'
+                ? <p className="mt-1 text-xs text-slate-500">≈ <span className="ltr-nums">{price(priceNew)}</span> {t('ouguiya.savedAs')}</p>
+                : <OldPrice value={priceNew} className="mt-1" />)}
+              <div className="mt-2"><PriceSuggestion categoryId={form.categoryId} title={form.title} condition={form.condition}
+                price={priceNew} onLooksOld={unit === 'new' ? () => switchUnitKeepDigits(setForm, setUnit) : null} /></div>
             </Field>
-            <Field label={t('form.oldPrice')} error={fieldError('oldPrice')} hint={t('form.oldPriceHelp')} optional>
+            <Field label={unit === 'old' ? t('ouguiya.wasPriceOld') : t('form.oldPrice')} error={fieldError('oldPrice')} hint={t('form.oldPriceHelp')} optional>
               <input className="input" type="number" min="0" step="1" inputMode="numeric" value={form.oldPrice} onChange={set('oldPrice')} dir="ltr" />
             </Field>
             <Field label={t('form.city')} error={fieldError('city')}>
