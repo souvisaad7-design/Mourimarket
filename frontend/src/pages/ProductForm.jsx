@@ -11,6 +11,7 @@ import { useApi, useDocumentTitle } from '../lib/hooks.js';
 import { AttributeFields } from '../components/Attributes.jsx';
 import VideoField from '../components/VideoField.jsx';
 import { AiWriter, PriceSuggestion } from '../components/AiListing.jsx';
+import { VoiceField, saveVoice } from '../components/VoiceNote.jsx';
 
 const MAX_IMAGES = 8;
 
@@ -27,7 +28,7 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
   const { t, tl, price } = useI18n();
   const { categories, meta, user, notify } = useApp();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ title: '', description: '', price: '', oldPrice: '', categoryId: '', city: user.city || '', condition: 'used' });
+  const [form, setForm] = useState({ title: '', description: '', price: '', oldPrice: '', categoryId: '', city: user.city || '', condition: 'used', acceptsSwap: false, swapWanted: '' });
   // Where the item is: optional pin, moughataa and neighbourhood (see the "Location" section).
   const [loc, setLoc] = useState({ lat: null, lng: null, area: '', district: '', locExact: false });
   const [attrs, setAttrs] = useState({});
@@ -42,6 +43,8 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
   };
   const priceNew = Number(toNew(form.price)) || 0;
   const [videoUrl, setVideoUrl] = useState('');
+  const [voice, setVoice] = useState(null);
+  const [savedVoice, setSavedVoice] = useState(null);
   const [existing, setExisting] = useState([]);
   const [removeIds, setRemoveIds] = useState([]);
   // New photos: { key, file, originalSize, status: 'processing' | 'ready' | 'error' }.
@@ -67,9 +70,11 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
         title: product.title, description: product.description, price: String(product.price),
         oldPrice: product.old_price ? String(product.old_price) : '',
         categoryId: String(product.category_id), city: product.city, condition: product.condition,
+        acceptsSwap: Boolean(product.accepts_swap), swapWanted: product.swap_wanted || '',
       });
       setAttrs(product.attrs || {});
       setVideoUrl(product.video_url || '');
+      if (product.voice_url) { const v = { url: product.voice_url, seconds: product.voice_duration }; setVoice(v); setSavedVoice(v); }
       setLoc({ lat: product.pin_lat ?? null, lng: product.pin_lng ?? null, area: product.area || '', district: product.district || '', locExact: Boolean(product.loc_exact) });
       setExisting(product.images);
     }).catch(setError).finally(() => setLoading(false));
@@ -122,10 +127,12 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
       for (const item of ready) fd.append('images', item.file);
       if (editing) {
         await api(`/products/${id}`, { method: 'PUT', body: fd });
+        await saveVoice(api, id, savedVoice, voice);
         notify(t('form.updated'));
         navigate(`/products/${id}`);
       } else {
         const { product } = await api('/products', { method: 'POST', body: fd });
+        await saveVoice(api, product.id, null, voice);
         notify(product.status === 'approved' ? t('form.createdLive') : t('form.created'));
         if (onCreated) onCreated(product); else navigate('/dashboard');
       }
@@ -252,8 +259,18 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
               </div>
             </Field>
           </div>
+          <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-3">
+            <label className="flex items-center gap-2 text-sm font-semibold text-violet-900">
+              <input type="checkbox" className="h-4 w-4 accent-violet-700" checked={form.acceptsSwap} onChange={(e) => setForm({ ...form, acceptsSwap: e.target.checked })} />
+              🔄 {t('swap.formLabel')}
+            </label>
+            {form.acceptsSwap && (
+              <input className="input mt-2" maxLength={200} value={form.swapWanted} onChange={set('swapWanted')} placeholder={t('swap.wantedPh')} aria-label={t('swap.wantedPh')} />
+            )}
+          </div>
           <AttributeFields categorySlug={categories.find((c) => String(c.id) === String(form.categoryId))?.slug} value={attrs} onChange={setAttrs} fieldError={fieldError} />
           <VideoField value={videoUrl} onChange={setVideoUrl} />
+          <VoiceField value={voice} onChange={setVoice} />
           <Field label={t('form.description')} error={fieldError('description')}>
             <textarea className="input" rows={6} maxLength={5000} placeholder={t('form.descriptionPh')} value={form.description} onChange={set('description')} required />
           </Field>

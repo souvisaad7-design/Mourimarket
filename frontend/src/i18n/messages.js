@@ -2508,6 +2508,58 @@ deepMerge(en, {
   },
 });
 
+// v42: barter
+deepMerge(ar, {
+  swap: {
+    accepts: 'يقبل المقايضة', short: 'مقايضة', filter: 'يقبل المقايضة', propose: 'اعرض مقايضة', chatButton: 'مقايضة',
+    formLabel: 'أقبل المقايضة (التبادل بمنتج آخر)', wantedPh: 'بماذا تقبل المبادلة؟ مثال: هاتف سامسونج حديث، أو سيارة صغيرة',
+    opening: 'السلام عليكم، أرغب في مقايضة «{title}».', dialogTitle: 'اقتراح مقايضة', pickListing: 'اختر أحد إعلاناتك لتعرضه مقابل هذا المنتج:',
+    noListings: 'لكي تقايض، أضف أولاً إعلاناً بالمنتج الذي تعرضه.', cash: { none: 'بدون فرق', add: 'أضيف مبلغاً', ask: 'أطلب مبلغاً' },
+    amountPh: 'المبلغ (MRU)', send: 'إرسال الاقتراح', youProposed: 'اقترحتَ مقايضة', theyProposed: 'يقترح مقايضة',
+    plusCash: '+ {amount} نقداً', minusCash: 'ويطلب {amount} نقداً', gone: 'الإعلان المعروض لم يعد متاحاً',
+  },
+  errors: { swap_not_accepted: 'صاحب هذا الإعلان لا يقبل المقايضة.' },
+  chat: { preview: { swap: '🔄 اقتراح مقايضة' } },
+  notifications: { types: {
+    swap_new: '🔄 {from} يقترح مقايضة «{title}» بـ «{offered}»', swap_accepted: '🔄 {from} قبل اقتراح المقايضة على «{title}»', swap_declined: '{from} رفض اقتراح المقايضة على «{title}»',
+  } },
+});
+deepMerge(fr, {
+  swap: {
+    accepts: 'Accepte l’échange', short: 'Échange', filter: 'Accepte l’échange', propose: 'Proposer un échange', chatButton: 'Échange',
+    formLabel: 'J’accepte l’échange (troc contre un autre article)', wantedPh: 'Contre quoi ? Ex. : un Samsung récent, une petite voiture',
+    opening: 'Bonjour, je souhaite échanger « {title} ».', dialogTitle: 'Proposer un échange', pickListing: 'Choisissez une de vos annonces à proposer en échange :',
+    noListings: 'Pour échanger, publiez d’abord une annonce de l’article que vous proposez.', cash: { none: 'Sans soulte', add: 'J’ajoute', ask: 'Je demande' },
+    amountPh: 'Montant (MRU)', send: 'Envoyer la proposition', youProposed: 'Vous proposez un échange', theyProposed: 'Propose un échange',
+    plusCash: '+ {amount} en espèces', minusCash: 'et demande {amount}', gone: 'L’annonce proposée n’est plus disponible',
+  },
+  errors: { swap_not_accepted: 'Ce vendeur n’accepte pas l’échange.' },
+  chat: { preview: { swap: '🔄 Proposition d’échange' } },
+  notifications: { types: {
+    swap_new: '🔄 {from} propose d’échanger « {title} » contre « {offered} »', swap_accepted: '🔄 {from} a accepté votre échange pour « {title} »', swap_declined: '{from} a refusé votre échange pour « {title} »',
+  } },
+});
+deepMerge(en, {
+  swap: {
+    accepts: 'Open to swaps', short: 'Swap', filter: 'Open to swaps', propose: 'Propose a swap', chatButton: 'Swap',
+    formLabel: 'I accept swaps (trade for another item)', wantedPh: 'For what? e.g. a recent Samsung, a small car',
+    opening: 'Hello, I would like to swap for “{title}”.', dialogTitle: 'Propose a swap', pickListing: 'Choose one of your listings to offer in exchange:',
+    noListings: 'To swap, first post a listing for the item you are offering.', cash: { none: 'No difference', add: 'I add cash', ask: 'I ask cash' },
+    amountPh: 'Amount (MRU)', send: 'Send proposal', youProposed: 'You proposed a swap', theyProposed: 'Proposes a swap',
+    plusCash: '+ {amount} in cash', minusCash: 'and asks {amount}', gone: 'The offered listing is no longer available',
+  },
+  errors: { swap_not_accepted: 'This seller does not accept swaps.' },
+  chat: { preview: { swap: '🔄 Swap proposal' } },
+  notifications: { types: {
+    swap_new: '🔄 {from} offers to swap “{title}” for “{offered}”', swap_accepted: '🔄 {from} accepted your swap for “{title}”', swap_declined: '{from} declined your swap for “{title}”',
+  } },
+});
+
+// v43: spoken listing description
+deepMerge(ar, { voice: { title: 'وصف صوتي (اختياري)', hint: 'تكلّم عن منتجك بالحسانية أو بأي لغة، حتى دقيقة ونصف. مفيد لمن لا يحب الكتابة.', record: 'سجّل وصفاً صوتياً', stop: 'إنهاء', again: 'أعد التسجيل', listen: 'اسمع وصف البائع', badge: 'وصف صوتي' } });
+deepMerge(fr, { voice: { title: 'Description vocale (facultatif)', hint: 'Présentez votre article à l’oral, en hassanya ou toute autre langue, jusqu’à 1 min 30.', record: 'Enregistrer une description', stop: 'Terminer', again: 'Recommencer', listen: 'Écouter le vendeur', badge: 'Description vocale' } });
+deepMerge(en, { voice: { title: 'Spoken description (optional)', hint: 'Describe your item out loud, in Hassaniya or any language, up to 1 min 30.', record: 'Record a description', stop: 'Finish', again: 'Record again', listen: 'Listen to the seller', badge: 'Voice description' } });
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },

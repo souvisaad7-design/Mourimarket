@@ -49,7 +49,7 @@ router.delete('/favorites/:productId', async (req, res) => {
 
 const CONVERSATION_SELECT = `
   cv.id, cv.product_id, cv.wanted_id, cv.buyer_id, cv.seller_id, cv.last_message_at, wa.title AS wanted_title,
-  p.title AS product_title, p.price AS product_price, p.availability AS product_availability,
+  p.title AS product_title, p.price AS product_price, p.availability AS product_availability, p.accepts_swap AS product_accepts_swap, p.swap_wanted AS product_swap_wanted,
   (SELECT url FROM product_images i WHERE i.product_id = p.id ORDER BY sort_order, id LIMIT 1) AS product_cover,
   CASE WHEN cv.buyer_id = $1 THEN cv.seller_id ELSE cv.buyer_id END AS other_id,
   CASE WHEN cv.buyer_id = $1 THEN us.name ELSE ub.name END AS other_name,
@@ -119,7 +119,10 @@ async function loadConversation(id, userId) {
 router.get('/conversations/:id', async (req, res) => {
   const conversation = await loadConversation(req.params.id, req.user.id);
   const { rows } = await query(
-    'SELECT id, sender_id, body, kind, amount, offer_status, file_id, duration, read_at, created_at FROM messages WHERE conversation_id = $1 ORDER BY created_at, id',
+    `SELECT m.id, m.sender_id, m.body, m.kind, m.amount, m.offer_status, m.file_id, m.duration, m.read_at, m.created_at, m.swap_cash,
+       CASE WHEN m.swap_product_id IS NOT NULL THEN (SELECT json_build_object('id', sp.id, 'title', sp.title, 'price', sp.price, 'availability', sp.availability,
+         'cover_url', (SELECT url FROM product_images i WHERE i.product_id = sp.id ORDER BY sort_order, id LIMIT 1)) FROM products sp WHERE sp.id = m.swap_product_id) END AS swap_product
+     FROM messages m WHERE m.conversation_id = $1 ORDER BY m.created_at, m.id`,
     [conversation.id],
   );
   await query(
@@ -202,6 +205,55 @@ router.post('/conversations/:id/offers/:messageId', requireVerifiedPhone, writeL
     return { status, counter };
   });
   res.json(result);
+});
+
+// ---------- Barter: swap one of your listings (plus or minus some cash) for this one ----------
+
+/** POST /api/conversations/:id/swaps { productId, cash } – cash > 0: I add money; < 0: I ask for money. */
+router.post('/conversations/:id/swaps', requireVerifiedPhone, writeLimiter, async (req, res) => {
+  const conversation = await loadConversation(req.params.id, req.user.id);
+  const d = parse(z.object({ productId: z.coerce.number().int().positive(), cash: z.coerce.number().int().min(-1e12).max(1e12).default(0) }), req.body);
+  if (!conversation.product_id || conversation.product_availability !== 'available') throw badRequest('product_sold');
+  if (!conversation.product_accepts_swap) throw badRequest('swap_not_accepted');
+  const own = await query("SELECT id, title FROM products WHERE id = $1 AND seller_id = $2 AND status = 'approved' AND availability = 'available'", [d.productId, req.user.id]);
+  if (!own.rows[0]) throw badRequest('validation_error', { productId: 'own_live_products_only' });
+  if (d.productId === conversation.product_id) throw badRequest('validation_error', { productId: 'invalid' });
+  const message = await tx(async (client) => {
+    // One open swap offer at a time in a conversation.
+    await client.query("UPDATE messages SET offer_status = 'superseded' WHERE conversation_id = $1 AND kind = 'swap' AND offer_status = 'pending'", [conversation.id]);
+    const { rows } = await client.query(
+      `INSERT INTO messages (conversation_id, sender_id, body, kind, offer_status, swap_product_id, swap_cash)
+       VALUES ($1, $2, '', 'swap', 'pending', $3, $4) RETURNING id`,
+      [conversation.id, req.user.id, d.productId, d.cash],
+    );
+    await client.query('UPDATE conversations SET last_message_at = now() WHERE id = $1', [conversation.id]);
+    await notify(conversation.other_id, 'swap_new', { from: req.user.name, title: conversation.product_title, offered: own.rows[0].title, conversationId: conversation.id }, `/messages/${conversation.id}`, client);
+    return rows[0];
+  });
+  res.status(201).json({ message });
+});
+
+/** POST /api/conversations/:id/swaps/:messageId { action: accept | decline | withdraw } */
+router.post('/conversations/:id/swaps/:messageId', requireVerifiedPhone, writeLimiter, async (req, res) => {
+  const conversation = await loadConversation(req.params.id, req.user.id);
+  const { action } = parse(z.object({ action: z.enum(['accept', 'decline', 'withdraw']) }), req.body);
+  const status = await tx(async (client) => {
+    const swap = (await client.query(
+      "SELECT * FROM messages WHERE id = $1 AND conversation_id = $2 AND kind = 'swap' FOR UPDATE", [parseInt(req.params.messageId, 10) || 0, conversation.id],
+    )).rows[0];
+    if (!swap) throw notFound('offer_not_found');
+    if (swap.offer_status !== 'pending') throw conflict('offer_closed');
+    const mine = swap.sender_id === req.user.id;
+    if (action === 'withdraw' ? !mine : mine) throw forbidden('not_allowed');
+    const st = { accept: 'accepted', decline: 'declined', withdraw: 'withdrawn' }[action];
+    await client.query('UPDATE messages SET offer_status = $1 WHERE id = $2', [st, swap.id]);
+    if (action !== 'withdraw') {
+      await client.query('UPDATE conversations SET last_message_at = now() WHERE id = $1', [conversation.id]);
+      await notify(swap.sender_id, `swap_${st}`, { from: req.user.name, title: conversation.product_title, conversationId: conversation.id }, `/messages/${conversation.id}`, client);
+    }
+    return st;
+  });
+  res.json({ status });
 });
 
 // ---------- Photos and voice notes ----------

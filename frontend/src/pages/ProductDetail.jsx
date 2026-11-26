@@ -15,6 +15,7 @@ import { AttributeTable } from '../components/Attributes.jsx';
 import { taggedUrl, viewSource } from '../lib/viewSource.js';
 import { rememberView } from '../lib/souk-ai.js';
 import StatusImageButton from '../components/StatusImage.jsx';
+import { VoicePlayer } from '../components/VoiceNote.jsx';
 import { InspectionReport } from '../components/Inspection.jsx';
 
 function ReportModal({ productId, open, onClose }) {
@@ -116,6 +117,17 @@ function ContactBox({ product }) {
       navigate(`/messages/${conversationId}`);
     } catch (err) { setError(err); } finally { setBusy(false); }
   };
+  // Barter: open the conversation and the swap dialog straight away.
+  const proposeSwap = async () => {
+    if (!user) return navigate('/login', { state: { from: `/products/${product.id}` } });
+    setBusy(true); setError(null);
+    try {
+      const { conversationId } = await api('/conversations', { method: 'POST', body: { productId: product.id, body: t('swap.opening', { title: product.title }) } });
+      refreshCounts();
+      navigate(`/messages/${conversationId}?swap=1`);
+    } catch (err) { setError(err); } finally { setBusy(false); }
+    return undefined;
+  };
 
   return (
     <div id="contact-box" className="card space-y-3 p-4">
@@ -128,6 +140,9 @@ function ContactBox({ product }) {
           <Icon name="chat" className="h-4 w-4" />{user ? t('product.contactSeller') : t('product.loginToContact')}
         </button>
       </form>
+      {product.accepts_swap && product.availability !== 'sold' && (
+        <button type="button" onClick={proposeSwap} disabled={busy} className="btn w-full border-2 border-violet-300 bg-violet-50 text-violet-800 hover:bg-violet-100">🔄 {t('swap.propose')}</button>
+      )}
       {phone && (
         showPhone ? (
           <div className="grid grid-cols-2 gap-2">
@@ -283,6 +298,7 @@ export default function ProductDetail() {
             </section>
           )}
           <div className="card p-4"><ShareBar product={product} /></div>
+          <VoicePlayer url={product.voice_url} seconds={product.voice_duration} />
           <Description product={product} />
           <div className="card p-5">
             <h2 className="mb-3 text-lg font-bold">{t('product.details')}</h2>
@@ -312,6 +328,11 @@ export default function ProductDetail() {
             <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <p className="text-3xl font-bold text-brand-700"><span className="ltr-nums">{price(product.price)}</span></p>
               <OldPrice value={product.price} className="text-sm" />
+              {product.accepts_swap && (
+                <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-800">
+                  🔄 {t('swap.accepts')}{product.swap_wanted ? ` · ${product.swap_wanted}` : ''}
+                </p>
+              )}
               {discountPercent(product) > 0 && (
                 <>
                   <p className="text-base text-slate-400 line-through"><span className="ltr-nums">{price(product.old_price)}</span></p>

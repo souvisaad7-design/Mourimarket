@@ -12,7 +12,7 @@ import { SaveSearchButton } from './SavedSearches.jsx';
 import { AttributeFilters } from '../components/Attributes.jsx';
 
 // `near` is the radius in km around the visitor; their position itself never goes in the URL.
-const FILTER_KEYS = ['q', 'category', 'city', 'minPrice', 'maxPrice', 'condition', 'sort', 'availability', 'featured', 'deals', 'near', 'view', 'page'];
+const FILTER_KEYS = ['q', 'category', 'city', 'minPrice', 'maxPrice', 'condition', 'sort', 'availability', 'featured', 'deals', 'swap', 'near', 'view', 'page'];
 const RADII = ['2', '5', '10', '25', '50'];
 
 /** All listings + search results. Every filter lives in the URL so results are shareable. */
@@ -103,6 +103,10 @@ export default function Products() {
       <label className="flex items-center gap-2 text-sm text-slate-700">
         <input type="checkbox" className="h-4 w-4 rounded accent-brand-700" checked={draft.availability === 'all'} onChange={(e) => setDraft({ ...draft, availability: e.target.checked ? 'all' : '' })} />
         {t('products.includeSold')}
+      </label>
+      <label className="flex items-center gap-2 text-sm text-slate-700">
+        <input type="checkbox" className="h-4 w-4 rounded accent-violet-700" checked={draft.swap === '1'} onChange={(e) => setDraft({ ...draft, swap: e.target.checked ? '1' : '' })} />
+        🔄 {t('swap.filter')}
       </label>
       <div className="flex gap-2">
         <button className="btn-primary flex-1">{t('common.apply')}</button>

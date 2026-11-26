@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Avatar, EmptyState, ErrorBox, Field, Icon, Modal, Spinner } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { api, getToken } from '../lib/api.js';
 import { compressImage } from '../lib/image.js';
+import { useRecorder } from '../lib/recorder.js';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
 
 /** A private chat file (photo / voice note): fetched with the login token, shown from memory. */
@@ -77,6 +78,92 @@ function OfferCard({ m, mine, conversationId, onChange, onCounter }) {
   );
 }
 
+/** A swap offer: the listing offered in exchange and the cash difference, with the buttons to answer. */
+function SwapCard({ m, mine, conversationId, onChange }) {
+  const { t, price } = useI18n();
+  const [busy, setBusy] = useState('');
+  const act = async (action) => {
+    setBusy(action);
+    try { await api(`/conversations/${conversationId}/swaps/${m.id}`, { method: 'POST', body: { action } }); } catch { /* shown after refresh */ } finally { setBusy(''); onChange(); }
+  };
+  const p = m.swap_product;
+  const cash = Number(m.swap_cash || 0);
+  const open = m.offer_status === 'pending';
+  return (
+    <div className="min-w-[14rem] space-y-2">
+      <p className={`text-xs font-semibold ${mine ? 'text-white/80' : 'text-slate-500'}`}>🔄 {mine ? t('swap.youProposed') : t('swap.theyProposed')}</p>
+      {p ? (
+        <Link to={`/products/${p.id}`} className={`flex items-center gap-2 rounded-xl p-2 ${mine ? 'bg-white/10' : 'bg-slate-100'}`}>
+          {p.cover_url && <img src={p.cover_url} alt="" className="h-12 w-12 rounded-lg object-cover" />}
+          <span className="min-w-0"><span className="block truncate font-semibold">{p.title}</span><span className="text-xs ltr-nums">{price(p.price)}</span></span>
+        </Link>
+      ) : <p className="text-xs opacity-70">{t('swap.gone')}</p>}
+      {cash !== 0 && (() => {
+        // Keep the amount (Latin digits + MRU) in one direction inside the Arabic sentence.
+        const [before, after] = t(cash > 0 ? 'swap.plusCash' : 'swap.minusCash').split('{amount}');
+        return <p className="text-sm font-bold">{before}<bdi dir="ltr">{price(Math.abs(cash))}</bdi>{after}</p>;
+      })()}
+      <span className={`badge ${OFFER_STYLE[m.offer_status] || ''}`}>{t(`chat.offerStatus.${m.offer_status}`)}</span>
+      {open && !mine && (
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          <button type="button" className="btn-primary px-3 py-1.5 text-xs" disabled={Boolean(busy)} onClick={() => act('accept')}>{t('chat.accept')}</button>
+          <button type="button" className="btn-outline px-3 py-1.5 text-xs" disabled={Boolean(busy)} onClick={() => act('decline')}>{t('chat.decline')}</button>
+        </div>
+      )}
+      {open && mine && <button type="button" className="text-xs underline opacity-80" disabled={Boolean(busy)} onClick={() => act('withdraw')}>{t('chat.withdraw')}</button>}
+    </div>
+  );
+}
+
+/** Pick one of my live listings and the cash difference to propose a swap. */
+function SwapDialog({ open, onClose, conversationId, onSent }) {
+  const { t, price } = useI18n();
+  const { user } = useApp();
+  const mine = useApi(open ? `/products?seller=${user.id}&limit=60` : null, undefined, [open]);
+  const [productId, setProductId] = useState('');
+  const [dir, setDir] = useState('none');
+  const [amount, setAmount] = useState('');
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  if (!open) return null;
+  const send = async (e) => {
+    e.preventDefault();
+    setBusy(true); setError(null);
+    const cash = dir === 'none' ? 0 : (dir === 'add' ? 1 : -1) * (Number(amount) || 0);
+    try { await api(`/conversations/${conversationId}/swaps`, { method: 'POST', body: { productId: Number(productId), cash } }); onSent(); onClose(); } catch (err) { setError(err); } finally { setBusy(false); }
+  };
+  const items = mine.data?.items || [];
+  return (
+    <Modal open onClose={onClose} title={`🔄 ${t('swap.dialogTitle')}`}>
+      <form onSubmit={send} className="space-y-3">
+        <p className="text-sm text-slate-600">{t('swap.pickListing')}</p>
+        {mine.loading ? <Spinner /> : !items.length ? (
+          <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{t('swap.noListings')} <Link to="/sell" className="font-bold underline">{t('nav.post')}</Link></p>
+        ) : (
+          <div className="grid max-h-60 gap-2 overflow-y-auto">
+            {items.map((p) => (
+              <label key={p.id} className={`flex cursor-pointer items-center gap-2 rounded-xl border-2 p-2 text-sm ${String(productId) === String(p.id) ? 'border-violet-500 bg-violet-50' : 'border-slate-200'}`}>
+                <input type="radio" name="swap-product" checked={String(productId) === String(p.id)} onChange={() => setProductId(p.id)} />
+                {p.cover_url && <img src={p.cover_url} alt="" className="h-10 w-10 rounded object-cover" />}
+                <span className="min-w-0 flex-1 truncate">{p.title}</span>
+                <span className="text-xs ltr-nums">{price(p.price)}</span>
+              </label>
+            ))}
+          </div>
+        )}
+        <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 text-xs font-semibold">
+          {['none', 'add', 'ask'].map((d) => (
+            <button key={d} type="button" onClick={() => setDir(d)} className={`rounded-lg px-2 py-1.5 ${dir === d ? 'bg-surface text-violet-800 shadow' : 'text-slate-500'}`}>{t(`swap.cash.${d}`)}</button>
+          ))}
+        </div>
+        {dir !== 'none' && <input className="input" type="number" min="1" inputMode="numeric" dir="ltr" required value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={t('swap.amountPh')} />}
+        <ErrorBox error={error} />
+        <button className="btn w-full bg-violet-700 text-white hover:bg-violet-800" disabled={busy || !productId}>{t('swap.send')}</button>
+      </form>
+    </Modal>
+  );
+}
+
 /** Ask for an amount (new offer or counter-offer). */
 function OfferDialog({ open, onClose, onSubmit, initial, title, reference }) {
   const { t, price } = useI18n();
@@ -103,39 +190,6 @@ function OfferDialog({ open, onClose, onSubmit, initial, title, reference }) {
   );
 }
 
-/** Hold-free voice recording: tap to start, tap to send (max 2 minutes). */
-function useRecorder(onDone) {
-  const [state, setState] = useState({ recording: false, seconds: 0 });
-  const rec = useRef(null);
-  const timer = useRef(null);
-  const start = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const type = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find((m) => window.MediaRecorder?.isTypeSupported?.(m)) || '';
-    const r = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
-    const chunks = [];
-    const began = Date.now();
-    r.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-    r.onstop = () => {
-      stream.getTracks().forEach((tr) => tr.stop());
-      clearInterval(timer.current);
-      const seconds = Math.round((Date.now() - began) / 1000);
-      setState({ recording: false, seconds: 0 });
-      if (!r.cancelled && chunks.length && seconds >= 1) onDone(new Blob(chunks, { type: r.mimeType || 'audio/webm' }), seconds);
-    };
-    r.start();
-    rec.current = r;
-    setState({ recording: true, seconds: 0 });
-    timer.current = setInterval(() => setState((s) => {
-      if (s.seconds + 1 >= 120) rec.current?.stop();
-      return { ...s, seconds: s.seconds + 1 };
-    }), 1000);
-  };
-  const stop = () => rec.current?.state === 'recording' && rec.current.stop();
-  const cancel = () => { if (rec.current) { rec.current.cancelled = true; stop(); } };
-  useEffect(() => () => { clearInterval(timer.current); cancel(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  return { ...state, start, stop, cancel, supported: typeof window !== 'undefined' && Boolean(window.MediaRecorder && navigator.mediaDevices?.getUserMedia) };
-}
-
 function Thread({ id, onActivity }) {
   const { t, price, dateTime } = useI18n();
   const { user, refreshCounts } = useApp();
@@ -145,6 +199,8 @@ function Thread({ id, onActivity }) {
   const [sending, setSending] = useState(false);
   const [tick, setTick] = useState(0);
   const [offerFor, setOfferFor] = useState(null); // null | { counter: message } | { new: true }
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [swapOpen, setSwapOpen] = useState(searchParams.get('swap') === '1');
   const photo = useRef();
   const bottom = useRef();
   const refresh = () => setTick((n) => n + 1);
@@ -227,7 +283,8 @@ function Thread({ id, onActivity }) {
           return (
             <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm shadow-sm ${mine ? 'bg-brand-700 text-white' : 'bg-surface text-slate-800'}`}>
-                {m.kind === 'offer' ? <OfferCard m={m} mine={mine} conversationId={c.id} onChange={refresh} onCounter={(o) => setOfferFor({ counter: o })} />
+                {m.kind === 'swap' ? <SwapCard m={m} mine={mine} conversationId={c.id} onChange={refresh} />
+                  : m.kind === 'offer' ? <OfferCard m={m} mine={mine} conversationId={c.id} onChange={refresh} onCounter={(o) => setOfferFor({ counter: o })} />
                   : m.kind === 'image' ? <ChatImage url={`/api/conversations/${c.id}/files/${m.file_id}`} />
                     : m.kind === 'audio' ? <ChatAudio url={`/api/conversations/${c.id}/files/${m.file_id}`} duration={m.duration} />
                       : <p className="whitespace-pre-line break-words">{m.body}</p>}
@@ -253,6 +310,9 @@ function Thread({ id, onActivity }) {
         {c.product_id && c.product_availability === 'available' && (
           <button type="button" className="btn-outline shrink-0 rounded-full border-gold-400 px-3 py-1.5 text-xs font-bold text-brand-800" onClick={() => setOfferFor({ new: true })}>💰 {t('chat.makeOffer')}</button>
         )}
+        {c.product_id && c.product_availability === 'available' && c.product_accepts_swap && c.seller_id !== user.id && (
+          <button type="button" className="btn-outline shrink-0 rounded-full border-violet-300 px-3 py-1.5 text-xs font-bold text-violet-800" onClick={() => setSwapOpen(true)}>🔄 {t('swap.chatButton')}</button>
+        )}
         <button type="button" className="btn-outline shrink-0 rounded-full px-3 py-1.5 text-xs" onClick={() => photo.current?.click()} disabled={sending}>📷 {t('chat.photo')}</button>
         <input ref={photo} type="file" accept="image/*" className="hidden" onChange={pickPhoto} />
         {recorder.supported && <button type="button" className="btn-outline shrink-0 rounded-full px-3 py-1.5 text-xs" onClick={startRecording} disabled={sending}>🎤 {t('chat.voice')}</button>}
@@ -269,6 +329,8 @@ function Thread({ id, onActivity }) {
       </form>
       </>
       )}
+      <SwapDialog open={swapOpen} conversationId={c.id} onSent={refresh}
+        onClose={() => { setSwapOpen(false); if (searchParams.get('swap')) setSearchParams({}, { replace: true }); }} />
       <OfferDialog open={Boolean(offerFor)} onClose={() => setOfferFor(null)}
         title={offerFor?.counter ? t('chat.counter') : t('chat.makeOffer')}
         initial={offerFor?.counter ? Number(offerFor.counter.amount) : Number(c.product_price) || ''}

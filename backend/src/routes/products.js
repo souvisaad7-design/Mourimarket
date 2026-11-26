@@ -14,7 +14,7 @@ import { assertCity, cityKey } from '../lib/cities.js';
 import { HttpError, badRequest, forbidden, notFound, pagination, parse } from '../lib/http.js';
 import { notify } from '../lib/notify.js';
 import { optionalAuth, requireAuth } from '../middleware/auth.js';
-import { removeUploads, saveFile, upload } from '../middleware/upload.js';
+import { chatUpload, removeUploads, saveFile, saveVoice, upload } from '../middleware/upload.js';
 import { getSettings } from '../lib/settings.js';
 import { buildSearch, escapeLike, normalize } from '../lib/search.js';
 import { inBackground } from '../lib/ai.js';
@@ -26,6 +26,7 @@ const router = Router();
 export const PRODUCT_SELECT = `
   p.id, p.title, p.price, p.old_price, p.city, p.condition, p.status, p.availability, p.views,
   p.created_at, p.updated_at, p.category_id, p.seller_id, p.store_id, p.attrs, p.video_url, p.bumped_at,
+  p.accepts_swap, p.swap_wanted, p.voice_url, p.voice_duration,
   c.slug AS category_slug, c.name_ar AS category_name_ar, c.name_fr AS category_name_fr, c.name_en AS category_name_en,
   (SELECT url FROM product_images i WHERE i.product_id = p.id ORDER BY sort_order, id LIMIT 1) AS cover_url,
   u.name AS seller_name, u.is_verified AS seller_verified, s.name AS store_name, s.slug AS store_slug,
@@ -72,6 +73,7 @@ const listSchema = z.object({
   radius: z.coerce.number().min(0.5).max(2000).optional(),
   featured: z.enum(['1', 'true']).optional(),
   deals: z.enum(['1', 'true']).optional(),
+  swap: z.enum(['1', 'true']).optional(),
   availability: z.enum(['available', 'sold', 'all']).default('available'),
   seller: z.coerce.number().int().positive().optional(),
   store: z.string().trim().max(120).optional(),
@@ -107,6 +109,7 @@ router.get('/', optionalAuth, async (req, res) => {
   }
   if (f.featured) where.push('p.featured_until > now()');
   if (f.deals) where.push('p.old_price > p.price');
+  if (f.swap) where.push('p.accepts_swap');
   if (f.category) { add('c.slug = ?', f.category); attrFilters(f.category, req.query, add); }
   if (f.city) add('p.city = ?', f.city);
   if (f.minPrice !== undefined) add('p.price >= ?', f.minPrice);
@@ -314,6 +317,9 @@ const productSchema = z.object({
   district: z.string().trim().max(80).optional().transform((v) => v || null),
   locExact: z.preprocess((v) => v === true || v === 'true' || v === '1' || v === 'on', z.boolean()).default(false),
   videoUrl: z.string().trim().max(400).optional().transform((v) => v || null),
+  // Barter: the seller also accepts a swap, optionally saying for what.
+  acceptsSwap: z.preprocess((v) => v === true || v === 'true' || v === '1' || v === 'on', z.boolean()).default(false),
+  swapWanted: z.string().trim().max(200).optional().transform((v) => v || null),
 }).refine((d) => (d.lat === null) === (d.lng === null), { message: 'required', path: ['lat'] });
 
 function emptyToNull(v) {
@@ -376,10 +382,10 @@ router.post('/', requireAuth, requireVerifiedPhone, postLimiter, upload.array('i
     const storeId = await storeIdFor(sellerId, client);
     const { rows } = await client.query(
       `INSERT INTO products (seller_id, category_id, store_id, title, description, price, old_price, city, condition, status,
-         lat, lng, area, district, loc_exact, attrs, video_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id, status, seller_id`,
+         lat, lng, area, district, loc_exact, attrs, video_url, accepts_swap, swap_wanted)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING id, status, seller_id`,
       [sellerId, data.categoryId, storeId, data.title, data.description, data.price, data.oldPrice ?? null, data.city, data.condition, status,
-        data.lat, data.lng, data.area, data.district, data.locExact, attrs, data.videoUrl],
+        data.lat, data.lng, data.area, data.district, data.locExact, attrs, data.videoUrl, data.acceptsSwap, data.acceptsSwap ? data.swapWanted : null],
     );
     for (const [i, file] of files.entries()) {
       await client.query('INSERT INTO product_images (product_id, url, sort_order) VALUES ($1, $2, $3)', [
@@ -430,10 +436,10 @@ router.put('/:id', requireAuth, upload.array('images', MAX_IMAGES), async (req, 
          status = CASE WHEN $7 THEN status ELSE 'pending' END,
          rejection_reason = CASE WHEN $7 THEN rejection_reason ELSE NULL END,
          old_price = $9, lat = $10, lng = $11, area = $12, district = $13, loc_exact = $14, attrs = $15, video_url = $16,
-         updated_at = now()
+         accepts_swap = $17, swap_wanted = $18, updated_at = now()
        WHERE id = $8`,
       [data.title, data.description, data.price, data.categoryId, data.city, data.condition, keepApproved, product.id, data.oldPrice ?? null,
-        data.lat, data.lng, data.area, data.district, data.locExact, attrs, data.videoUrl],
+        data.lat, data.lng, data.area, data.district, data.locExact, attrs, data.videoUrl, data.acceptsSwap, data.acceptsSwap ? data.swapWanted : null],
     );
     return del.rows.map((r) => r.url);
   });
@@ -441,6 +447,27 @@ router.put('/:id', requireAuth, upload.array('images', MAX_IMAGES), async (req, 
   if (product.video_url && product.video_url !== data.videoUrl) deleteVideo(product.video_url);
   await onApproved(product.id); // no-op unless the edit kept the listing live
   await inBackground(reviewListing(product.id));
+  res.json({ ok: true });
+});
+
+/** POST /api/products/:id/voice (multipart "voice", "duration" in seconds) – the seller's spoken description, up to 90 s. */
+router.post('/:id/voice', requireAuth, chatUpload.single('voice'), async (req, res) => {
+  const product = await loadProduct(req.params.id);
+  assertOwner(product, req.user);
+  if (!req.file) throw badRequest('validation_error', { voice: 'required' });
+  const duration = parseInt(req.body?.duration, 10) || 0;
+  if (duration < 1 || duration > 90) throw badRequest('validation_error', { voice: 'too_long' });
+  const url = await saveVoice(req.file);
+  await query('UPDATE products SET voice_url = $2, voice_duration = $3, updated_at = now() WHERE id = $1', [product.id, url, duration]);
+  if (product.voice_url) removeUploads([product.voice_url]);
+  res.json({ voice_url: url, voice_duration: duration });
+});
+
+router.delete('/:id/voice', requireAuth, async (req, res) => {
+  const product = await loadProduct(req.params.id);
+  assertOwner(product, req.user);
+  await query('UPDATE products SET voice_url = NULL, voice_duration = NULL WHERE id = $1', [product.id]);
+  if (product.voice_url) removeUploads([product.voice_url]);
   res.json({ ok: true });
 });
 
@@ -496,7 +523,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
   assertOwner(product, req.user);
   const { rows } = await query('SELECT url FROM product_images WHERE product_id = $1', [product.id]);
   await query('DELETE FROM products WHERE id = $1', [product.id]);
-  removeUploads(rows.map((r) => r.url));
+  removeUploads([...rows.map((r) => r.url), product.voice_url]);
   deleteVideo(product.video_url);
   if (req.user.id !== product.seller_id) {
     await notify(product.seller_id, 'product_deleted', { title: product.title });

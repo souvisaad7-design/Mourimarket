@@ -79,6 +79,14 @@ export async function saveChatMedia(file, client = { query }) {
   return { id: rows[0].id, kind: image ? 'image' : 'audio' };
 }
 
+/** Save a public voice recording (a listing's spoken description). Returns its URL. */
+export async function saveVoice(file, client = { query }) {
+  const audio = sniffAudio(file.buffer);
+  if (!audio) throw badRequest('invalid_file_type');
+  const { rows } = await client.query('INSERT INTO files (mime, data) VALUES ($1, $2) RETURNING id', [audio, file.buffer]);
+  return `/uploads/f/${rows[0].id}`;
+}
+
 /** Send a stored file (public or private) with safe headers. */
 export async function sendFile(res, id, { isPrivate = false } = {}) {
   const { rows } = await query('SELECT mime, data FROM files WHERE id = $1 AND is_private = $2', [id, isPrivate]);

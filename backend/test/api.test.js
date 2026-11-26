@@ -2311,3 +2311,85 @@ describe('Eid sheep market', () => {
     assert.ok((await call(`/api/products?q=${encodeURIComponent('خروف')}`)).data.items.some((p) => p.id === ram), 'synonyms: خروف finds كبش');
   });
 });
+
+// ---------- Barter ----------
+describe('Barter (swap offers)', () => {
+  let admin; let seller; let sidi; let sellerId; let sidiId; let target; let mine; let convId;
+  const listing = async (token, title, extra = {}) => {
+    const cat = (await pool.query("SELECT id FROM categories WHERE slug = 'phones-electronics'")).rows[0].id;
+    const f = new FormData();
+    for (const [k, v] of Object.entries({ title, description: 'هاتف بحالة جيدة جداً', price: '20000', categoryId: String(cat), city: 'nouakchott', condition: 'used', ...extra })) f.append(k, v);
+    f.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+    const r = await call('/api/products', { method: 'POST', token, form: f });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    await call(`/api/admin/products/${r.data.product.id}/status`, { method: 'PATCH', token: admin, body: { status: 'approved' } });
+    return r.data.product.id;
+  };
+  before(async () => {
+    admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
+    seller = await login('fatimetou@example.mr');
+    sidi = await login('sidi@example.mr');
+    sellerId = (await call('/api/auth/me', { token: seller })).data.user.id;
+    sidiId = (await call('/api/auth/me', { token: sidi })).data.user.id;
+    target = await listing(seller, 'آيفون 13 للمقايضة', { acceptsSwap: 'true', swapWanted: 'سامسونج حديث أو ما يعادله' });
+    mine = await listing(sidi, 'سامسونج S22');
+  });
+  it('marks listings that accept a swap and filters them', async () => {
+    const p = (await call(`/api/products/${target}`)).data.product;
+    assert.equal(p.accepts_swap, true);
+    assert.equal(p.swap_wanted, 'سامسونج حديث أو ما يعادله');
+    const ids = (await call('/api/products?swap=1')).data.items.map((x) => x.id);
+    assert.ok(ids.includes(target));
+    assert.ok(!ids.includes(mine));
+  });
+  it('lets a buyer offer one of their own listings plus cash, and the seller accept', async () => {
+    const c = await call('/api/conversations', { method: 'POST', token: sidi, body: { productId: target, body: 'أقترح مقايضة' } });
+    convId = c.data.conversationId;
+    assert.ok(convId, JSON.stringify(c.data));
+    const other = (await call(`/api/products?seller=${sellerId}`)).data.items.find((x) => x.id !== target).id;
+    assert.equal((await call(`/api/conversations/${convId}/swaps`, { method: 'POST', token: sidi, body: { productId: other, cash: 0 } })).status, 400, 'not your listing');
+    const r = await call(`/api/conversations/${convId}/swaps`, { method: 'POST', token: sidi, body: { productId: mine, cash: 5000 } });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    const thread = (await call(`/api/conversations/${convId}`, { token: seller })).data.messages;
+    const swap = thread.find((m) => m.kind === 'swap');
+    assert.equal(swap.swap_product.id, mine);
+    assert.equal(Number(swap.swap_cash), 5000);
+    assert.ok((await call('/api/notifications', { token: seller })).data.items.some((n) => n.type === 'swap_new'));
+    assert.equal((await call(`/api/conversations/${convId}/swaps/${swap.id}`, { method: 'POST', token: sidi, body: { action: 'accept' } })).status, 403, 'cannot accept own offer');
+    assert.equal((await call(`/api/conversations/${convId}/swaps/${swap.id}`, { method: 'POST', token: seller, body: { action: 'accept' } })).data.status, 'accepted');
+    assert.ok((await call('/api/notifications', { token: sidi })).data.items.some((n) => n.type === 'swap_accepted'));
+    assert.equal((await call(`/api/conversations/${convId}/swaps/${swap.id}`, { method: 'POST', token: seller, body: { action: 'decline' } })).status, 409);
+  });
+  it('refuses swaps on listings that do not accept them', async () => {
+    const c = await call('/api/conversations', { method: 'POST', token: seller, body: { productId: mine, body: 'مرحبا' } });
+    const id = c.data.conversationId;
+    assert.equal((await call(`/api/conversations/${id}/swaps`, { method: 'POST', token: seller, body: { productId: target, cash: 0 } })).data.error, 'swap_not_accepted');
+  });
+});
+
+// ---------- Spoken listing description ----------
+describe('Voice description', () => {
+  it('lets the seller add, replace and remove a spoken description', async () => {
+    const seller = await login('fatimetou@example.mr');
+    const other = await login('sidi@example.mr');
+    const me = (await call('/api/auth/me', { token: seller })).data.user.id;
+    const pid = (await call(`/api/products?seller=${me}`)).data.items[0].id;
+    // A tiny WebM header is enough for the type check.
+    const webm = Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.alloc(200, 1)]);
+    const form = (dur, buf = webm) => { const f = new FormData(); f.append('voice', new Blob([buf], { type: 'audio/webm' }), 'v.webm'); f.append('duration', String(dur)); return f; };
+    assert.equal((await call(`/api/products/${pid}/voice`, { method: 'POST', token: other, form: form(10) })).status, 403);
+    assert.equal((await call(`/api/products/${pid}/voice`, { method: 'POST', token: seller, form: form(200) })).status, 400, 'max 90 s');
+    assert.equal((await call(`/api/products/${pid}/voice`, { method: 'POST', token: seller, form: form(5, Buffer.from('not audio at all, really')) })).status, 400);
+    const r = await call(`/api/products/${pid}/voice`, { method: 'POST', token: seller, form: form(12) });
+    assert.equal(r.status, 200, JSON.stringify(r.data));
+    const p = (await call(`/api/products/${pid}`)).data.product;
+    assert.equal(p.voice_url, r.data.voice_url);
+    assert.equal(p.voice_duration, 12);
+    const audio = await fetch(base + p.voice_url);
+    assert.equal(audio.status, 200);
+    assert.equal(audio.headers.get('content-type'), 'audio/webm');
+    assert.equal((await call(`/api/products/${pid}/voice`, { method: 'DELETE', token: seller })).status, 200);
+    assert.equal((await call(`/api/products/${pid}`)).data.product.voice_url, null);
+    assert.equal((await fetch(base + p.voice_url)).status, 404, 'old file removed');
+  });
+});

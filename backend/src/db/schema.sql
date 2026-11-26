@@ -920,3 +920,16 @@ ALTER TABLE live_signals ENABLE ROW LEVEL SECURITY;
 INSERT INTO categories (slug, name_ar, name_fr, name_en, icon, sort_order)
 VALUES ('livestock', 'المواشي', 'Bétail', 'Livestock', '🐑', 85)
 ON CONFLICT (slug) DO NOTHING;
+
+-- ---------- Barter (المقايضة): listings that accept a swap, and swap offers in the chat ----------
+ALTER TABLE products ADD COLUMN IF NOT EXISTS accepts_swap BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS swap_wanted VARCHAR(200);
+ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_kind_check;
+ALTER TABLE messages ADD CONSTRAINT messages_kind_check CHECK (kind IN ('text', 'offer', 'image', 'audio', 'swap'));
+-- The listing offered in exchange, and the cash difference (> 0: the proposer adds money; < 0: asks for money).
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS swap_product_id INT REFERENCES products(id) ON DELETE SET NULL;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS swap_cash BIGINT;
+
+-- ---------- Spoken description of a listing (for sellers who prefer talking to typing) ----------
+ALTER TABLE products ADD COLUMN IF NOT EXISTS voice_url TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS voice_duration SMALLINT;

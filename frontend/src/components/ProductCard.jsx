@@ -83,6 +83,8 @@ export default function ProductCard({ product, onFavoriteChange }) {
         <p className="mt-1 text-lg font-bold text-brand-700"><span className="ltr-nums">{price(product.price)}</span></p>
         {off > 0 && <p className="-mt-1 text-xs text-slate-400 line-through"><span className="ltr-nums">{price(product.old_price)}</span></p>}
         <OldPrice value={product.price} className="-mt-0.5 text-[11px]" />
+        {product.accepts_swap && product.availability !== 'sold' && <p className="text-[11px] font-semibold text-violet-700">🔄 {t('swap.short')}</p>}
+        {product.voice_url && <p className="text-[11px] font-semibold text-sky-700">🎙 {t('voice.badge')}</p>}
         <div className="mt-1 flex items-center justify-center gap-3 text-xs text-slate-500">
           <span className="flex items-center gap-1 truncate"><Icon name="pin" className="h-3.5 w-3.5 shrink-0" />{cityName(meta.cities, product.city)}</span>
           {product.distance_km != null && <span className="shrink-0 font-semibold text-brand-700" title={t('geo.distanceHint')}>≈ {t('geo.km', { km: String(product.distance_km) })}</span>}
