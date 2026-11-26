@@ -281,6 +281,24 @@ describe('v1.1: smart search, featured listings, verified sellers', () => {
     assert.ok(notes.data.items.some((n) => n.type === 'account_verified'));
   });
 
+  it('lets an admin confirm a phone number by hand (no SMS)', async () => {
+    const sidi = await login('sidi@example.mr');
+    const seller = (await call('/api/auth/me', { token: sidi })).data.user;
+    const path = `/api/admin/users/${seller.id}`;
+    assert.equal((await call(path, { method: 'PATCH', token: adminToken, body: { phoneVerified: false } })).data.user.phone_verified, false);
+    assert.equal((await call(`/api/users/${seller.id}`)).data.user.phone_verified, false);
+    const list = await call('/api/admin/users?phone=unverified', { token: adminToken });
+    assert.ok(list.data.items.some((u) => u.id === seller.id));
+    assert.ok(list.data.items.every((u) => !u.phone_verified && u.role !== 'admin'));
+    assert.equal((await call(path, { method: 'PATCH', token: sidi, body: { phoneVerified: true } })).status, 403);
+    assert.equal((await call(path, { method: 'PATCH', token: adminToken, body: { phoneVerified: true } })).data.user.phone_verified, true);
+    assert.equal((await call(`/api/users/${seller.id}`)).data.user.phone_verified, true);
+    assert.equal((await call(`/api/products?seller=${seller.id}`)).data.items.length > 0, true);
+    const notes = await call('/api/notifications', { token: sidi });
+    assert.ok(notes.data.items.some((n) => n.type === 'phone_verified'));
+    assert.ok((await call('/api/admin/users?phone=verified', { token: adminToken })).data.items.some((u) => u.id === seller.id));
+  });
+
   it('reports live listings per city', async () => {
     const r = await call('/api/stats/cities');
     assert.equal(r.data.items[0].city, 'nouakchott');

@@ -93,6 +93,7 @@ export default function ProfileCard({ user, showPhone = true, actions = true }) 
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               <span className={`badge ${ROLE_STYLE[type]}`}>{t(`roles.${type}`)}</span>
               {user.is_verified && <span className="badge bg-sky-500 text-white">{t('common.verified')}</span>}
+              {(user.phone_verified || user.phone_verified_at) && <span className="badge bg-emerald-500 text-white">📱 {t('phone.badge')}</span>}
             </div>
             <dl className="mt-3 space-y-1 text-sm text-white/85">
               <div className="flex items-center gap-1.5">

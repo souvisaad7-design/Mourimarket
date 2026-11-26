@@ -73,11 +73,15 @@ router.get('/stats', async (_req, res) => {
 router.get('/users', async (req, res) => {
   const { limit, offset, page } = pagination(req.query, { defaultLimit: 30 });
   const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
-  const params = [q];
-  const where = `WHERE ($1 = '' OR u.name ILIKE '%' || $1 || '%' OR u.email ILIKE '%' || $1 || '%' OR u.phone LIKE '%' || $1 || '%')`;
+  const phone = ['verified', 'unverified'].includes(req.query.phone) ? req.query.phone : '';
+  const params = [q, phone];
+  const where = `WHERE ($1 = '' OR u.name ILIKE '%' || $1 || '%' OR u.email ILIKE '%' || $1 || '%' OR u.phone LIKE '%' || $1 || '%')
+    AND ($2 = '' OR ($2 = 'verified' AND u.phone_verified_at IS NOT NULL)
+         OR ($2 = 'unverified' AND u.phone_verified_at IS NULL AND u.phone IS NOT NULL AND u.role <> 'admin'))`;
   const [items, total] = await Promise.all([
     query(
       `SELECT u.id, u.name, u.email, u.phone, u.role, u.account_type, u.city, u.bio, u.is_active, u.is_verified, u.created_at,
+         (u.phone_verified_at IS NOT NULL) AS phone_verified,
          (SELECT COUNT(*) FROM products p WHERE p.seller_id = u.id) AS products_count
        FROM users u ${where} ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`,
       params,
@@ -95,10 +99,22 @@ router.patch('/users/:id', async (req, res) => {
       role: z.enum(['user', 'admin']).optional(),
       accountType: z.enum(['buyer', 'individual', 'merchant']).optional(),
       isVerified: z.boolean().optional(),
+      // Manual phone check: the admin called or messaged the user on this number.
+      phoneVerified: z.boolean().optional(),
     }),
     req.body,
   );
-  const before = (await query('SELECT is_verified FROM users WHERE id = $1', [id])).rows[0];
+  const before = (await query('SELECT is_verified, phone, phone_verified_at FROM users WHERE id = $1', [id])).rows[0];
+  if (!before) throw notFound('user_not_found');
+  if (data.phoneVerified === true && !before.phone_verified_at) {
+    if (!before.phone) throw badRequest('no_phone');
+    const taken = await query('SELECT 1 FROM users WHERE phone = $1 AND id <> $2 AND phone_verified_at IS NOT NULL', [before.phone, id]);
+    if (taken.rowCount) throw conflict('phone_taken');
+    await query('UPDATE users SET phone_verified_at = now() WHERE id = $1', [id]);
+    await notify(id, 'phone_verified', {}, `/users/${id}`);
+  } else if (data.phoneVerified === false && before.phone_verified_at) {
+    await query('UPDATE users SET phone_verified_at = NULL WHERE id = $1', [id]);
+  }
   if (id === req.user.id && (data.isActive === false || data.role === 'user')) throw badRequest('cannot_demote_self');
   const { rows } = await query(
     `UPDATE users SET is_active = COALESCE($1, is_active), role = COALESCE($2, role),
@@ -106,7 +122,7 @@ router.patch('/users/:id', async (req, res) => {
        merchant_status = CASE WHEN $3::text = 'merchant' THEN 'approved'
                               WHEN $3::text IS NOT NULL THEN NULL ELSE merchant_status END,
        updated_at = now()
-     WHERE id = $4 RETURNING id, name, email, role, account_type, is_active, is_verified`,
+     WHERE id = $4 RETURNING id, name, email, role, account_type, is_active, is_verified, (phone_verified_at IS NOT NULL) AS phone_verified`,
     [data.isActive ?? null, data.role ?? null, data.accountType ?? null, id, data.isVerified ?? null],
   );
   if (!rows[0]) throw notFound('user_not_found');

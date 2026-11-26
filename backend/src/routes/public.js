@@ -80,7 +80,7 @@ router.get('/stats/cities', async (_req, res) => {
 router.get('/users/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const { rows } = await query(
-    `SELECT u.id, u.name, u.city, u.bio, u.avatar_url, u.account_type, u.created_at, u.phone, u.is_verified,
+    `SELECT u.id, u.name, u.city, u.bio, u.avatar_url, u.account_type, u.created_at, u.phone, u.is_verified, (u.phone_verified_at IS NOT NULL) AS phone_verified,
        (SELECT ROUND(AVG(rating)::numeric, 1) FROM reviews WHERE seller_id = u.id) AS rating,
        (SELECT COUNT(*) FROM reviews WHERE seller_id = u.id) AS reviews_count,
        (SELECT COUNT(*) FROM products WHERE seller_id = u.id AND availability = 'sold') AS sold_count,

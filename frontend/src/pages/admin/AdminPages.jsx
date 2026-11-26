@@ -198,11 +198,12 @@ export function AdminReports() {
 // ---------- Users ----------
 
 export function AdminUsers() {
-  const { t, date } = useI18n();
+  const { t, date, siteName } = useI18n();
   const { user: me } = useApp();
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
-  const { data, loading, error, reload } = useApi(`/admin/users?q=${encodeURIComponent(q)}&page=${page}`);
+  const [phoneTab, setPhoneTab] = useState('');
+  const { data, loading, error, reload } = useApi(`/admin/users?q=${encodeURIComponent(q)}&page=${page}&phone=${phoneTab}`);
   const act = useAction(reload);
   const patch = (id, body) => act(() => api(`/admin/users/${id}`, { method: 'PATCH', body }));
   const [temp, setTemp] = useState(null);
@@ -214,6 +215,11 @@ export function AdminUsers() {
     if (window.prompt(t('admin.deleteUserConfirm', { name: u.name })) !== u.name) return;
     act(() => api(`/admin/users/${u.id}`, { method: 'DELETE' }));
   };
+  const togglePhone = (u) => {
+    if (!u.phone_verified && !window.confirm(t('admin.verifyPhoneConfirm', { phone: formatPhone(u.phone), name: u.name }))) return;
+    patch(u.id, { phoneVerified: !u.phone_verified });
+  };
+  const whatsapp = (u) => `https://wa.me/${String(u.phone).replace(/\D/g, '')}?text=${encodeURIComponent(t('admin.whatsappMsg', { name: u.name, site: siteName }))}`;
   const resetPassword = async (u) => {
     if (!window.confirm(t('admin.resetConfirm', { name: u.name }))) return;
     try {
@@ -228,8 +234,15 @@ export function AdminUsers() {
         <SearchBox value={q} onSearch={(v) => { setQ(v); setPage(1); }} />
         <button type="button" className="btn-accent" onClick={() => setAdding(true)}><Icon name="userPlus" className="h-4 w-4" />{t('admin.addUser')}</button>
       </div>
+      <div className="mb-2 flex gap-1.5 overflow-x-auto pb-1">
+        {[['', t('admin.phoneAll')], ['unverified', `📱 ${t('admin.phoneUnverifiedTab')}`], ['verified', `✅ ${t('admin.phoneVerifiedTab')}`]].map(([k, label]) => (
+          <button key={k || 'all'} type="button" onClick={() => { setPhoneTab(k); setPage(1); }}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${phoneTab === k ? 'bg-brand-700 text-white' : 'bg-slate-100 text-slate-600'}`}>{label}</button>
+        ))}
+      </div>
+      {phoneTab === 'unverified' && <p className="mb-3 rounded-xl bg-sky-50 p-3 text-xs text-sky-800">{t('admin.phoneHint')}</p>}
       <ErrorBox error={error} />
-      {loading ? <Spinner /> : (
+      {loading ? <Spinner /> : !data.items.length ? <EmptyState icon="user" title={t('common.noResultsShort')} /> : (
         <div className="card overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-slate-50 text-xs text-slate-500">
@@ -244,7 +257,10 @@ export function AdminUsers() {
                 <tr key={u.id} className={u.is_active ? '' : 'bg-slate-50 text-slate-400'}>
                   <td className="p-3">
                     <Link to={`/users/${u.id}`} className="inline-flex items-center gap-1 font-semibold hover:underline">{u.name}{u.is_verified && <VerifiedBadge small />}</Link>
-                    <div className="text-xs text-slate-500" dir="ltr">{formatPhone(u.phone)}{u.phone && u.email ? ' · ' : ''}{u.email}</div>
+                    <div className="text-xs text-slate-500" dir="ltr">{u.phone_verified && <span title={t('phone.badge')}>📱✅ </span>}{formatPhone(u.phone)}{u.phone && u.email ? ' · ' : ''}{u.email}</div>
+                    {u.phone && !u.phone_verified && u.role !== 'admin' && (
+                      <a href={whatsapp(u)} target="_blank" rel="noreferrer" className="mt-0.5 inline-block text-xs font-semibold text-emerald-700 hover:underline">💬 {t('admin.whatsappUser')}</a>
+                    )}
                   </td>
                   <td className="p-3">
                     <select className="rounded-lg border border-slate-200 px-2 py-1 text-xs" value={u.account_type} onChange={(e) => patch(u.id, { accountType: e.target.value })}>
@@ -263,6 +279,11 @@ export function AdminUsers() {
                         <button className={`btn px-2 py-1 text-xs ${u.is_verified ? 'text-slate-600 hover:bg-slate-100' : 'bg-sky-50 text-sky-700 hover:bg-sky-100'}`} onClick={() => patch(u.id, { isVerified: !u.is_verified })}>
                           {u.is_verified ? t('admin.unverify') : <><VerifiedBadge small />{t('admin.verify')}</>}
                         </button>
+                        {u.phone && u.role !== 'admin' && (
+                          <button className={`btn px-2 py-1 text-xs ${u.phone_verified ? 'text-slate-600 hover:bg-slate-100' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`} onClick={() => togglePhone(u)}>
+                            {u.phone_verified ? t('admin.unverifyPhone') : `📱 ${t('admin.verifyPhone')}`}
+                          </button>
+                        )}
                         <button className="btn-ghost px-2 py-1 text-xs" onClick={() => setEditing(u)}><Icon name="edit" className="h-3.5 w-3.5" />{t('common.edit')}</button>
                         <button className="btn-ghost px-2 py-1 text-xs" onClick={() => resetPassword(u)}>{t('admin.resetPassword')}</button>
                         <button className="btn-ghost px-2 py-1 text-xs" onClick={() => patch(u.id, { role: u.role === 'admin' ? 'user' : 'admin' })}>

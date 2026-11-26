@@ -2046,6 +2046,41 @@ deepMerge(en, {
   } },
 });
 
+// v36: manual phone verification by the admin (no SMS provider)
+deepMerge(ar, {
+  common: { noResultsShort: 'لا توجد نتائج.' },
+  admin: {
+    verifyPhone: 'توثيق الرقم', unverifyPhone: 'إلغاء توثيق الرقم', phoneAll: 'الكل', phoneUnverifiedTab: 'أرقام غير موثّقة', phoneVerifiedTab: 'أرقام موثّقة',
+    whatsappUser: 'راسله على واتساب', verifyPhoneConfirm: 'هل تأكدت أن الرقم {phone} يخص {name}؟ (اتصلت به أو راسلته وردّ عليك)',
+    whatsappMsg: 'مرحباً {name}، معك إدارة {site}. نتواصل معك لتوثيق رقم هاتفك على الموقع. هل هذا رقمك؟',
+    phoneHint: 'للتوثيق: اتصل بصاحب الحساب أو راسله على واتساب، وإذا ردّ عليك من نفس الرقم اضغط «توثيق الرقم». تظهر عندها علامة «📱 رقم مؤكَّد» على حسابه وإعلاناته.',
+  },
+  notifications: { types: { phone_verified: 'تم توثيق رقم هاتفك 📱 تظهر الآن علامة «رقم مؤكَّد» على حسابك وإعلاناتك' } },
+  errors: { no_phone: 'لا يوجد رقم هاتف في هذا الحساب.' },
+});
+deepMerge(fr, {
+  common: { noResultsShort: 'Aucun résultat.' },
+  admin: {
+    verifyPhone: 'Vérifier le numéro', unverifyPhone: 'Retirer la vérification du numéro', phoneAll: 'Tous', phoneUnverifiedTab: 'Numéros non vérifiés', phoneVerifiedTab: 'Numéros vérifiés',
+    whatsappUser: 'Écrire sur WhatsApp', verifyPhoneConfirm: 'Avez-vous confirmé que le {phone} appartient à {name} ? (appel ou message avec réponse)',
+    whatsappMsg: 'Bonjour {name}, ici l’équipe de {site}. Nous vous contactons pour vérifier votre numéro sur le site. Est-ce bien votre numéro ?',
+    phoneHint: 'Pour vérifier : appelez le titulaire du compte ou écrivez-lui sur WhatsApp ; s’il répond depuis ce numéro, cliquez « Vérifier le numéro ». Le badge « 📱 Numéro confirmé » apparaît alors sur son compte et ses annonces.',
+  },
+  notifications: { types: { phone_verified: 'Votre numéro est vérifié 📱 Le badge « Numéro confirmé » apparaît sur votre compte et vos annonces' } },
+  errors: { no_phone: 'Ce compte n’a pas de numéro de téléphone.' },
+});
+deepMerge(en, {
+  common: { noResultsShort: 'No results.' },
+  admin: {
+    verifyPhone: 'Verify number', unverifyPhone: 'Remove number verification', phoneAll: 'All', phoneUnverifiedTab: 'Unverified numbers', phoneVerifiedTab: 'Verified numbers',
+    whatsappUser: 'Message on WhatsApp', verifyPhoneConfirm: 'Did you confirm that {phone} belongs to {name}? (you called or messaged and they replied)',
+    whatsappMsg: 'Hello {name}, this is the {site} team. We are contacting you to verify your phone number on the site. Is this your number?',
+    phoneHint: 'To verify: call the account holder or message them on WhatsApp; if they reply from this number, press “Verify number”. The “📱 Confirmed number” badge then shows on their account and listings.',
+  },
+  notifications: { types: { phone_verified: 'Your phone number is verified 📱 The “Confirmed number” badge now shows on your account and listings' } },
+  errors: { no_phone: 'This account has no phone number.' },
+});
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },

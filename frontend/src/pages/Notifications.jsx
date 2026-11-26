@@ -9,7 +9,7 @@ import { useApi, useDocumentTitle } from '../lib/hooks.js';
 const ICON_FOR = {
   new_message: 'chat', seller_reply: 'chat', product_approved: 'check', product_rejected: 'x', product_deleted: 'trash',
   sale_recorded: 'check', new_review: 'star', store_enabled: 'store', store_disabled: 'store',
-  product_featured: 'star', account_verified: 'shield',
+  product_featured: 'star', account_verified: 'shield', phone_verified: 'phone',
   merchant_request: 'store', merchant_approved: 'store', merchant_rejected: 'x',
   inspection_request: 'check', inspection_published: 'check', inspection_cancelled: 'x',
   escrow_submitted: 'shield', escrow_held: 'shield', escrow_rejected: 'x', escrow_release_due: 'check', escrow_released: 'check', escrow_refunded: 'shield', escrow_disputed: 'flag',
