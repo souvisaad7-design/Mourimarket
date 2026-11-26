@@ -26,6 +26,8 @@ import statsRoutes from './routes/stats.js';
 import inspectionRoutes from './routes/inspections.js';
 import escrowRoutes from './routes/escrow.js';
 import aiRoutes from './routes/ai.js';
+import socialRoutes from './routes/social.js';
+import liveRoutes from './routes/live.js';
 
 export function createApp() {
   const app = express();
@@ -82,6 +84,8 @@ export function createApp() {
   app.use('/api/auth', authRoutes);
   app.use('/api/products', productRoutes);
   app.use('/api/ai', aiRoutes);
+  app.use('/api/social', socialRoutes);
+  app.use('/api/live', liveRoutes);
   app.use('/api', inspectionRoutes);
   app.use('/api', escrowRoutes);
   app.use('/api/admin', adminRoutes);

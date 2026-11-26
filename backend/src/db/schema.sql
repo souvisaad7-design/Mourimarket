@@ -750,3 +750,168 @@ CREATE INDEX IF NOT EXISTS fraud_flags_status_idx ON fraud_flags (status, create
 CREATE UNIQUE INDEX IF NOT EXISTS fraud_flags_one_open ON fraud_flags (product_id, source) WHERE status = 'open' AND product_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS fraud_flags_one_open_user ON fraud_flags (user_id, source) WHERE status = 'open' AND product_id IS NULL;
 ALTER TABLE fraud_flags ENABLE ROW LEVEL SECURITY;
+
+-- ---------- Souk Social: product posts, likes, comments, follows, blocks, content reports ----------
+CREATE TABLE IF NOT EXISTS posts (
+  id             SERIAL PRIMARY KEY,
+  author_id      INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  product_id     INT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  body           VARCHAR(2000) NOT NULL DEFAULT '',
+  media          JSONB NOT NULL DEFAULT '[]'::jsonb,
+  visibility     VARCHAR(10) NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'followers')),
+  comments       VARCHAR(10) NOT NULL DEFAULT 'everyone' CHECK (comments IN ('everyone', 'followers', 'off')),
+  status         VARCHAR(10) NOT NULL DEFAULT 'published' CHECK (status IN ('published', 'hidden', 'removed')),
+  like_count     INT NOT NULL DEFAULT 0,
+  comment_count  INT NOT NULL DEFAULT 0,
+  share_count    INT NOT NULL DEFAULT 0,
+  removed_reason VARCHAR(200),
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS posts_feed_idx ON posts (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS posts_author_idx ON posts (author_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS posts_product_idx ON posts (product_id);
+ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS post_likes (
+  post_id    INT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  user_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (post_id, user_id)
+);
+ALTER TABLE post_likes ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS post_comments (
+  id          SERIAL PRIMARY KEY,
+  post_id     INT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  user_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body        VARCHAR(1000) NOT NULL,
+  status      VARCHAR(10) NOT NULL DEFAULT 'published' CHECK (status IN ('published', 'removed')),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS post_comments_post_idx ON post_comments (post_id, created_at);
+ALTER TABLE post_comments ENABLE ROW LEVEL SECURITY;
+
+-- Following a store = following its owner.
+CREATE TABLE IF NOT EXISTS follows (
+  follower_id  INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  followee_id  INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (follower_id, followee_id),
+  CHECK (follower_id <> followee_id)
+);
+CREATE INDEX IF NOT EXISTS follows_followee_idx ON follows (followee_id);
+ALTER TABLE follows ENABLE ROW LEVEL SECURITY;
+
+-- A blocked user cannot follow, comment on, or see the blocker's followers-only posts and lives.
+CREATE TABLE IF NOT EXISTS user_blocks (
+  blocker_id  INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  blocked_id  INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (blocker_id, blocked_id),
+  CHECK (blocker_id <> blocked_id)
+);
+ALTER TABLE user_blocks ENABLE ROW LEVEL SECURITY;
+
+-- Admin ban from social features (posting, commenting, going live) until a date.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS social_banned_until TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS content_reports (
+  id           SERIAL PRIMARY KEY,
+  reporter_id  INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  target_type  VARCHAR(15) NOT NULL CHECK (target_type IN ('post', 'comment', 'live', 'live_comment')),
+  target_id    INT NOT NULL,
+  reason       VARCHAR(20) NOT NULL CHECK (reason IN ('scam', 'prohibited', 'offensive', 'nudity', 'violence', 'spam', 'other')),
+  details      VARCHAR(500),
+  status       VARCHAR(10) NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'resolved', 'dismissed')),
+  handled_by   INT REFERENCES users(id) ON DELETE SET NULL,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  handled_at   TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX IF NOT EXISTS content_reports_once ON content_reports (reporter_id, target_type, target_id) WHERE status = 'open';
+CREATE INDEX IF NOT EXISTS content_reports_status_idx ON content_reports (status, created_at DESC);
+ALTER TABLE content_reports ENABLE ROW LEVEL SECURITY;
+
+-- ---------- Souk Live: peer-to-peer live video (relay tree), scheduled lives, live chat ----------
+CREATE TABLE IF NOT EXISTS live_streams (
+  id               SERIAL PRIMARY KEY,
+  host_id          INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title            VARCHAR(140) NOT NULL,
+  description      VARCHAR(1000) NOT NULL DEFAULT '',
+  status           VARCHAR(10) NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'live', 'ended', 'cancelled', 'removed')),
+  visibility       VARCHAR(10) NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'followers')),
+  scheduled_at     TIMESTAMPTZ,
+  started_at       TIMESTAMPTZ,
+  ended_at         TIMESTAMPTZ,
+  record           BOOLEAN NOT NULL DEFAULT false,
+  recording_url    TEXT,
+  comments_enabled BOOLEAN NOT NULL DEFAULT true,
+  peak_viewers     INT NOT NULL DEFAULT 0,
+  total_viewers    INT NOT NULL DEFAULT 0,
+  host_seen_at     TIMESTAMPTZ,
+  removed_reason   VARCHAR(200),
+  reminded_at      TIMESTAMPTZ,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS live_streams_status_idx ON live_streams (status, scheduled_at);
+CREATE INDEX IF NOT EXISTS live_streams_host_idx ON live_streams (host_id, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS live_streams_one_live ON live_streams (host_id) WHERE status = 'live';
+ALTER TABLE live_streams ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS live_products (
+  live_id    INT NOT NULL REFERENCES live_streams(id) ON DELETE CASCADE,
+  product_id INT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  sort       INT NOT NULL DEFAULT 0,
+  pinned_at  TIMESTAMPTZ,
+  PRIMARY KEY (live_id, product_id)
+);
+ALTER TABLE live_products ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS live_comments (
+  id          BIGSERIAL PRIMARY KEY,
+  live_id     INT NOT NULL REFERENCES live_streams(id) ON DELETE CASCADE,
+  user_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body        VARCHAR(300) NOT NULL,
+  status      VARCHAR(10) NOT NULL DEFAULT 'published' CHECK (status IN ('published', 'removed')),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS live_comments_live_idx ON live_comments (live_id, id);
+ALTER TABLE live_comments ENABLE ROW LEVEL SECURITY;
+
+-- Viewers the host muted in the live chat.
+CREATE TABLE IF NOT EXISTS live_mutes (
+  live_id  INT NOT NULL REFERENCES live_streams(id) ON DELETE CASCADE,
+  user_id  INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  PRIMARY KEY (live_id, user_id)
+);
+ALTER TABLE live_mutes ENABLE ROW LEVEL SECURITY;
+
+-- Everyone connected to a live: the host is the root; each viewer receives the video from its parent
+-- (the host or another viewer that relays it), so the host's upload stays small.
+CREATE TABLE IF NOT EXISTS live_peers (
+  id          UUID PRIMARY KEY,
+  live_id     INT NOT NULL REFERENCES live_streams(id) ON DELETE CASCADE,
+  user_id     INT REFERENCES users(id) ON DELETE SET NULL,
+  role        VARCHAR(6) NOT NULL CHECK (role IN ('host', 'viewer')),
+  parent_id   UUID,
+  depth       INT NOT NULL DEFAULT 0,
+  can_relay   BOOLEAN NOT NULL DEFAULT false,
+  connected   BOOLEAN NOT NULL DEFAULT false,
+  joined_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_seen   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS live_peers_live_idx ON live_peers (live_id, last_seen);
+ALTER TABLE live_peers ENABLE ROW LEVEL SECURITY;
+
+-- WebRTC signalling messages (offer / answer / ICE) waiting to be picked up by a peer.
+CREATE TABLE IF NOT EXISTS live_signals (
+  id          BIGSERIAL PRIMARY KEY,
+  live_id     INT NOT NULL REFERENCES live_streams(id) ON DELETE CASCADE,
+  to_peer     UUID NOT NULL,
+  from_peer   UUID NOT NULL,
+  kind        VARCHAR(10) NOT NULL CHECK (kind IN ('offer', 'answer', 'ice', 'bye')),
+  payload     JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS live_signals_to_idx ON live_signals (to_peer, id);
+ALTER TABLE live_signals ENABLE ROW LEVEL SECURITY;

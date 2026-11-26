@@ -9,6 +9,7 @@ import { useSettings } from '../context/SettingsContext.jsx';
 import { useGeo } from '../context/LocationContext.jsx';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
 import { AiPromo, Recommendations } from './SoukAI.jsx';
+import { LiveNowStrip } from './Live.jsx';
 
 export function CategoryTiles({ categories }) {
   const { tl } = useI18n();
@@ -168,6 +169,7 @@ export default function Home() {
         <CategoryTiles categories={categories} />
       </section>}
 
+      <LiveNowStrip />
       <AiPromo />
       <Recommendations limit={8} compact />
 

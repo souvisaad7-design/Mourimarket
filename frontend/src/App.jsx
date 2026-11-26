@@ -42,6 +42,9 @@ import SavedSearches from './pages/SavedSearches.jsx';
 import VerifyPhone from './pages/VerifyPhone.jsx';
 import Wanted from './pages/Wanted.jsx';
 import SoukAI from './pages/SoukAI.jsx';
+import Social, { PostPage } from './pages/Social.jsx';
+import LiveList, { LiveForm, LiveRoom } from './pages/Live.jsx';
+const AdminCommunity = lazy(() => import('./pages/admin/AdminCommunity.jsx'));
 const AdminAI = lazy(() => import('./pages/admin/AdminAI.jsx'));
 import SellerStats from './pages/SellerStats.jsx';
 const BulkImport = lazy(() => import('./pages/BulkImport.jsx'));
@@ -100,6 +103,11 @@ export default function App() {
         <Route path="stores" element={<Stores />} />
         <Route path="wanted" element={<Wanted />} />
         <Route path="ai" element={<SoukAI />} />
+        <Route path="social" element={<Social />} />
+        <Route path="social/posts/:id" element={<PostPage />} />
+        <Route path="live" element={<LiveList />} />
+        <Route path="live/new" element={<RequireAuth><LiveForm /></RequireAuth>} />
+        <Route path="live/:id" element={<LiveRoom />} />
         <Route path="stores/:slug" element={<StoreDetail />} />
         <Route path="safety" element={<Safety />} />
         <Route path="about" element={<About />} />
@@ -165,6 +173,7 @@ export default function App() {
         <Route path="inspections" element={<AdminInspections />} />
         <Route path="escrow" element={<AdminEscrow />} />
         <Route path="ai" element={<AdminAI />} />
+        <Route path="community" element={<AdminCommunity />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
         <Route path="stores" element={<AdminStores />} />
       </Route>

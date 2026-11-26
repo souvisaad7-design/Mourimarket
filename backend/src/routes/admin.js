@@ -38,6 +38,7 @@ router.get('/stats', async (_req, res) => {
       (SELECT COUNT(*) FROM users WHERE merchant_status = 'pending') AS pending_merchants,
       (SELECT COUNT(*) FROM inspections WHERE status IN ('requested', 'scheduled')) AS pending_inspections,
       (SELECT COUNT(*) FROM fraud_flags WHERE status = 'open') AS open_ai_flags,
+      (SELECT COUNT(DISTINCT (target_type, target_id)) FROM content_reports WHERE status = 'open') AS open_content_reports,
       (SELECT COUNT(*) FROM orders WHERE payment_status IN ('submitted', 'release_due', 'disputed', 'refund_due')) AS escrow_todo,
       (SELECT COUNT(*) FROM orders WHERE status NOT IN ('delivered', 'cancelled')) AS open_orders,
       (SELECT COUNT(*) FROM orders WHERE status = 'pending') AS pending_orders,

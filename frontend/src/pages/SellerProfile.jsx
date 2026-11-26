@@ -5,6 +5,7 @@ import { Avatar, EmptyState, ErrorBox, Icon, Spinner, Stars, VerifiedBadge, useC
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
+import { FollowButton, PostList } from './Social.jsx';
 
 export function ReviewList({ reviews }) {
   const { t, date } = useI18n();
@@ -42,6 +43,7 @@ export default function SellerProfile() {
       <div className="mb-8 grid gap-6 lg:grid-cols-[minmax(0,560px)_1fr] lg:items-start">
         <ProfileCard user={u} showPhone={u.account_type !== 'buyer'} actions={false} />
         <div className="space-y-3">
+          <FollowButton userId={u.id} />
           {u.bio && <p className="card p-5 text-sm leading-relaxed text-slate-700">{u.bio}</p>}
           {u.store && <Link to={`/stores/${u.store.slug}`} className="btn-outline rounded-full"><Icon name="store" className="h-4 w-4" />{t('product.visitStore')}</Link>}
           {u.reviews_count > 0 && <p className="flex items-center gap-2 text-sm text-slate-600"><Stars value={u.rating} /> {u.rating} · {t('product.reviews', { n: u.reviews_count })}</p>}
@@ -58,6 +60,10 @@ export default function SellerProfile() {
           <ReviewList reviews={reviews} />
         </section>
       </div>
+      <section className="mt-8 max-w-2xl">
+        <h2 className="mb-4 text-xl font-bold">💬 {t('social.postsTitle')}</h2>
+        <PostList query={{ author: u.id }} empty={<p className="text-sm text-slate-500">{t('social.noPostsYet')}</p>} />
+      </section>
     </div>
   );
 }

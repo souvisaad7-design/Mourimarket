@@ -21,7 +21,7 @@ async function loadUser(req) {
     throw unauthorized('invalid_token');
   }
   const { rows } = await query(
-    'SELECT id, name, email, role, account_type, is_active, password_changed_at FROM users WHERE id = $1',
+    'SELECT id, name, email, role, account_type, is_active, is_verified, avatar_url, social_banned_until, password_changed_at FROM users WHERE id = $1',
     [payload.sub],
   );
   const user = rows[0];

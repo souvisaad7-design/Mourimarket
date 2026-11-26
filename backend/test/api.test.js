@@ -2043,3 +2043,200 @@ describe('Souk AI', () => {
     assert.equal((await call('/api/ai/admin/overview', { token: buyer })).status, 403);
   });
 });
+
+// ---------- Souk Social ----------
+describe('Souk Social', () => {
+  let admin; let fatimetou; let sidi; let buyer; let fatId; let sidiId; let buyerId; let productId; let postId;
+  before(async () => {
+    admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
+    fatimetou = await login('fatimetou@example.mr');
+    sidi = await login('sidi@example.mr');
+    buyer = await login('buyer@example.mr');
+    fatId = (await call('/api/auth/me', { token: fatimetou })).data.user.id;
+    sidiId = (await call('/api/auth/me', { token: sidi })).data.user.id;
+    buyerId = (await call('/api/auth/me', { token: buyer })).data.user.id;
+    productId = (await call(`/api/products?seller=${fatId}`)).data.items[0].id;
+  });
+
+  it('posts only about your own live listing, with photos', async () => {
+    const other = (await call(`/api/products?seller=${sidiId}`)).data.items[0].id;
+    const form = (pid, body = 'وصل جديد 🔥') => { const f = new FormData(); f.append('productId', String(pid)); f.append('body', body); f.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png'); return f; };
+    assert.equal((await call('/api/social/posts', { method: 'POST', token: fatimetou, form: form(other) })).data.error, 'not_your_product');
+    assert.equal((await call('/api/social/posts', { method: 'POST', token: fatimetou, form: form(999999) })).status, 400);
+    assert.equal((await call('/api/social/posts', { method: 'POST', token: fatimetou, form: form(productId, 'يا حمار') })).data.error, 'inappropriate_text');
+    assert.equal((await call('/api/social/posts', { method: 'POST', token: fatimetou, form: form(productId, 'see https://evil.example') })).data.error, 'links_not_allowed');
+    const r = await call('/api/social/posts', { method: 'POST', token: fatimetou, form: form(productId) });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    postId = r.data.post.id;
+    assert.equal(r.data.post.product.id, productId);
+    assert.equal(r.data.post.media[0].type, 'image');
+    const feed = await call('/api/social/feed');
+    assert.ok(feed.data.items.some((p) => p.id === postId));
+  });
+
+  it('follows, likes, comments and shares, with notifications', async () => {
+    assert.equal((await call(`/api/social/follow/${fatId}`, { method: 'POST', token: buyer })).data.following, true);
+    const prof = await call(`/api/social/users/${fatId}`, { token: buyer });
+    assert.equal(prof.data.followed_by_me, true);
+    assert.ok(prof.data.followers >= 1);
+    const following = await call('/api/social/feed?tab=following', { token: buyer });
+    assert.ok(following.data.items.some((p) => p.id === postId));
+    const like = await call(`/api/social/posts/${postId}/like`, { method: 'POST', token: buyer });
+    assert.equal(like.data.like_count, 1);
+    await call(`/api/social/posts/${postId}/like`, { method: 'POST', token: buyer }); // twice = still one
+    assert.equal((await call(`/api/social/posts/${postId}`, { token: buyer })).data.post.like_count, 1);
+    assert.equal((await call(`/api/social/posts/${postId}`, { token: buyer })).data.post.liked, true);
+    const c = await call(`/api/social/posts/${postId}/comments`, { method: 'POST', token: buyer, body: { body: 'بكم آخر سعر؟' } });
+    assert.equal(c.status, 201);
+    assert.equal((await call(`/api/social/posts/${postId}/comments`)).data.items.length, 1);
+    assert.equal((await call(`/api/social/posts/${postId}/share`, { method: 'POST' })).data.share_count, 1);
+    const notes = (await call('/api/notifications', { token: fatimetou })).data.items.map((n) => n.type);
+    for (const t of ['new_follower', 'post_like', 'post_comment']) assert.ok(notes.includes(t), t);
+    // The seller can delete a comment on their own post.
+    assert.equal((await call(`/api/social/comments/${c.data.comment.id}`, { method: 'DELETE', token: fatimetou })).status, 200);
+    assert.equal((await call(`/api/social/posts/${postId}`)).data.post.comment_count, 0);
+    // Followers get a notification for a new post.
+    const f = new FormData(); f.append('productId', String(productId)); f.append('body', 'عرض اليوم');
+    const second = await call('/api/social/posts', { method: 'POST', token: fatimetou, form: f });
+    assert.equal(second.status, 201);
+    assert.ok((await call('/api/notifications', { token: buyer })).data.items.some((n) => n.type === 'followed_post'));
+    await call(`/api/social/posts/${second.data.post.id}`, { method: 'DELETE', token: fatimetou });
+  });
+
+  it('respects privacy: followers-only posts, comment settings and blocks', async () => {
+    await call(`/api/social/posts/${postId}`, { method: 'PATCH', token: fatimetou, body: { visibility: 'followers', comments: 'off' } });
+    assert.equal((await call(`/api/social/posts/${postId}`)).status, 404, 'guests cannot see a followers-only post');
+    assert.equal((await call(`/api/social/posts/${postId}`, { token: sidi })).status, 404);
+    assert.equal((await call(`/api/social/posts/${postId}`, { token: buyer })).status, 200, 'followers can');
+    assert.equal((await call(`/api/social/posts/${postId}/comments`, { method: 'POST', token: buyer, body: { body: 'مرحبا' } })).data.error, 'comments_off');
+    await call(`/api/social/posts/${postId}`, { method: 'PATCH', token: fatimetou, body: { visibility: 'public', comments: 'everyone' } });
+    assert.equal((await call(`/api/social/block/${buyerId}`, { method: 'POST', token: fatimetou })).data.blocked, true);
+    assert.equal((await call(`/api/social/users/${fatId}`, { token: buyer })).data.followed_by_me, false, 'blocking removes the follow');
+    assert.equal((await call(`/api/social/follow/${fatId}`, { method: 'POST', token: buyer })).data.error, 'blocked');
+    assert.ok(!(await call('/api/social/feed', { token: buyer })).data.items.some((p) => p.author_id === fatId));
+    await call(`/api/social/block/${buyerId}`, { method: 'DELETE', token: fatimetou });
+    assert.ok((await call('/api/social/feed', { token: buyer })).data.items.some((p) => p.author_id === fatId));
+    assert.equal((await call('/api/social/me/followers', { token: buyer })).status, 200);
+  });
+
+  it('lets users report content and moderators remove it and ban', async () => {
+    assert.equal((await call('/api/social/reports', { method: 'POST', token: fatimetou, body: { targetType: 'post', targetId: postId, reason: 'spam' } })).data.error, 'cannot_report_own');
+    assert.equal((await call('/api/social/reports', { method: 'POST', token: buyer, body: { targetType: 'post', targetId: postId, reason: 'scam' } })).status, 201);
+    assert.equal((await call('/api/social/reports', { method: 'POST', token: buyer, body: { targetType: 'post', targetId: postId, reason: 'scam' } })).status, 409);
+    await call('/api/social/reports', { method: 'POST', token: sidi, body: { targetType: 'post', targetId: postId, reason: 'offensive', details: 'محتوى مسيء' } });
+    assert.equal((await call('/api/social/admin/reports', { token: buyer })).status, 403);
+    const list = (await call('/api/social/admin/reports', { token: admin })).data.items;
+    const item = list.find((r) => r.target_type === 'post' && r.target_id === postId);
+    assert.equal(item.reports, 2);
+    const h = await call('/api/social/admin/reports/handle', { method: 'POST', token: admin, body: { targetType: 'post', targetId: postId, action: 'remove', banDays: 1, reason: 'منشور مخالف' } });
+    assert.equal(h.status, 200);
+    assert.equal((await call(`/api/social/posts/${postId}`)).status, 404);
+    const f = new FormData(); f.append('productId', String(productId)); f.append('body', 'منشور');
+    assert.equal((await call('/api/social/posts', { method: 'POST', token: fatimetou, form: f })).data.error, 'social_banned');
+    assert.ok((await call('/api/notifications', { token: fatimetou })).data.items.some((n) => n.type === 'content_removed'));
+    await call(`/api/social/admin/unban/${fatId}`, { method: 'POST', token: admin });
+    assert.equal((await call('/api/social/posts', { method: 'POST', token: fatimetou, form: f })).status, 201);
+    const ov = await call('/api/social/admin/overview', { token: admin });
+    assert.ok(ov.data.posts >= 1);
+  });
+});
+
+// ---------- Souk Live ----------
+describe('Souk Live', () => {
+  let admin; let host; let sidi; let buyer; let hostId; let buyerId; let liveId; let productId; let hostPeer;
+  const poll = (peer, extra = '') => call(`/api/live/${liveId}/poll?peer=${peer.peerId}&token=${encodeURIComponent(peer.token)}${extra}`);
+  before(async () => {
+    admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
+    host = await login('fatimetou@example.mr');
+    sidi = await login('sidi@example.mr');
+    buyer = await login('buyer@example.mr');
+    hostId = (await call('/api/auth/me', { token: host })).data.user.id;
+    buyerId = (await call('/api/auth/me', { token: buyer })).data.user.id;
+    productId = (await call(`/api/products?seller=${hostId}`)).data.items[0].id;
+    await call(`/api/social/follow/${hostId}`, { method: 'POST', token: buyer });
+    const s = (await call('/api/admin/settings', { token: admin })).data.settings;
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { community: { ...s.community, hostFanout: 2, relayFanout: 1 } } });
+  });
+
+  it('lets only verified merchants schedule a live, and notifies followers', async () => {
+    const body = { title: 'عروض الجمعة', productIds: [productId], scheduledAt: new Date(Date.now() + 3600_000).toISOString(), record: true };
+    assert.equal((await call('/api/live', { method: 'POST', token: sidi, body })).data.error, 'live_verified_merchants_only');
+    const other = (await call('/api/products?seller=' + (await call('/api/auth/me', { token: sidi })).data.user.id)).data.items[0].id;
+    assert.equal((await call('/api/live', { method: 'POST', token: host, body: { ...body, productIds: [other] } })).status, 400, 'only own listings');
+    const r = await call('/api/live', { method: 'POST', token: host, body });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    liveId = r.data.live.id;
+    assert.equal(r.data.live.status, 'scheduled');
+    assert.ok((await call('/api/live?status=scheduled')).data.items.some((l) => l.id === liveId));
+    assert.ok((await call('/api/notifications', { token: buyer })).data.items.some((n) => n.type === 'live_scheduled'));
+    assert.equal((await call(`/api/live/${liveId}/join`, { method: 'POST', body: {} })).data.error, 'not_live');
+  });
+
+  it('goes live and builds a relay tree that keeps the host upload small', async () => {
+    hostPeer = (await call(`/api/live/${liveId}/start`, { method: 'POST', token: host })).data;
+    assert.ok(hostPeer.peerId && hostPeer.token && hostPeer.iceServers.length);
+    assert.ok((await call('/api/notifications', { token: buyer })).data.items.some((n) => n.type === 'live_started'));
+    const join = async (canRelay) => (await call(`/api/live/${liveId}/join`, { method: 'POST', body: { canRelay } })).data;
+    const v1 = await join(true); const v2 = await join(true);
+    assert.equal(v1.parentId, hostPeer.peerId);
+    assert.equal(v2.parentId, hostPeer.peerId);
+    // The host (fan-out 2) is full: the next viewer is attached to a viewer once that one has the video.
+    assert.equal((await call(`/api/live/${liveId}/join`, { method: 'POST', body: {} })).data.error, 'live_full', 'no relay ready yet');
+    await poll(v1, '&connected=1');
+    const v3 = await join(false);
+    assert.equal(v3.parentId, v1.peerId);
+    const h = (await poll(hostPeer)).data;
+    assert.deepEqual(h.children.sort(), [v1.peerId, v2.peerId].sort());
+    assert.equal(h.viewers, 3);
+    // Signalling: only between linked peers, and only with the peer's own token.
+    const offer = { from: v1.peerId, token: v1.token, to: v3.peerId, kind: 'offer', payload: { type: 'offer', sdp: 'v=0' } };
+    assert.equal((await call(`/api/live/${liveId}/signal`, { method: 'POST', body: offer })).status, 200);
+    assert.equal((await call(`/api/live/${liveId}/signal`, { method: 'POST', body: { ...offer, token: v2.token } })).status, 403);
+    assert.equal((await call(`/api/live/${liveId}/signal`, { method: 'POST', body: { ...offer, from: v2.peerId, token: v2.token } })).data.error, 'not_linked');
+    const got = (await poll(v3)).data;
+    assert.equal(got.signals[0].kind, 'offer');
+    assert.equal(got.signals[0].from_peer, v1.peerId);
+    assert.equal((await poll(v3)).data.signals.length, 0, 'signals are delivered once');
+    // v1 leaves: v3 is re-attached to a peer that still has room (here the host).
+    await call(`/api/live/${liveId}/leave`, { method: 'POST', body: { peer: v1.peerId, token: v1.token } });
+    assert.equal((await poll(v3)).data.parentId, hostPeer.peerId);
+  });
+
+  it('has a live chat with moderation, a pinned product and a viewer count', async () => {
+    const c = await call(`/api/live/${liveId}/comments`, { method: 'POST', token: buyer, body: { body: 'كم السعر؟' } });
+    assert.equal(c.status, 201);
+    assert.equal((await call(`/api/live/${liveId}/comments`, { method: 'POST', body: { body: 'x' } })).status, 401);
+    let p = (await call(`/api/live/${liveId}/poll`)).data;
+    assert.ok(p.comments.some((x) => x.body === 'كم السعر؟'));
+    assert.equal((await call(`/api/live/${liveId}/pin`, { method: 'POST', token: host, body: { productId } })).status, 200);
+    assert.equal((await call(`/api/live/${liveId}/poll`)).data.pinned, productId);
+    assert.equal((await call(`/api/live/${liveId}/mute/${buyerId}`, { method: 'POST', token: buyer })).status, 403);
+    assert.equal((await call(`/api/live/${liveId}/mute/${buyerId}`, { method: 'POST', token: host })).status, 200);
+    assert.equal((await call(`/api/live/${liveId}/comments`, { method: 'POST', token: buyer, body: { body: 'مرحبا' } })).data.error, 'muted');
+    p = (await call(`/api/live/${liveId}/poll`)).data;
+    assert.ok(p.removedComments.includes(Number(c.data.comment.id)), 'muting hides their messages');
+    const detail = await call(`/api/live/${liveId}`, { token: buyer });
+    assert.equal(detail.data.products[0].id, productId);
+    assert.equal(detail.data.live.status, 'live');
+    assert.ok(detail.data.live.viewers >= 1);
+  });
+
+  it('ends the live, keeps the recording only with the host consent, and lets admins stop lives', async () => {
+    assert.equal((await call(`/api/live/${liveId}/end`, { method: 'POST', token: buyer })).status, 403);
+    const end = await call(`/api/live/${liveId}/end`, { method: 'POST', token: host });
+    assert.equal(end.status, 200);
+    assert.equal((await call(`/api/live/${liveId}`)).data.live.status, 'ended');
+    assert.equal((await call(`/api/live/${liveId}/recording`, { method: 'POST', token: host, body: { url: 'https://evil.example/x.mp4' } })).status, 400);
+    // A live without recording consent never accepts a recording.
+    const l2 = (await call('/api/live', { method: 'POST', token: host, body: { title: 'بث سريع', record: false } })).data.live;
+    assert.equal((await call(`/api/live/${l2.id}/recording`, { method: 'POST', token: host, body: { url: 'https://x' } })).data.error, 'recording_not_allowed');
+    await call(`/api/live/${l2.id}/start`, { method: 'POST', token: host });
+    assert.equal((await call(`/api/live/admin/list`, { token: admin })).data.items[0].id, l2.id);
+    assert.equal((await call(`/api/live/admin/${l2.id}/stop`, { method: 'POST', token: admin, body: { reason: 'مخالفة' } })).status, 200);
+    assert.equal((await call(`/api/live/${l2.id}`)).status, 404, 'removed lives are hidden');
+    assert.equal((await call(`/api/live/${l2.id}`, { token: host })).data.live.status, 'removed');
+    // Reports on a live reach the moderation queue.
+    assert.equal((await call('/api/social/reports', { method: 'POST', token: buyer, body: { targetType: 'live', targetId: liveId, reason: 'offensive' } })).status, 201);
+    assert.ok((await call('/api/social/admin/reports', { token: admin })).data.items.some((r) => r.target_type === 'live'));
+  });
+});

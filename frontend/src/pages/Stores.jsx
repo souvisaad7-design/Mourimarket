@@ -6,6 +6,7 @@ import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
 import { ProBadge } from '../components/StorePlans.jsx';
+import { FollowButton } from './Social.jsx';
 
 function StoreLogo({ store, size = 'h-16 w-16' }) {
   return store.logo_url ? <img src={store.logo_url} alt="" className={`${size} shrink-0 rounded-2xl object-cover`} /> : (
@@ -80,6 +81,7 @@ export function StoreDetail() {
               {s.city && <span className="flex items-center gap-1"><Icon name="pin" className="h-4 w-4" />{cityName(meta.cities, s.city)}</span>}
               <span>{t('common.since', { d: date(s.created_at) })}</span>
               <Link to={`/users/${s.owner_id}`} className="link">{t('store.owner')}: {s.owner_name}</Link>
+              <FollowButton userId={s.owner_id} />
             </div>
             {s.description && <p className="mt-3 max-w-3xl whitespace-pre-line text-slate-700">{s.description}</p>}
           </div>

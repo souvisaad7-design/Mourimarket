@@ -17,14 +17,16 @@ function storeHost() {
   return id ? `${id.toLowerCase()}.public.blob.vercel-storage.com` : null;
 }
 
-export async function videoUploadToken(userId, ext) {
+export const MAX_RECORDING_BYTES = 300 * 1024 * 1024;
+
+export async function videoUploadToken(userId, ext, { folder = 'videos', maxBytes = MAX_VIDEO_BYTES } = {}) {
   const type = VIDEO_TYPES[ext];
-  const pathname = `videos/u${userId}/${crypto.randomUUID()}.${ext}`;
+  const pathname = `${folder}/u${userId}/${crypto.randomUUID()}.${ext}`;
   const token = await generateClientTokenFromReadWriteToken({
     token: rwToken(),
     pathname,
     allowedContentTypes: [type],
-    maximumSizeInBytes: MAX_VIDEO_BYTES,
+    maximumSizeInBytes: maxBytes,
     validUntil: Date.now() + 15 * 60 * 1000,
     addRandomSuffix: false,
     allowOverwrite: false,
@@ -33,10 +35,10 @@ export async function videoUploadToken(userId, ext) {
 }
 
 /** Is this the URL of a video this user uploaded to our store? */
-export function ownVideoUrl(url, userId) {
+export function ownVideoUrl(url, userId, folder = 'videos') {
   try {
     const u = new URL(url);
-    return u.protocol === 'https:' && u.host === storeHost() && new RegExp(`^/videos/u${Number(userId)}/[0-9a-f-]{36}\\.(mp4|webm|mov)$`).test(u.pathname) && !u.search && !u.hash;
+    return u.protocol === 'https:' && u.host === storeHost() && new RegExp(`^/${folder}/u${Number(userId)}/[0-9a-f-]{36}\\.(mp4|webm|mov)$`).test(u.pathname) && !u.search && !u.hash;
   } catch { return false; }
 }
 
