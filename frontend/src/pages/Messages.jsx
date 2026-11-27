@@ -7,6 +7,7 @@ import { api, getToken } from '../lib/api.js';
 import { compressImage } from '../lib/image.js';
 import { useRecorder } from '../lib/recorder.js';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
+import { AuctionResultCard } from '../components/Auction.jsx';
 
 /** A private chat file (photo / voice note): fetched with the login token, shown from memory. */
 function usePrivateFile(url) {
@@ -332,7 +333,8 @@ function Thread({ id, onActivity }) {
           return (
             <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm shadow-sm ${mine ? 'bg-brand-700 text-white' : 'bg-surface text-slate-800'}`}>
-                {m.kind === 'swap' ? <SwapCard m={m} mine={mine} conversationId={c.id} onChange={refresh} />
+                {m.kind === 'auction' ? <AuctionResultCard m={m} />
+                  : m.kind === 'swap' ? <SwapCard m={m} mine={mine} conversationId={c.id} onChange={refresh} />
                   : m.kind === 'offer' ? <OfferCard m={m} mine={mine} conversationId={c.id} onChange={refresh} onCounter={(o) => setOfferFor({ counter: o })} />
                   : m.kind === 'image' ? <ChatImage url={`/api/conversations/${c.id}/files/${m.file_id}`} />
                     : m.kind === 'audio' ? <ChatAudio url={`/api/conversations/${c.id}/files/${m.file_id}`} duration={m.duration} />

@@ -27,6 +27,8 @@ export const PRODUCT_SELECT = `
   p.id, p.title, p.price, p.old_price, p.city, p.condition, p.status, p.availability, p.views,
   p.created_at, p.updated_at, p.category_id, p.seller_id, p.store_id, p.attrs, p.video_url, p.bumped_at,
   p.accepts_swap, p.swap_wanted, p.voice_url, p.voice_duration,
+  (SELECT json_build_object('id', a.id, 'ends_at', a.ends_at, 'current', COALESCE(a.current_bid, a.start_price), 'bids', a.bid_count)
+     FROM auctions a WHERE a.product_id = p.id AND a.status = 'active') AS auction,
   c.slug AS category_slug, c.name_ar AS category_name_ar, c.name_fr AS category_name_fr, c.name_en AS category_name_en,
   (SELECT url FROM product_images i WHERE i.product_id = p.id ORDER BY sort_order, id LIMIT 1) AS cover_url,
   u.name AS seller_name, u.is_verified AS seller_verified, s.name AS store_name, s.slug AS store_slug,
@@ -500,6 +502,10 @@ router.patch('/:id/availability', requireAuth, async (req, res) => {
        sold_at = CASE WHEN $1::text = 'sold' THEN now() ELSE NULL END, updated_at = now() WHERE id = $3`,
     [data.availability, soldTo, product.id],
   );
+  if (data.availability === 'sold') {
+    // A sold item cannot stay up for auction.
+    await query("UPDATE auctions SET status = 'cancelled', ended_at = now(), cancel_reason = 'sold' WHERE product_id = $1 AND status = 'active'", [product.id]);
+  }
   if (soldTo) {
     await notify(soldTo, 'sale_recorded', { productId: product.id, title: product.title }, `/products/${product.id}`);
   }

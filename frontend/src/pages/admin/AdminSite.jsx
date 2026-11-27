@@ -112,6 +112,18 @@ export function AdminSettings() {
           <input type="date" className="input" dir="ltr" value={s.season.eid.date} onChange={(e) => put('season', { eid: { ...s.season.eid, date: e.target.value } })} />
         </Field>
       </Section>
+      {s.auctions && (
+        <Section title={`🔨 ${t('adminAuctions.title')}`} onSave={() => save('auctions', { auctions: s.auctions })} busy={busy === 'auctions'} error={errors.auctions}>
+          <Toggle checked={s.auctions.enabled} onChange={(v) => put('auctions', { enabled: v })} label={t('adminAuctions.enabled')} hint={t('auction.howSeller')} />
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[['minHours', 1, 72], ['maxDays', 1, 30], ['extendMinutes', 0, 30]].map(([k, min, max]) => (
+              <Field key={k} label={t(`adminAuctions.${k}`)}>
+                <input type="number" className="input" dir="ltr" min={min} max={max} value={s.auctions[k]} onChange={(e) => put('auctions', { [k]: Number(e.target.value) })} />
+              </Field>
+            ))}
+          </div>
+        </Section>
+      )}
       {updated?.length > 0 && <p className="text-xs text-slate-400">{t('admin.set.lastChange', { name: updated[0].updated_by_name || '—' })}</p>}
     </div>
   );

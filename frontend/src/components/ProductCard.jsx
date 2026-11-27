@@ -6,6 +6,7 @@ import { api } from '../lib/api.js';
 import { Icon, OldPrice, VerifiedBadge, useCityName } from './ui.jsx';
 import { useAttrSummary } from './Attributes.jsx';
 import { thumb, useLite } from '../lib/dataSaver.js';
+import { AuctionBadge } from './Auction.jsx';
 
 export function FavoriteButton({ product, className = '', onChange }) {
   const { user, notify } = useApp();
@@ -86,6 +87,7 @@ export default function ProductCard({ product, onFavoriteChange }) {
         {off > 0 && <p className="-mt-1 text-xs text-slate-400 line-through"><span className="ltr-nums">{price(product.old_price)}</span></p>}
         <OldPrice value={product.price} className="-mt-0.5 text-[11px]" />
         {product.accepts_swap && product.availability !== 'sold' && <p className="text-[11px] font-semibold text-violet-700">🔄 {t('swap.short')}</p>}
+        <AuctionBadge auction={product.availability !== 'sold' ? product.auction : null} />
         {product.voice_url && <p className="text-[11px] font-semibold text-sky-700">🎙 {t('voice.badge')}</p>}
         <div className="mt-1 flex items-center justify-center gap-3 text-xs text-slate-500">
           <span className="flex items-center gap-1 truncate"><Icon name="pin" className="h-3.5 w-3.5 shrink-0" />{cityName(meta.cities, product.city)}</span>

@@ -16,6 +16,7 @@ import { taggedUrl, viewSource } from '../lib/viewSource.js';
 import { rememberView } from '../lib/souk-ai.js';
 import StatusImageButton from '../components/StatusImage.jsx';
 import { VoicePlayer } from '../components/VoiceNote.jsx';
+import { AuctionBox } from '../components/Auction.jsx';
 import { liteOn, useLite } from '../lib/dataSaver.js';
 import { InspectionReport } from '../components/Inspection.jsx';
 
@@ -200,7 +201,9 @@ function MobileActionBar({ product }) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-surface/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur lg:hidden">
       <div className="flex items-center gap-2">
-        <p className="me-auto min-w-0 truncate text-lg font-bold text-brand-800"><span className="ltr-nums">{price(product.price)}</span></p>
+        {product.auction
+          ? <p className="me-auto min-w-0 truncate text-lg font-bold text-orange-700">🔨 <span className="ltr-nums">{price(product.auction.current)}</span></p>
+          : <p className="me-auto min-w-0 truncate text-lg font-bold text-brand-800"><span className="ltr-nums">{price(product.price)}</span></p>}
         {phone && <a href={`tel:${phone}`} className="btn-outline px-3" aria-label={t('product.call')}><Icon name="phone" className="h-5 w-5" /></a>}
         {delivery && <Link to={user ? `/checkout/${product.id}` : '/login'} state={user ? undefined : { from: `/checkout/${product.id}` }} className="btn-accent px-3" aria-label={t('delivery.cta.button')}><span aria-hidden="true">🛵</span><span className="hidden min-[480px]:inline">{t('delivery.cta.short')}</span></Link>}
         <button type="button" onClick={message} className="btn-primary"><Icon name="chat" className="h-4 w-4" />{delivery ? <span className="hidden min-[400px]:inline">{t('product.contactSeller')}</span> : t('product.contactSeller')}</button>
@@ -348,6 +351,7 @@ export default function ProductDetail() {
             </div>
           </div>
 
+          <AuctionBox product={product} onChange={reload} />
           {product.can_review && <ReviewForm productId={product.id} onDone={reload} />}
           <OrderDeliveryButton product={product} />
           <ContactBox product={product} />

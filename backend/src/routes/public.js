@@ -30,6 +30,7 @@ router.get('/meta', async (_req, res) => {
       const days = e.date ? Math.ceil((new Date(`${e.date}T00:00:00Z`) - Date.now()) / 86_400_000) : null;
       return days !== null && days < -1 ? null : { date: e.date || null, daysLeft: days };
     })(),
+    auctions: settings.auctions.enabled ? { minHours: settings.auctions.minHours, maxDays: settings.auctions.maxDays } : null,
     freeBumpDays: pricing.freeBumpDays,
     upgrades: features.paidUpgrades ? { verifyPrice: pricing.verifyPrice, bumpPrice: pricing.bumpPrice, storePlans: pricing.storePlans, featurePlans: pricing.featurePlans, paymentMethods: PAYMENT_METHODS } : null,
   });

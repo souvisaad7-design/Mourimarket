@@ -2464,3 +2464,128 @@ describe('Hassaniya interface', () => {
     assert.equal((await call('/api/settings')).data.settings.texts.hs['nav.post'], 'بيع حاجتك');
   });
 });
+
+describe('Auctions', () => {
+  let admin; let seller; let sidi; let buyer; let sidiId; let pid; let auctionId;
+  const listing = async (title) => {
+    const cat = (await pool.query("SELECT id FROM categories WHERE slug = 'phones-electronics'")).rows[0].id;
+    const f = new FormData();
+    for (const [k, v] of Object.entries({ title, description: 'هاتف بحالة جيدة جداً للمزاد', price: '30000', categoryId: String(cat), city: 'nouakchott', condition: 'used' })) f.append(k, v);
+    f.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+    const r = await call('/api/products', { method: 'POST', token: seller, form: f });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    await call(`/api/admin/products/${r.data.product.id}/status`, { method: 'PATCH', token: admin, body: { status: 'approved' } });
+    return r.data.product.id;
+  };
+  const endNow = (id) => pool.query("UPDATE auctions SET ends_at = now() - interval '1 second' WHERE id = $1", [id]);
+  before(async () => {
+    admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
+    seller = await login('fatimetou@example.mr');
+    sidi = await login('sidi@example.mr');
+    buyer = await login('buyer@example.mr');
+    sidiId = (await call('/api/auth/me', { token: sidi })).data.user.id;
+    pid = await listing('آيفون 14 في المزاد');
+  });
+
+  it('lets only the owner start an auction, within the allowed length', async () => {
+    assert.equal((await call('/api/auctions', { method: 'POST', token: sidi, body: { productId: pid, startPrice: 20000, hours: 24 } })).status, 403);
+    assert.equal((await call('/api/auctions', { method: 'POST', token: seller, body: { productId: pid, startPrice: 20000, hours: 2 } })).status, 400, 'too short');
+    assert.equal((await call('/api/auctions', { method: 'POST', token: seller, body: { productId: pid, startPrice: 20000, reservePrice: 1000, hours: 24 } })).status, 400, 'reserve below start');
+    const r = await call('/api/auctions', { method: 'POST', token: seller, body: { productId: pid, startPrice: 20000, minIncrement: 500, reservePrice: 25000, hours: 24 } });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    auctionId = r.data.auction.id;
+    assert.equal(r.data.auction.reserve_price, 25000, 'the seller sees the reserve');
+    assert.equal((await call('/api/auctions', { method: 'POST', token: seller, body: { productId: pid, startPrice: 20000, hours: 24 } })).status, 409, 'one at a time');
+    const pub = (await call(`/api/auctions/${auctionId}`)).data.auction;
+    assert.equal(pub.reserve_price, undefined, 'the reserve stays secret');
+    assert.equal(pub.has_reserve, true);
+    assert.equal(pub.min_bid, 20000);
+    const card = (await call(`/api/products/${pid}`)).data.product;
+    assert.equal(card.auction.id, auctionId);
+    assert.ok((await call('/api/auctions')).data.items.some((x) => x.id === pid));
+  });
+
+  it('accepts rising bids only, and rejects own bids, self-outbidding and typos', async () => {
+    assert.equal((await call(`/api/auctions/${auctionId}/bids`, { method: 'POST', token: seller, body: { amount: 21000 } })).status, 403);
+    const low = await call(`/api/auctions/${auctionId}/bids`, { method: 'POST', token: sidi, body: { amount: 19000 } });
+    assert.equal(low.status, 400); assert.equal(low.data.error, 'bid_too_low');
+    assert.equal((await call(`/api/auctions/${auctionId}/bids`, { method: 'POST', token: sidi, body: { amount: 2000000 } })).data.error, 'bid_too_high');
+    const b1 = await call(`/api/auctions/${auctionId}/bids`, { method: 'POST', token: sidi, body: { amount: 20000 } });
+    assert.equal(b1.status, 201, JSON.stringify(b1.data));
+    assert.equal(b1.data.auction.is_leading, true);
+    assert.equal(b1.data.auction.min_bid, 20500);
+    assert.equal((await call(`/api/auctions/${auctionId}/bids`, { method: 'POST', token: sidi, body: { amount: 21000 } })).data.error, 'already_leading');
+    assert.equal((await call(`/api/auctions/${auctionId}/bids`, { method: 'POST', token: buyer, body: { amount: 20400 } })).data.error, 'bid_too_low');
+    const b2 = await call(`/api/auctions/${auctionId}/bids`, { method: 'POST', token: buyer, body: { amount: 22000 } });
+    assert.equal(b2.status, 201);
+    const n = (await pool.query("SELECT type FROM notifications WHERE user_id = $1 AND type = 'auction_outbid'", [sidiId])).rowCount;
+    assert.ok(n >= 1, 'the previous leader is told');
+    assert.equal((await call(`/api/auctions/${auctionId}/cancel`, { method: 'POST', token: seller })).data.error, 'auction_has_bids');
+    // Names are shortened for the public, full for the seller.
+    const pub = (await call(`/api/auctions/${auctionId}`, { token: sidi })).data.auction;
+    assert.match(pub.bids[0].name, /\*\*\*$/);
+    assert.equal(pub.bids.find((b) => b.is_me).amount, 20000);
+    const own = (await call(`/api/auctions/${auctionId}`, { token: seller })).data.auction;
+    assert.ok(!own.bids[0].name.endsWith('***'));
+  });
+
+  it('extends the end when someone bids in the last minutes', async () => {
+    await pool.query("UPDATE auctions SET ends_at = now() + interval '30 seconds' WHERE id = $1", [auctionId]);
+    const r = await call(`/api/auctions/${auctionId}/bids`, { method: 'POST', token: sidi, body: { amount: 24000 } });
+    assert.equal(r.status, 201);
+    const left = new Date(r.data.auction.ends_at) - Date.now();
+    assert.ok(left > 2.5 * 60 * 1000, `extended to ~3 minutes (${left} ms)`);
+  });
+
+  it('closes when time is up: below the reserve the seller is not bound, but both get a chat', async () => {
+    await endNow(auctionId);
+    const late = await call(`/api/auctions/${auctionId}/bids`, { method: 'POST', token: buyer, body: { amount: 30000 } });
+    assert.equal(late.status, 409);
+    const a = (await call(`/api/auctions/${auctionId}`, { token: sidi })).data.auction;
+    assert.equal(a.status, 'ended');
+    assert.equal(a.reserve_met, false);
+    assert.equal(a.is_winner, false);
+    assert.ok(a.conversation_id, 'the top bidder gets the chat');
+    const thread = (await call(`/api/conversations/${a.conversation_id}`, { token: seller })).data.messages;
+    assert.equal(thread[0].kind, 'auction');
+    assert.equal(Number(thread[0].amount), 24000);
+    assert.equal((await call(`/api/auctions/${auctionId}`, { token: buyer })).data.auction.conversation_id, null, 'others do not see the chat');
+  });
+
+  it('picks a winner when the reserve is met, and tells the others', async () => {
+    const p2 = await listing('سامسونج للمزاد');
+    const id = (await call('/api/auctions', { method: 'POST', token: seller, body: { productId: p2, startPrice: 5000, hours: 12 } })).data.auction.id;
+    await call(`/api/auctions/${id}/bids`, { method: 'POST', token: buyer, body: { amount: 5000 } });
+    await call(`/api/auctions/${id}/bids`, { method: 'POST', token: sidi, body: { amount: 6000 } });
+    await endNow(id);
+    await call('/api/auctions'); // the list closes due auctions too
+    const a = (await call(`/api/products/${p2}/auction`, { token: sidi })).data.auction;
+    assert.equal(a.status, 'ended');
+    assert.equal(a.is_winner, true);
+    assert.equal(a.reserve_met, true);
+    const types = (await pool.query('SELECT type FROM notifications WHERE data->>\'auctionId\' = $1', [String(id)])).rows.map((r) => r.type);
+    for (const t of ['auction_won', 'auction_sold', 'auction_lost']) assert.ok(types.includes(t), t);
+    // The winner can be recorded as the buyer (the chat exists), so they can leave a review.
+    assert.equal((await call(`/api/products/${p2}/availability`, { method: 'PATCH', token: seller, body: { availability: 'sold', soldToId: sidiId } })).status, 200);
+  });
+
+  it('lets the seller cancel before any bid, and stops the auction when the item is sold', async () => {
+    const p3 = await listing('حاسوب للمزاد');
+    const id = (await call('/api/auctions', { method: 'POST', token: seller, body: { productId: p3, startPrice: 9000, hours: 24 } })).data.auction.id;
+    assert.equal((await call(`/api/auctions/${id}/cancel`, { method: 'POST', token: seller })).status, 200);
+    const id2 = (await call('/api/auctions', { method: 'POST', token: seller, body: { productId: p3, startPrice: 9000, hours: 24 } })).data.auction.id;
+    await call(`/api/auctions/${id2}/bids`, { method: 'POST', token: sidi, body: { amount: 9000 } });
+    await call(`/api/products/${p3}/availability`, { method: 'PATCH', token: seller, body: { availability: 'sold' } });
+    assert.equal((await pool.query('SELECT status FROM auctions WHERE id = $1', [id2])).rows[0].status, 'cancelled');
+    assert.equal((await call(`/api/products/${p3}`)).data.product.auction, null);
+  });
+
+  it('can be switched off from the panel', async () => {
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { auctions: { enabled: false } } });
+    assert.equal((await call('/api/meta')).data.auctions, null);
+    const p4 = await listing('ساعة للمزاد');
+    assert.equal((await call('/api/auctions', { method: 'POST', token: seller, body: { productId: p4, startPrice: 1000, hours: 24 } })).data.error, 'auctions_disabled');
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { auctions: { enabled: true } } });
+    assert.equal((await call('/api/meta')).data.auctions.maxDays, 7);
+  });
+});

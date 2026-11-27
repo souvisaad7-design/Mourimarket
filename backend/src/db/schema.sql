@@ -963,3 +963,42 @@ CREATE TABLE IF NOT EXISTS livestock_markets (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE livestock_markets ENABLE ROW LEVEL SECURITY;
+
+-- ---------- Auctions (المزادات): a seller puts a listing up for bids; the winner and the seller then
+-- meet in the chat (cash on hand-over, no payment through the site). ----------
+CREATE TABLE IF NOT EXISTS auctions (
+  id                 SERIAL PRIMARY KEY,
+  product_id         INT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  seller_id          INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  start_price        BIGINT NOT NULL CHECK (start_price >= 1),
+  min_increment      BIGINT NOT NULL CHECK (min_increment >= 1),
+  reserve_price      BIGINT,                        -- hidden minimum; below it the seller does not have to sell
+  ends_at            TIMESTAMPTZ NOT NULL,
+  status             VARCHAR(10) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'ended', 'cancelled')),
+  current_bid        BIGINT,
+  current_bidder_id  INT REFERENCES users(id) ON DELETE SET NULL,
+  bid_count          INT NOT NULL DEFAULT 0,
+  winner_id          INT REFERENCES users(id) ON DELETE SET NULL,
+  reserve_met        BOOLEAN,
+  conversation_id    INT REFERENCES conversations(id) ON DELETE SET NULL,
+  cancel_reason      VARCHAR(200),
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ended_at           TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX IF NOT EXISTS auctions_one_active ON auctions (product_id) WHERE status = 'active';
+CREATE INDEX IF NOT EXISTS auctions_due_idx ON auctions (ends_at) WHERE status = 'active';
+ALTER TABLE auctions ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS auction_bids (
+  id          SERIAL PRIMARY KEY,
+  auction_id  INT NOT NULL REFERENCES auctions(id) ON DELETE CASCADE,
+  bidder_id   INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  amount      BIGINT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS auction_bids_auction_idx ON auction_bids (auction_id, amount DESC);
+CREATE INDEX IF NOT EXISTS auction_bids_bidder_idx ON auction_bids (bidder_id);
+ALTER TABLE auction_bids ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_kind_check;
+ALTER TABLE messages ADD CONSTRAINT messages_kind_check CHECK (kind IN ('text', 'offer', 'image', 'audio', 'swap', 'auction'));
