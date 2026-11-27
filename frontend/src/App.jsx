@@ -44,6 +44,7 @@ import Wanted from './pages/Wanted.jsx';
 import SoukAI from './pages/SoukAI.jsx';
 import Eid, { Livestock } from './pages/Eid.jsx';
 import Auctions from './pages/Auctions.jsx';
+import Wallet from './pages/Wallet.jsx';
 import Social, { PostPage } from './pages/Social.jsx';
 import LiveList, { LiveForm, LiveRoom } from './pages/Live.jsx';
 const AdminCommunity = lazy(() => import('./pages/admin/AdminCommunity.jsx'));
@@ -56,6 +57,7 @@ const [AdminOrders, AdminCouriers] = ['AdminOrders', 'AdminCouriers'].map((n) =>
 const AdminDeliveryPricing = lazyNamed(adminSite, 'AdminDeliveryPricing');
 const AdminInspections = lazyNamed(() => import('./pages/admin/AdminInspections.jsx'), 'AdminInspections');
 const AdminEscrow = lazyNamed(() => import('./pages/admin/AdminEscrow.jsx'), 'AdminEscrow');
+const AdminPay = lazyNamed(() => import('./pages/admin/AdminPay.jsx'), 'AdminPay');
 
 function RequireAuth({ children, admin = false }) {
   const { user, ready } = useApp();
@@ -109,6 +111,7 @@ export default function App() {
         <Route path="eid" element={<Eid />} />
         <Route path="livestock" element={<Livestock />} />
         <Route path="auctions" element={<Auctions />} />
+        <Route path="wallet" element={<RequireAuth><Wallet /></RequireAuth>} />
         <Route path="social" element={<Social />} />
         <Route path="social/posts/:id" element={<PostPage />} />
         <Route path="live" element={<LiveList />} />
@@ -178,6 +181,7 @@ export default function App() {
         <Route path="delivery" element={<AdminDeliveryPricing />} />
         <Route path="inspections" element={<AdminInspections />} />
         <Route path="escrow" element={<AdminEscrow />} />
+        <Route path="pay" element={<AdminPay />} />
         <Route path="ai" element={<AdminAI />} />
         <Route path="community" element={<AdminCommunity />} />
         <Route path="places" element={<AdminPlaces />} />

@@ -1002,3 +1002,50 @@ ALTER TABLE auction_bids ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_kind_check;
 ALTER TABLE messages ADD CONSTRAINT messages_kind_check CHECK (kind IN ('text', 'offer', 'image', 'audio', 'swap', 'auction'));
+
+-- ---------- Souk Pay: who must receive how much from each order, and every movement of money ----------
+-- order_settlements: the split of a delivered order (seller / courier / platform), fixed when it is delivered.
+-- pay_transfers: money that actually moved between two holders (buyer, courier, seller, platform, escrow).
+-- A holder's position = what they received − what they sent − what they are entitled to:
+--   above 0 = holding someone else's money (e.g. a courier's cash), below 0 = still owed money.
+CREATE TABLE IF NOT EXISTS order_settlements (
+  order_id         INT PRIMARY KEY REFERENCES orders(id) ON DELETE CASCADE,
+  method           VARCHAR(10) NOT NULL CHECK (method IN ('cod', 'escrow')),
+  total            BIGINT NOT NULL,
+  seller_id        INT REFERENCES users(id) ON DELETE SET NULL,
+  seller_amount    BIGINT NOT NULL,
+  courier_user_id  INT REFERENCES users(id) ON DELETE SET NULL,
+  courier_amount   BIGINT NOT NULL DEFAULT 0,
+  platform_amount  BIGINT NOT NULL DEFAULT 0,
+  commission_pct   NUMERIC(5,2) NOT NULL DEFAULT 0,
+  delivery_pct     NUMERIC(5,2) NOT NULL DEFAULT 0,
+  is_void          BOOLEAN NOT NULL DEFAULT false,      -- refunded after delivery
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (seller_amount + courier_amount + platform_amount = total)
+);
+ALTER TABLE order_settlements ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS pay_transfers (
+  id            SERIAL PRIMARY KEY,
+  order_id      INT REFERENCES orders(id) ON DELETE SET NULL,
+  from_account  VARCHAR(10) NOT NULL CHECK (from_account IN ('buyer', 'courier', 'seller', 'platform', 'escrow')),
+  from_user     INT REFERENCES users(id) ON DELETE SET NULL,
+  to_account    VARCHAR(10) NOT NULL CHECK (to_account IN ('buyer', 'courier', 'seller', 'platform', 'escrow')),
+  to_user       INT REFERENCES users(id) ON DELETE SET NULL,
+  amount        BIGINT NOT NULL CHECK (amount > 0),
+  kind          VARCHAR(20) NOT NULL,                  -- cod_collected, handover, remittance, escrow_in, payout, refund, adjustment
+  method        VARCHAR(20) NOT NULL DEFAULT 'cash',   -- cash, bankily, masrvi, sedad, other
+  ref           VARCHAR(120),
+  note          VARCHAR(300),
+  status        VARCHAR(10) NOT NULL DEFAULT 'confirmed' CHECK (status IN ('pending', 'confirmed', 'disputed', 'cancelled')),
+  created_by    INT REFERENCES users(id) ON DELETE SET NULL,
+  confirmed_by  INT REFERENCES users(id) ON DELETE SET NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  confirmed_at  TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS pay_transfers_from_idx ON pay_transfers (from_user, status);
+CREATE INDEX IF NOT EXISTS pay_transfers_to_idx ON pay_transfers (to_user, status);
+CREATE INDEX IF NOT EXISTS pay_transfers_order_idx ON pay_transfers (order_id);
+-- One courier → seller hand-over per order (re-declared after a cancellation).
+CREATE UNIQUE INDEX IF NOT EXISTS pay_transfers_one_handover ON pay_transfers (order_id) WHERE kind = 'handover' AND status IN ('pending', 'confirmed', 'disputed');
+ALTER TABLE pay_transfers ENABLE ROW LEVEL SECURITY;

@@ -30,6 +30,7 @@ import socialRoutes from './routes/social.js';
 import liveRoutes from './routes/live.js';
 import placesRoutes from './routes/places.js';
 import auctionRoutes from './routes/auctions.js';
+import payRoutes from './routes/pay.js';
 
 export function createApp() {
   const app = express();
@@ -90,6 +91,7 @@ export function createApp() {
   app.use('/api/live', liveRoutes);
   app.use('/api', placesRoutes);
   app.use('/api', auctionRoutes);
+  app.use('/api', payRoutes);
   app.use('/api', inspectionRoutes);
   app.use('/api', escrowRoutes);
   app.use('/api/admin', adminRoutes);

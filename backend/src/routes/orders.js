@@ -8,6 +8,7 @@ import { badRequest, conflict, forbidden, notFound, parse } from '../lib/http.js
 import { notify } from '../lib/notify.js';
 import { normalizePhone } from '../lib/phone.js';
 import { getSettings } from '../lib/settings.js';
+import { onDelivered } from '../lib/pay.js';
 import { limiter } from '../lib/rateLimit.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireVerifiedPhone } from '../middleware/phone.js';
@@ -224,6 +225,7 @@ router.post('/orders/:id/status', writeLimiter, async (req, res) => {
     if (d.status === 'cancelled' && ['submitted', 'held'].includes(o.payment_status)) {
       await client.query("UPDATE orders SET payment_status = 'refund_due', payment_updated_at = now() WHERE id = $1", [id]);
     }
+    if (d.status === 'delivered') await onDelivered(client, o, o.courier_user_id, req.user.id);
     if (d.status === 'delivered' && o.product_id) {
       // A delivered order is a documented sale: the listing is sold to this buyer (unlocks the review).
       await client.query(`UPDATE products SET availability = 'sold', sold_to_id = $1, updated_at = now() WHERE id = $2 AND availability = 'available'`, [o.buyer_id, o.product_id]);

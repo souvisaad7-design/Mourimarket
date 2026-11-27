@@ -118,6 +118,7 @@ function UserMenu() {
             <Link className={item} to="/profile"><Icon name="shield" className="h-4 w-4" />{t('card.title')}</Link>
             {user.account_type === 'merchant' && <Link className={item} to="/dashboard/store"><Icon name="store" className="h-4 w-4" />{t('nav.myStore')}</Link>}
             <Link className={item} to="/orders"><span className="w-4 text-center" aria-hidden="true">📦</span>{t('delivery.nav.orders')}</Link>
+            <Link className={item} to="/wallet"><span className="w-4 text-center" aria-hidden="true">💳</span>{t('pay.nav')}</Link>
             <Link className={item} to="/courier"><span className="w-4 text-center" aria-hidden="true">🛵</span>{t('delivery.nav.courier')}</Link>
             <Link className={item} to="/favorites"><Icon name="heart" className="h-4 w-4" />{t('nav.favorites')}</Link>
             <Link className={item} to="/saved-searches"><Icon name="bell" className="h-4 w-4" />{t('alerts.title')}</Link>

@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { query, tx } from '../db.js';
 import { badRequest, conflict, forbidden, notFound, parse } from '../lib/http.js';
 import { notify } from '../lib/notify.js';
+import { onEscrowHeld, onEscrowRefunded, onEscrowReleased } from '../lib/pay.js';
 import { limiter } from '../lib/rateLimit.js';
 import { requireAdmin, requireAuth } from '../middleware/auth.js';
 import { savePrivateFile, sendFile, upload } from '../middleware/upload.js';
@@ -111,9 +112,18 @@ router.patch('/admin/escrow/:id', requireAuth, requireAdmin, async (req, res) =>
     if (d.action === 'release' && row.status !== 'delivered') throw badRequest('not_delivered');
     await client.query('UPDATE orders SET payment_status = $1, payout_ref = COALESCE($2, payout_ref), payment_updated_at = now() WHERE id = $3', [to, d.ref || null, row.id]);
     await client.query('INSERT INTO order_events (order_id, status, actor_id, actor_role, note) VALUES ($1, $2, $3, $4, $5)', [row.id, `payment_${to}`, req.user.id, 'admin', d.note || null]);
+    // Souk Pay records: money in, the payout of each share, or the refund.
+    if (d.action === 'confirm') await onEscrowHeld(client, row, req.user.id);
+    if (d.action === 'release') row.settlement = await onEscrowReleased(client, row, req.user.id, d.ref);
+    if (d.action === 'refund') {
+      // Refunding a receipt that was never confirmed still means the money had arrived: record it first.
+      if (row.payment_status === 'submitted') await onEscrowHeld(client, row, req.user.id);
+      await onEscrowRefunded(client, row, req.user.id, d.ref);
+    }
     return row;
   });
-  const data = { id: o.id, title: o.product_title, amount: Number(d.action === 'release' ? o.item_price : o.total), reason: d.note || null };
+  const sellerGets = o.settlement ? Number(o.settlement.seller_amount) : Number(o.item_price);
+  const data = { id: o.id, title: o.product_title, amount: d.action === 'release' ? sellerGets : Number(o.total), reason: d.note || null };
   if (who === 'buyer' || who === 'both') await notify(o.buyer_id, type, data, `/orders/${o.id}`);
   if (who === 'both') await notify(o.seller_id, type, data, `/orders/${o.id}`);
   res.json({ paymentStatus: to });

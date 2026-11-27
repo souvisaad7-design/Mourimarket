@@ -98,6 +98,11 @@ export const SECTIONS = {
     maxDays: z.number().int().min(1).max(30),
     extendMinutes: z.number().int().min(0).max(30),
   }),
+  // Souk Pay: the platform's commission on items and on delivery fees (0 % = free).
+  pay: z.object({
+    commissionPct: z.number().min(0).max(30),
+    deliveryCommissionPct: z.number().min(0).max(50),
+  }),
   payment: z.object({ bankily: text(40), masrvi: text(40), sedad: text(40), accountName: text(80) }),
   texts: z.object({ ar: langTexts, fr: langTexts, en: langTexts, hs: langTexts.default({}) }),
 };
@@ -127,6 +132,7 @@ export const defaults = () => ({
   community: { enabled: true, liveEnabled: true, hostFanout: 4, relayFanout: 2, maxDepth: 6, autoHideReports: 5 },
   season: { eid: { enabled: false, date: '' } },
   auctions: { enabled: true, minHours: 6, maxDays: 7, extendMinutes: 3 },
+  pay: { commissionPct: 0, deliveryCommissionPct: 0 },
   payment: { bankily: '', masrvi: '', sedad: '', accountName: 'سوق شنقيط' },
   texts: { ar: {}, fr: {}, en: {}, hs: {} },
 });

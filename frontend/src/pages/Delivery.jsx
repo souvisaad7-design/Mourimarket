@@ -613,6 +613,9 @@ function CourierDashboard({ courier, reload }) {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {tiles.map(([icon, label, v]) => <div key={label} className="card p-4"><p className="text-xs text-slate-500"><span aria-hidden="true">{icon}</span> {label}</p><p className="mt-1 text-xl font-bold ltr-nums">{v}</p></div>)}
       </div>
+      <Link to="/wallet" className="flex items-center justify-between gap-3 rounded-2xl bg-amber-50 p-4 text-sm font-semibold text-amber-900 hover:bg-amber-100">
+        <span>💳 {t('pay.courierLink')}</span><span aria-hidden="true" className="inline-block rtl:rotate-180">→</span>
+      </Link>
       <div className="grid gap-3 md:grid-cols-2">
         <section className="card p-5">
           <label className="flex cursor-pointer items-start justify-between gap-4">

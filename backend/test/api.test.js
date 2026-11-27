@@ -2589,3 +2589,124 @@ describe('Auctions', () => {
     assert.equal((await call('/api/meta')).data.auctions.maxDays, 7);
   });
 });
+
+describe('Souk Pay', () => {
+  let admin; let seller; let buyer; let courier; let sellerId; let courierUserId;
+  const NKC = { lat: 18.0735, lng: -15.9582 };
+  const listing = async (title, price) => {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries({ title, description: 'سلعة لاختبار سوق باي', price: String(price), city: 'nouakchott', condition: 'used', categoryId: '1' })) fd.append(k, v);
+    fd.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+    const id = (await call('/api/products', { method: 'POST', token: seller, form: fd })).data.product.id;
+    await pool.query("UPDATE products SET status = 'approved' WHERE id = $1", [id]);
+    return id;
+  };
+  const deliver = async (pid) => {
+    const r = await call('/api/orders', { method: 'POST', token: buyer, body: { productId: pid, city: 'nouakchott', phone: '22334455', ...NKC } });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    const oid = r.data.order.id;
+    const move = (tok, status) => call(`/api/orders/${oid}/status`, { method: 'POST', token: tok, body: { status } });
+    assert.equal((await move(seller, 'accepted')).status, 200);
+    assert.equal((await call(`/api/orders/${oid}/claim`, { method: 'POST', token: courier })).status, 200);
+    for (const st of ['picked_up', 'on_the_way', 'delivered']) assert.equal((await move(courier, st)).status, 200, st);
+    return (await pool.query('SELECT * FROM orders WHERE id = $1', [oid])).rows[0];
+  };
+  const me = async (tok) => (await call('/api/pay/me', { token: tok })).data;
+  before(async () => {
+    admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
+    seller = await login('amana@example.mr'); buyer = await login('buyer@example.mr'); courier = await login('mohamed@example.mr');
+    sellerId = (await call('/api/auth/me', { token: seller })).data.user.id;
+    courierUserId = (await call('/api/auth/me', { token: courier })).data.user.id;
+    await pool.query("INSERT INTO couriers (user_id, status, phone, city, vehicle) VALUES ($1, 'approved', '+22246009988', 'nouakchott', 'motorbike') ON CONFLICT (user_id) DO UPDATE SET status = 'approved'", [courierUserId]);
+  });
+
+  it('splits a delivered cash order and records the cash the courier collected', async () => {
+    const o = await deliver(await listing('مكيف لسوق باي', 10000));
+    const st = (await pool.query('SELECT * FROM order_settlements WHERE order_id = $1', [o.id])).rows[0];
+    assert.equal(Number(st.seller_amount), 10000);
+    assert.equal(Number(st.courier_amount), Number(o.delivery_fee));
+    assert.equal(Number(st.platform_amount), 0, 'free: no commission by default');
+    const c = await me(courier);
+    assert.equal(c.position.courier.cash, 10000, 'the courier carries the seller\'s money, keeps the fee');
+    assert.equal(c.position.courier.earned, Number(o.delivery_fee));
+    const s = await me(seller);
+    assert.equal(s.position.seller.due, 10000);
+    assert.equal(s.sales[0].order_id, o.id);
+  });
+
+  it('hand-over: the courier declares, the seller confirms, balances go to zero', async () => {
+    const oid = (await me(courier)).deliveries[0].order_id;
+    assert.equal((await call(`/api/pay/orders/${oid}/handover`, { method: 'POST', token: seller })).status, 404, 'only the courier');
+    const h = await call(`/api/pay/orders/${oid}/handover`, { method: 'POST', token: courier, body: {} });
+    assert.equal(h.status, 201, JSON.stringify(h.data));
+    assert.equal((await call(`/api/pay/orders/${oid}/handover`, { method: 'POST', token: courier, body: {} })).data.error, 'handover_exists');
+    assert.equal((await me(courier)).position.courier.pending, 10000);
+    assert.equal((await call(`/api/pay/transfers/${h.data.transfer.id}/confirm`, { method: 'POST', token: courier })).status, 404, 'the receiver confirms');
+    assert.equal((await call(`/api/pay/transfers/${h.data.transfer.id}/confirm`, { method: 'POST', token: seller })).status, 200);
+    assert.equal((await me(courier)).position.courier.cash, 0);
+    assert.equal((await me(seller)).position.seller.due, 0);
+    const n = await pool.query("SELECT 1 FROM notifications WHERE type = 'pay_confirmed' AND user_id = $1", [courierUserId]);
+    assert.ok(n.rowCount >= 1);
+  });
+
+  it('with a commission, the platform share stays with the courier until handed in', async () => {
+    const s = (await call('/api/admin/settings', { token: admin })).data.settings;
+    assert.equal((await call('/api/admin/settings', { method: 'PUT', token: admin, body: { pay: { commissionPct: 99 } } })).status, 400);
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { pay: { ...s.pay, commissionPct: 5, deliveryCommissionPct: 10 } } });
+    const o = await deliver(await listing('ثلاجة بعمولة', 20000));
+    const fee = Number(o.delivery_fee);
+    const st = (await pool.query('SELECT * FROM order_settlements WHERE order_id = $1', [o.id])).rows[0];
+    assert.equal(Number(st.seller_amount), 19000);
+    assert.equal(Number(st.platform_amount), 1000 + Math.round(fee * 0.1));
+    assert.equal(Number(st.seller_amount) + Number(st.courier_amount) + Number(st.platform_amount), Number(o.total));
+    const h = await call(`/api/pay/orders/${o.id}/handover`, { method: 'POST', token: courier, body: {} });
+    await call(`/api/pay/transfers/${h.data.transfer.id}/confirm`, { method: 'POST', token: seller });
+    const sum = (await call('/api/admin/pay/summary', { token: admin })).data;
+    const row = sum.couriers.find((c) => c.id === courierUserId);
+    assert.equal(row.cash, Number(st.platform_amount), 'the courier still holds the commission');
+    assert.equal(sum.totals.platform_due, Number(st.platform_amount));
+    // The admin records the cash handed in.
+    assert.equal((await call('/api/admin/pay/transfers', { method: 'POST', token: admin, body: { from: 'courier', to: 'platform', amount: 100, kind: 'remittance' } })).data.fields.fromUser, 'required');
+    const r = await call('/api/admin/pay/transfers', { method: 'POST', token: admin, body: { from: 'courier', fromUser: courierUserId, to: 'platform', amount: Number(st.platform_amount), kind: 'remittance', method: 'cash', ref: 'REC-1' } });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    const after = (await call('/api/admin/pay/summary', { token: admin })).data;
+    assert.ok(!after.couriers.some((c) => c.id === courierUserId), 'nothing left with the courier');
+    assert.equal(after.totals.platform_due, 0);
+    assert.equal(after.totals.platform_held, Number(st.platform_amount));
+    await call('/api/admin/settings', { method: 'PUT', token: admin, body: { pay: { commissionPct: 0, deliveryCommissionPct: 0 } } });
+  });
+
+  it('a seller who did not get the money disputes; the admin decides', async () => {
+    const o = await deliver(await listing('هاتف متنازع', 5000));
+    const h = (await call(`/api/pay/orders/${o.id}/handover`, { method: 'POST', token: courier, body: {} })).data.transfer;
+    assert.equal((await call(`/api/pay/transfers/${h.id}/dispute`, { method: 'POST', token: seller, body: { reason: 'لم أستلم شيئاً' } })).status, 200);
+    assert.equal((await call(`/api/pay/transfers/${h.id}/confirm`, { method: 'POST', token: seller })).data.error, 'transfer_closed');
+    const list = (await call('/api/admin/pay/transfers?status=disputed', { token: admin })).data.items;
+    assert.ok(list.some((t) => t.id === h.id));
+    assert.equal((await call('/api/admin/pay/summary', { token: admin })).data.totals.disputed, 1);
+    assert.equal((await call(`/api/admin/pay/transfers/${h.id}`, { method: 'PATCH', token: seller, body: { action: 'cancel' } })).status, 403);
+    assert.equal((await call(`/api/admin/pay/transfers/${h.id}`, { method: 'PATCH', token: admin, body: { action: 'cancel', note: 'لم يثبت التسليم' } })).data.status, 'cancelled');
+    assert.equal((await me(courier)).position.courier.cash, 5000, 'the courier still owes it');
+    // The courier can declare again once it is really done.
+    assert.equal((await call(`/api/pay/orders/${o.id}/handover`, { method: 'POST', token: courier, body: {} })).status, 201);
+  });
+
+  it('secure payments are recorded too, and the CSV export works for admins only', async () => {
+    const tr = (await call('/api/admin/pay/transfers', { token: admin })).data.items;
+    assert.ok(tr.some((t) => t.kind === 'escrow_in'), 'the earlier secure payment was recorded');
+    assert.ok(tr.some((t) => t.kind === 'refund'));
+    const sum = (await call('/api/admin/pay/summary', { token: admin })).data;
+    assert.ok(sum.providers.find((p) => p.key === 'cod').active);
+    assert.equal(sum.providers.find((p) => p.key === 'bankily').active, false);
+    const csv = await fetch(`${base}/api/admin/pay/export.csv`, { headers: { Authorization: `Bearer ${admin}` } });
+    assert.equal(csv.status, 200);
+    const text = await csv.text();
+    assert.ok(text.includes('cod_collected') && text.includes('handover'));
+    assert.equal((await fetch(`${base}/api/admin/pay/export.csv`, { headers: { Authorization: `Bearer ${buyer}` } })).status, 403);
+  });
+
+  it('gateway webhooks are refused while no gateway is connected', async () => {
+    assert.equal((await call('/api/pay/webhook/bankily', { method: 'POST', body: { status: 'paid' } })).status, 503);
+    assert.equal((await call('/api/pay/webhook/cod', { method: 'POST', body: {} })).status, 404);
+  });
+});
