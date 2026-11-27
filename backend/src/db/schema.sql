@@ -950,3 +950,16 @@ CREATE TABLE IF NOT EXISTS meeting_places (
 );
 CREATE INDEX IF NOT EXISTS meeting_places_city_idx ON meeting_places (city, sort_order);
 ALTER TABLE meeting_places ENABLE ROW LEVEL SECURITY;
+
+-- ---------- Weekly livestock markets (admin-managed): which town holds its market on which days ----------
+CREATE TABLE IF NOT EXISTS livestock_markets (
+  id          SERIAL PRIMARY KEY,
+  city        VARCHAR(40) NOT NULL,
+  name_ar     VARCHAR(120) NOT NULL,
+  name_fr     VARCHAR(120) NOT NULL DEFAULT '',
+  days        SMALLINT[] NOT NULL DEFAULT '{}',   -- 0 = Sunday … 6 = Saturday
+  notes       VARCHAR(200) NOT NULL DEFAULT '',
+  is_active   BOOLEAN NOT NULL DEFAULT true,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE livestock_markets ENABLE ROW LEVEL SECURITY;

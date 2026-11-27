@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ProductGrid, ProductGridSkeleton } from '../components/ProductCard.jsx';
 import { CategoryIcon, CitySelect, EmptyState, ErrorBox, Icon, Pagination } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
@@ -166,6 +166,11 @@ export default function Products() {
         ))}
       </div>
 
+      {current.category === 'livestock' && (
+        <Link to="/livestock" className="mb-4 flex items-center gap-3 rounded-2xl bg-amber-50 p-3 text-sm font-semibold text-amber-900 ring-1 ring-amber-200">
+          <span className="text-2xl" aria-hidden="true">🐪</span><span className="flex-1">{t('livestock.title')} · {t('livestock.marketsTitle')}</span><span aria-hidden="true">←</span>
+        </Link>
+      )}
       <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
         <aside className={`${showFilters ? 'block' : 'hidden'} lg:block`}>{filters}</aside>
         <section>

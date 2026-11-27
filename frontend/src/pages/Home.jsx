@@ -157,6 +157,11 @@ export default function Home() {
   const cities = useApi('/stats/cities');
 
   const hasFeatured = featured.data?.items?.length > 0;
+  // Each listing appears once on the page: featured first, then the newest not already shown, then deals.
+  const featuredIds = new Set((featured.data?.items || []).map((p) => p.id));
+  const latestItems = (latest.data?.items || []).filter((p) => !featuredIds.has(p.id));
+  const shownIds = new Set([...featuredIds, ...latestItems.map((p) => p.id)]);
+  const dealItems = (deals.data?.items || []).filter((p) => !shownIds.has(p.id));
   // Sections the admin switched off (Admin → Menus & links → Home page sections).
   const show = { hero: true, categories: true, latest: true, promo: true, deals: true, cities: true, stores: true, features: true, ...useSettings().settings.menu?.home };
 
@@ -175,9 +180,9 @@ export default function Home() {
       <AiPromo />
       <Recommendations limit={8} compact />
 
-      {show.latest && <section>
+      {show.latest && (latest.loading || !latest.data?.items?.length || latestItems.length > 0) && <section>
         <SectionTitle action={<PillLink to="/products">{t('common.viewAll')}</PillLink>}>{t('home.latest')}</SectionTitle>
-        {latest.loading ? <ProductGridSkeleton /> : latest.data?.items?.length ? <ProductGrid items={latest.data.items} /> : (
+        {latest.loading ? <ProductGridSkeleton /> : latestItems.length ? <ProductGrid items={latestItems} /> : (
           <EmptyState icon="plus" title={t('home.noListingsYet')}>
             <Link to="/sell" className="btn-accent rounded-full"><Icon name="plus" className="h-4 w-4" />{t('home.promoCta')}</Link>
           </EmptyState>
@@ -201,10 +206,10 @@ export default function Home() {
         <div className="order-2 lg:order-none"><PromoCard /></div>
       </section>}
 
-      {show.deals && deals.data?.items?.length > 0 && (
+      {show.deals && dealItems.length > 0 && (
         <section>
           <SectionTitle action={<PillLink to="/products?deals=1">{t('common.viewAll')}</PillLink>}><span aria-hidden="true">🔥 </span>{t('nav.offers')}</SectionTitle>
-          <ProductGrid items={deals.data.items} />
+          <ProductGrid items={dealItems} />
         </section>
       )}
 

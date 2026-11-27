@@ -2603,9 +2603,43 @@ deepMerge(ar, { lite: { title: 'وضع توفير البيانات', on: 'توف
 deepMerge(fr, { lite: { title: 'Mode économie de données', on: 'Économie de données : activée', off: 'Économie de données', showMap: 'Afficher la carte (consomme des données)' } });
 deepMerge(en, { lite: { title: 'Data saver mode', on: 'Data saver: on', off: 'Data saver', showMap: 'Tap to show the map (uses data)' } });
 
-export const messages = { ar, fr, en };
+// v46: permanent livestock market
+deepMerge(ar, { livestock: { nav: 'سوق المواشي', title: 'سوق المواشي', subtitle: 'إبل وبقر وغنم وماعز من المربّين في كل المدن، طوال السنة.', sell: 'بِع ماشيتك', none: 'لا توجد مواشٍ بهذه المواصفات الآن.', postWanted: 'اطلب ما تبحث عنه', safety: 'عاين الحيوان بنفسك قبل الدفع.|لا ترسل عربوناً لبائع لا تعرفه.|اسأل عن العمر والصحة والتلقيحات.|بلّغ عن أي إعلان مشبوه من صفحة الإعلان.', marketsTitle: 'أيام الأسواق الأسبوعية', today: 'اليوم' },
+  admin: { livestockMarkets: 'أسواق المواشي الأسبوعية' },
+  markets: { hint: 'الأسواق الأسبوعية للمواشي وأيامها في كل مدينة، تظهر في صفحة «سوق المواشي».', days: 'أيام السوق', notes: 'ملاحظات (اختياري)', add: 'إضافة سوق', empty: 'لا توجد أسواق بعد. أضف الأسواق التي تعرف أيامها.' } });
+deepMerge(fr, { livestock: { nav: 'Marché du bétail', title: 'Marché du bétail', subtitle: 'Chameaux, bovins, moutons et chèvres d’éleveurs de toutes les villes, toute l’année.', sell: 'Vendre du bétail', none: 'Aucun animal avec ces critères pour le moment.', postWanted: 'Publier une demande', safety: 'Voyez l’animal avant de payer.|N’envoyez pas d’acompte à un inconnu.|Demandez l’âge, la santé et les vaccins.|Signalez toute annonce suspecte.', marketsTitle: 'Jours de marché hebdomadaires', today: 'Aujourd’hui' },
+  admin: { livestockMarkets: 'Marchés à bétail' },
+  markets: { hint: 'Les marchés à bétail hebdomadaires et leurs jours, affichés sur la page « Marché du bétail ».', days: 'Jours de marché', notes: 'Notes (facultatif)', add: 'Ajouter un marché', empty: 'Aucun marché. Ajoutez ceux dont vous connaissez les jours.' } });
+deepMerge(en, { livestock: { nav: 'Livestock market', title: 'Livestock market', subtitle: 'Camels, cattle, sheep and goats from breeders in every city, all year round.', sell: 'Sell livestock', none: 'No animals match these filters right now.', postWanted: 'Post what you need', safety: 'See the animal before paying.|Never send a deposit to a stranger.|Ask about age, health and vaccinations.|Report any suspicious listing.', marketsTitle: 'Weekly market days', today: 'Today' },
+  admin: { livestockMarkets: 'Livestock markets' },
+  markets: { hint: 'Weekly livestock markets and their days in each city, shown on the “Livestock market” page.', days: 'Market days', notes: 'Notes (optional)', add: 'Add a market', empty: 'No markets yet. Add the ones whose days you know.' } });
+
+// v47: Hassaniya (الحسانية) – Arabic with the most visible phrases in the Mauritanian dialect.
+// Everything not listed here stays in standard Arabic; the admin can refine any text (Admin → Texts).
+const hs = deepMerge(structuredClone(ar), {
+  brand: { tagline: 'سوقك الموريتاني، كل شي فبلاصة وحدة' },
+  nav: {
+    post: 'حطّ إعلانك', messages: 'الرسايل', login: 'ادخل', loginShort: 'ادخل', register: 'افتح حساب', myAccount: 'حسابي',
+    allProducts: 'كاع الإعلانات',
+  },
+  common: { viewAll: 'شوف كاع', search: 'دوّر', searchPlaceholder: 'شنهو اللي تدور؟', sold: 'اتباع' },
+  search: { headerPlaceholder: 'شنهو اللي تدور؟' },
+  home: {
+    latest: 'إعلانات جداد', browseCategories: 'شوف الأصناف', allCategories: 'كاع الأصناف', featured: 'إعلانات مميّزة', promoCta: 'حطّ إعلانك',
+    noListingsYet: 'مازال ماه ثمّ إعلانات. كون انت لوّل ينشر على {site}!',
+  },
+  product: {
+    contactSeller: 'كلّم البايع', loginToContact: 'ادخل حسابك باش تكلّم البايع', messagePlaceholder: 'اكتب للبايع…', share: 'شارك', showPhone: 'ورّيني النمرة',
+  },
+  form: { newTitle: 'إعلان جديد', publish: 'انشر إعلانك', descriptionPh: 'قول حالتها ومواصفاتها وكل شي يهم الشاري…' },
+  ai: { assistantHello: 'مرحبا 👋 شنهو اللي تدور اليوم؟' },
+  eid: { daysLeft: 'العيد بعد {n} يوم' },
+});
+
+export const messages = { ar, fr, en, hs };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },
+  { code: 'hs', label: 'الحسانية', dir: 'rtl', locale: 'ar-MR', base: 'ar' },
   { code: 'fr', label: 'Français', dir: 'ltr', locale: 'fr-FR' },
   { code: 'en', label: 'English', dir: 'ltr', locale: 'en-GB' },
 ];

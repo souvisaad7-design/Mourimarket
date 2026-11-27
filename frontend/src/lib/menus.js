@@ -9,6 +9,7 @@ export const BUILTIN_LINKS = {
   social: { to: '/social', emoji: '💬', label: 'social.nav' },
   live: { to: '/live', emoji: '🔴', label: 'live.nav' },
   eid: { to: '/eid', emoji: '🐑', label: 'eid.nav' },
+  livestock: { to: '/livestock', emoji: '🐪', label: 'livestock.nav' },
   about: { to: '/about', icon: 'info', label: 'nav.about' },
   help: { to: '/help', icon: 'help', label: 'nav.help' },
   safety: { to: '/safety', icon: 'shield', label: 'footer.safety' },
@@ -17,7 +18,7 @@ export const BUILTIN_LINKS = {
 
 const b = (key) => ({ type: 'builtin', key });
 export const DEFAULT_HEADER = ['home', 'products', 'categories', 'stores', 'offers', 'live', 'social', 'wanted', 'about'].map(b);
-export const DEFAULT_FOOTER = ['products', 'live', 'social', 'wanted', 'stores', 'sell', 'offers', 'about', 'help', 'safety'].map(b);
+export const DEFAULT_FOOTER = ['products', 'livestock', 'live', 'social', 'wanted', 'stores', 'sell', 'offers', 'about', 'help', 'safety'].map(b);
 export const HOME_SECTIONS = ['hero', 'categories', 'latest', 'promo', 'deals', 'cities', 'stores', 'features'];
 
 /** Resolve a menu item to { to, label, icon, emoji, end, dropdown, external }. */

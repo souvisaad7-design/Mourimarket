@@ -17,14 +17,17 @@ function lookup(dict, key) {
 }
 
 export function I18nProvider({ children }) {
-  const [lang, setLangState] = useState(readStoredLang);
+  // uiLang: the language chosen in the menu. Hassaniya (hs) is shown with its own texts but behaves as
+  // Arabic everywhere else (dates, numbers, data sent to the server), so `lang` is 'ar' for it.
+  const [uiLang, setLangState] = useState(readStoredLang);
+  const lang = LANGS.find((l) => l.code === uiLang)?.base || uiLang;
   // Texts the admin changed from the panel take precedence over the built-in ones.
   const { settings } = useSettings();
   const overrides = settings.texts;
   // The site's name: the admin's (Admin → Identity & appearance) or the default for this language.
   const siteName = settings.appearance?.siteName || lookup(messages[lang], 'brand.name') || lookup(messages.ar, 'brand.name');
   useEffect(() => { setCurrentSiteName(siteName); }, [siteName]);
-  const meta = LANGS.find((l) => l.code === lang);
+  const meta = LANGS.find((l) => l.code === uiLang) || LANGS[0];
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -38,14 +41,14 @@ export function I18nProvider({ children }) {
 
   const t = useCallback(
     (key, vars) => {
-      const own = overrides?.[lang]?.[key];
-      let s = (own || undefined) ?? lookup(messages[lang], key) ?? (overrides?.ar?.[key] || undefined) ?? lookup(messages.ar, key) ?? key;
+      const own = overrides?.[uiLang]?.[key];
+      let s = (own || undefined) ?? lookup(messages[uiLang], key) ?? (overrides?.ar?.[key] || undefined) ?? lookup(messages.ar, key) ?? key;
       if (typeof s !== 'string') return s;
       if (s.includes('{site}')) s = s.replaceAll('{site}', siteName);
       if (vars) s = s.replace(/\{(\w+)\}/g, (_, k) => (vars[k] ?? ''));
       return s;
     },
-    [lang, overrides, siteName],
+    [uiLang, overrides, siteName],
   );
 
   const value = useMemo(() => {
@@ -56,6 +59,7 @@ export function I18nProvider({ children }) {
     const rtf = new Intl.RelativeTimeFormat(meta.locale === 'ar-MR' ? 'ar-u-nu-latn' : meta.locale, { numeric: 'auto' });
     return {
       lang,
+      uiLang,
       siteName,
       dir: meta.dir,
       setLang,
@@ -83,7 +87,7 @@ export function I18nProvider({ children }) {
         return rtf.format(0, 'minute');
       },
     };
-  }, [lang, meta, setLang, t, siteName]);
+  }, [lang, uiLang, meta, setLang, t, siteName]);
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }

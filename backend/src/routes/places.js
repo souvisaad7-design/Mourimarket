@@ -62,6 +62,49 @@ admin.delete('/meeting-places/:id', async (req, res) => {
   await query('DELETE FROM meeting_places WHERE id = $1', [parseInt(req.params.id, 10) || 0]);
   res.json({ ok: true });
 });
+// ---------- Weekly livestock markets ----------
+const MKT = 'id, city, name_ar, name_fr, days, notes, is_active';
+const marketSchema = z.object({
+  city: cityKey,
+  name_ar: z.string().trim().min(2).max(120),
+  name_fr: z.string().trim().max(120).default(''),
+  days: z.array(z.coerce.number().int().min(0).max(6)).max(7).default([]),
+  notes: z.string().trim().max(200).default(''),
+  is_active: z.boolean().default(true),
+});
+
+router.get('/livestock-markets', async (_req, res) => {
+  const { rows } = await query(`SELECT ${MKT} FROM livestock_markets WHERE is_active ORDER BY city, id`);
+  res.json({ items: rows });
+});
+admin.get('/livestock-markets', async (_req, res) => {
+  const { rows } = await query(`SELECT ${MKT} FROM livestock_markets ORDER BY city, id`);
+  res.json({ items: rows });
+});
+admin.post('/livestock-markets', async (req, res) => {
+  const d = parse(marketSchema, req.body);
+  await assertCity(d.city);
+  const { rows } = await query(
+    `INSERT INTO livestock_markets (city, name_ar, name_fr, days, notes, is_active) VALUES ($1, $2, $3, $4, $5, $6) RETURNING ${MKT}`,
+    [d.city, d.name_ar, d.name_fr, [...new Set(d.days)].sort(), d.notes, d.is_active],
+  );
+  res.status(201).json({ market: rows[0] });
+});
+admin.put('/livestock-markets/:id', async (req, res) => {
+  const d = parse(marketSchema, req.body);
+  await assertCity(d.city);
+  const { rows } = await query(
+    `UPDATE livestock_markets SET city = $2, name_ar = $3, name_fr = $4, days = $5, notes = $6, is_active = $7 WHERE id = $1 RETURNING ${MKT}`,
+    [parseInt(req.params.id, 10) || 0, d.city, d.name_ar, d.name_fr, [...new Set(d.days)].sort(), d.notes, d.is_active],
+  );
+  if (!rows[0]) throw notFound();
+  res.json({ market: rows[0] });
+});
+admin.delete('/livestock-markets/:id', async (req, res) => {
+  await query('DELETE FROM livestock_markets WHERE id = $1', [parseInt(req.params.id, 10) || 0]);
+  res.json({ ok: true });
+});
+
 router.use('/admin', admin);
 
 export default router;

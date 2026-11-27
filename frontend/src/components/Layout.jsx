@@ -62,7 +62,7 @@ function CityChip() {
 }
 
 export function LangSwitcher({ compact, dark = false }) {
-  const { lang, setLang } = useI18n();
+  const { uiLang: lang, setLang } = useI18n();
   if (dark) {
     return (
       <label className="relative flex items-center gap-1 text-white">

@@ -9,6 +9,56 @@ import { useApi, useDocumentTitle } from '../../lib/hooks.js';
 const KINDS = ['mall', 'police', 'station', 'market', 'bank', 'other'];
 const EMPTY = { city: '', name_ar: '', name_fr: '', address: '', kind: 'mall', lat: '', lng: '', is_active: true, sort_order: 0 };
 
+const MARKET_EMPTY = { city: '', name_ar: '', name_fr: '', days: [], notes: '', is_active: true };
+
+/** Weekly livestock markets: town, market days, notes. */
+function MarketsSection() {
+  const { t, lang } = useI18n();
+  const { meta, notify } = useApp();
+  const { data, reload } = useApi('/admin/livestock-markets');
+  const [f, setF] = useState(MARKET_EMPTY);
+  const [error, setError] = useState(null);
+  const dayName = (d) => new Intl.DateTimeFormat(lang === 'ar' ? 'ar' : lang, { weekday: 'long' }).format(new Date(Date.UTC(2023, 0, 1 + d, 12)));
+  const cityName = (k) => meta.cities?.find((c) => c.key === k)?.[lang] || k;
+  const save = async (e) => {
+    e.preventDefault(); setError(null);
+    try { await api('/admin/livestock-markets', { method: 'POST', body: f }); notify(t('common.changesSaved')); setF(MARKET_EMPTY); reload(); } catch (err) { setError(err); }
+  };
+  return (
+    <section className="space-y-3">
+      <h2 className="text-xl font-bold">🐪 {t('admin.livestockMarkets')}</h2>
+      <p className="text-sm text-slate-500">{t('markets.hint')}</p>
+      <form onSubmit={save} className="card grid gap-3 p-5 sm:grid-cols-2">
+        <Field label={t('form.city')}><CitySelect value={f.city} onChange={(v) => setF({ ...f, city: v })} cities={meta.cities} placeholder={t('form.choose')} required /></Field>
+        <Field label={t('places.nameAr')}><input className="input" required minLength={2} maxLength={120} value={f.name_ar} onChange={(e) => setF({ ...f, name_ar: e.target.value })} /></Field>
+        <Field label={t('markets.days')}>
+          <div className="flex flex-wrap gap-1.5">
+            {[6, 0, 1, 2, 3, 4, 5].map((d) => (
+              <label key={d} className={`cursor-pointer rounded-full px-3 py-1 text-xs font-semibold ${f.days.includes(d) ? 'bg-brand-700 text-white' : 'bg-slate-100 text-slate-700'}`}>
+                <input type="checkbox" className="sr-only" checked={f.days.includes(d)} onChange={(e) => setF({ ...f, days: e.target.checked ? [...f.days, d] : f.days.filter((x) => x !== d) })} />{dayName(d)}
+              </label>
+            ))}
+          </div>
+        </Field>
+        <Field label={t('markets.notes')} optional><input className="input" maxLength={200} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></Field>
+        <ErrorBox error={error} />
+        <div className="sm:col-span-2"><button className="btn-primary" disabled={!f.days.length}>+ {t('markets.add')}</button></div>
+      </form>
+      {!data?.items?.length ? <p className="text-sm text-slate-500">{t('markets.empty')}</p> : (
+        <ul className="space-y-2">
+          {data.items.map((m) => (
+            <li key={m.id} className="card flex flex-wrap items-center gap-3 p-3 text-sm">
+              <span className="badge bg-slate-100 text-slate-700">{cityName(m.city)}</span>
+              <span className="min-w-0 flex-1"><span className="font-semibold">{m.name_ar}</span> <span className="text-xs text-slate-500">· {m.days.map(dayName).join('، ')}</span></span>
+              <button type="button" className="btn-ghost px-2 py-1 text-xs text-rose-600" onClick={async () => { if (window.confirm(t('places.deleteConfirm', { name: m.name_ar }))) { await api(`/admin/livestock-markets/${m.id}`, { method: 'DELETE' }); reload(); } }}>{t('common.delete')}</button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 export default function AdminPlaces() {
   const { t, lang } = useI18n();
   const { meta, notify } = useApp();
@@ -66,6 +116,7 @@ export default function AdminPlaces() {
           ))}
         </ul>
       )}
+      <MarketsSection />
     </div>
   );
 }

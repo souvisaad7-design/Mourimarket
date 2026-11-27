@@ -16,7 +16,7 @@ const L = (max = 200) => z.object({ ar: text(max), fr: text(max), en: text(max) 
 // A link inside the site ("/products?deals=1") or to another site (https://…).
 const href = z.string().trim().max(300).refine((v) => v === '' || internal(v) || /^https:\/\//i.test(v), 'link');
 const imageUrl = z.string().trim().max(300).refine((v) => v === '' || /^\/uploads\/f\/\d+$/.test(v) || /^https:\/\//i.test(v), 'image');
-const BUILTIN_LINKS = ['home', 'products', 'categories', 'stores', 'offers', 'wanted', 'social', 'live', 'eid', 'about', 'help', 'safety', 'sell'];
+const BUILTIN_LINKS = ['home', 'products', 'categories', 'stores', 'offers', 'wanted', 'social', 'live', 'eid', 'livestock', 'about', 'help', 'safety', 'sell'];
 const menuItem = z.discriminatedUnion('type', [
   z.object({ type: z.literal('builtin'), key: z.enum(BUILTIN_LINKS) }),
   z.object({ type: z.literal('link'), label: L(60), to: href.refine((v) => v !== '', 'required') }),
@@ -92,7 +92,7 @@ export const SECTIONS = {
     eid: z.object({ enabled: z.boolean(), date: z.string().trim().refine((v) => v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v), 'date') }),
   }),
   payment: z.object({ bankily: text(40), masrvi: text(40), sedad: text(40), accountName: text(80) }),
-  texts: z.object({ ar: langTexts, fr: langTexts, en: langTexts }),
+  texts: z.object({ ar: langTexts, fr: langTexts, en: langTexts, hs: langTexts.default({}) }),
 };
 
 export const defaults = () => ({
@@ -120,7 +120,7 @@ export const defaults = () => ({
   community: { enabled: true, liveEnabled: true, hostFanout: 4, relayFanout: 2, maxDepth: 6, autoHideReports: 5 },
   season: { eid: { enabled: false, date: '' } },
   payment: { bankily: '', masrvi: '', sedad: '', accountName: 'سوق شنقيط' },
-  texts: { ar: {}, fr: {}, en: {} },
+  texts: { ar: {}, fr: {}, en: {}, hs: {} },
 });
 
 let cache = null;

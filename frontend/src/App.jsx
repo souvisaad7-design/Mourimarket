@@ -42,7 +42,7 @@ import SavedSearches from './pages/SavedSearches.jsx';
 import VerifyPhone from './pages/VerifyPhone.jsx';
 import Wanted from './pages/Wanted.jsx';
 import SoukAI from './pages/SoukAI.jsx';
-import Eid from './pages/Eid.jsx';
+import Eid, { Livestock } from './pages/Eid.jsx';
 import Social, { PostPage } from './pages/Social.jsx';
 import LiveList, { LiveForm, LiveRoom } from './pages/Live.jsx';
 const AdminCommunity = lazy(() => import('./pages/admin/AdminCommunity.jsx'));
@@ -106,6 +106,7 @@ export default function App() {
         <Route path="wanted" element={<Wanted />} />
         <Route path="ai" element={<SoukAI />} />
         <Route path="eid" element={<Eid />} />
+        <Route path="livestock" element={<Livestock />} />
         <Route path="social" element={<Social />} />
         <Route path="social/posts/:id" element={<PostPage />} />
         <Route path="live" element={<LiveList />} />

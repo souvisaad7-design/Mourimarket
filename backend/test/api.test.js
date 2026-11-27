@@ -2435,3 +2435,32 @@ describe('Image thumbnails', () => {
     assert.equal((await fetch(`${url}?w=999`)).headers.get('content-type'), 'image/png', 'other widths: the original');
   });
 });
+
+// ---------- Weekly livestock markets ----------
+describe('Livestock markets', () => {
+  it('admin lists weekly market days per town', async () => {
+    const admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
+    const r = await call('/api/admin/livestock-markets', { method: 'POST', token: admin, body: { city: 'nouakchott', name_ar: 'سوق مواشي (اختبار)', days: [5, 1, 5], notes: 'من الصباح' } });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    assert.deepEqual(r.data.market.days, [1, 5]);
+    assert.equal((await call('/api/admin/livestock-markets', { method: 'POST', token: admin, body: { city: 'nouakchott', name_ar: 'x y', days: [9] } })).status, 400);
+    assert.ok((await call('/api/livestock-markets')).data.items.some((m) => m.id === r.data.market.id));
+    await call(`/api/admin/livestock-markets/${r.data.market.id}`, { method: 'DELETE', token: admin });
+    assert.deepEqual((await call('/api/livestock-markets')).data.items, []);
+  });
+});
+
+// ---------- Hassaniya ----------
+describe('Hassaniya interface', () => {
+  it('ships Hassaniya texts on top of Arabic and keeps admin overrides for it', async () => {
+    const { messages, LANGS } = await import('../../frontend/src/i18n/messages.js');
+    assert.ok(LANGS.some((l) => l.code === 'hs' && l.base === 'ar' && l.dir === 'rtl'));
+    assert.equal(messages.hs.product.contactSeller, 'كلّم البايع');
+    assert.equal(messages.hs.form.price, messages.ar.form.price, 'everything else falls back to Arabic');
+    assert.notEqual(messages.ar.product.contactSeller, 'كلّم البايع', 'Arabic untouched');
+    const admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
+    const r = await call('/api/admin/settings', { method: 'PUT', token: admin, body: { texts: { ar: {}, fr: {}, en: {}, hs: { 'nav.post': 'بيع حاجتك' } } } });
+    assert.equal(r.status, 200);
+    assert.equal((await call('/api/settings')).data.settings.texts.hs['nav.post'], 'بيع حاجتك');
+  });
+});
