@@ -10,6 +10,7 @@ import { normalizePhone } from '../lib/phone.js';
 import { getSettings } from '../lib/settings.js';
 import { onDelivered } from '../lib/pay.js';
 import { checkCoupon, useCoupon } from '../lib/coupons.js';
+import { staffAllows, staffOf } from '../lib/staff.js';
 import { limiter } from '../lib/rateLimit.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireVerifiedPhone } from '../middleware/phone.js';
@@ -102,6 +103,11 @@ router.post('/orders', requireVerifiedPhone, writeLimiter, async (req, res) => {
     }
     await client.query("INSERT INTO order_events (order_id, status, actor_id, actor_role) VALUES ($1, 'pending', $2, 'buyer')", [rows[0].id, req.user.id]);
     await notify(product.seller_id, 'order_new', { id: rows[0].id, title: product.title }, `/orders/${rows[0].id}`, client);
+    // Store employees who handle orders are told too.
+    const { rows: team } = await client.query(
+      "SELECT ss.user_id FROM store_staff ss JOIN stores s ON s.id = ss.store_id WHERE s.owner_id = $1 AND ss.role IN ('orders', 'manager')", [product.seller_id],
+    );
+    for (const m of team) await notify(m.user_id, 'order_new', { id: rows[0].id, title: product.title }, `/orders/${rows[0].id}`, client);
     return rows[0];
   });
   res.status(201).json({ order });
@@ -114,10 +120,11 @@ async function courierOf(userId) {
 }
 
 /** Roles the user has on this order: buyer, seller, courier, admin. */
-function rolesOn(order, user, courier) {
+function rolesOn(order, user, courier, staff = null) {
   const roles = [];
   if (order.buyer_id === user.id) roles.push('buyer');
-  if (order.seller_id === user.id) roles.push('seller');
+  // A store employee in charge of orders acts as the seller.
+  if (order.seller_id === user.id || staffAllows(staff, order.seller_id, 'orders')) roles.push('seller');
   if (courier && order.courier_id === courier.id) roles.push('courier');
   if (user.role === 'admin') roles.push('admin');
   return roles;
@@ -158,15 +165,16 @@ function shape(o, roles) {
 
 /** GET /api/orders?as=buyer|seller|courier – my orders (history included). */
 router.get('/orders', async (req, res) => {
-  const as = ['buyer', 'seller', 'courier'].includes(req.query.as) ? req.query.as : 'buyer';
-  const courier = await courierOf(req.user.id);
+  const as = ['buyer', 'seller', 'courier', 'store'].includes(req.query.as) ? req.query.as : 'buyer';
+  const [courier, staff] = await Promise.all([courierOf(req.user.id), staffOf(req.user.id)]);
   if (as === 'courier' && !courier) return res.json({ items: [] });
-  const where = as === 'buyer' ? 'o.buyer_id = $1' : as === 'seller' ? 'o.seller_id = $1' : 'o.courier_id = $1';
+  if (as === 'store' && !staffAllows(staff, staff?.owner_id, 'orders')) return res.json({ items: [] });
+  const where = as === 'buyer' ? 'o.buyer_id = $1' : as === 'seller' || as === 'store' ? 'o.seller_id = $1' : 'o.courier_id = $1';
   const { rows } = await query(
     `SELECT ${ORDER_SELECT} ${ORDER_FROM} WHERE ${where} ORDER BY (o.status IN ('delivered', 'cancelled')), o.created_at DESC LIMIT 100`,
-    [as === 'courier' ? courier.id : req.user.id],
+    [as === 'courier' ? courier.id : as === 'store' ? staff.owner_id : req.user.id],
   );
-  res.json({ items: rows.map((o) => shape(o, rolesOn(o, req.user, courier))) });
+  res.json({ items: rows.map((o) => shape(o, rolesOn(o, req.user, courier, staff))) });
 });
 
 /** GET /api/orders/:id – detail, timeline and rating, for the people involved. */
@@ -175,8 +183,8 @@ router.get('/orders/:id', async (req, res) => {
   const { rows } = await query(`SELECT ${ORDER_SELECT} ${ORDER_FROM} WHERE o.id = $1`, [id]);
   const o = rows[0];
   if (!o) throw notFound('order_not_found');
-  const courier = await courierOf(req.user.id);
-  const roles = rolesOn(o, req.user, courier);
+  const [courier, staff] = await Promise.all([courierOf(req.user.id), staffOf(req.user.id)]);
+  const roles = rolesOn(o, req.user, courier, staff);
   if (!roles.length) throw notFound('order_not_found');
   const [events, rating] = await Promise.all([
     query(`SELECT e.status, e.actor_role, e.note, e.created_at FROM order_events e WHERE e.order_id = $1 ORDER BY e.id`, [id]),
@@ -208,13 +216,13 @@ async function notifyParties(o, type, data, actorId, client) {
 router.post('/orders/:id/status', writeLimiter, async (req, res) => {
   const d = parse(z.object({ status: z.enum(['accepted', 'preparing', 'picked_up', 'on_the_way', 'delivered', 'cancelled']), note: z.string().trim().max(300).optional() }), req.body);
   const id = parseInt(req.params.id, 10) || 0;
-  const courier = await courierOf(req.user.id);
+  const [courier, staff] = await Promise.all([courierOf(req.user.id), staffOf(req.user.id)]);
   const result = await tx(async (client) => {
     const o = (await client.query(
       `SELECT o.*, c.user_id AS courier_user_id FROM orders o LEFT JOIN couriers c ON c.id = o.courier_id WHERE o.id = $1 FOR UPDATE OF o`, [id],
     )).rows[0];
     if (!o) throw notFound('order_not_found');
-    const roles = rolesOn(o, req.user, courier);
+    const roles = rolesOn(o, req.user, courier, staff);
     if (!roles.length) throw notFound('order_not_found');
     const allowed = FLOW[o.status]?.[d.status];
     if (!allowed) throw badRequest('invalid_transition');

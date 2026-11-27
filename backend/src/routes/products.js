@@ -6,6 +6,7 @@ import { recordView } from './stats.js';
 import { publishedInspection } from './inspections.js';
 import { deleteVideo, ownVideoUrl, videoEnabled, videoUploadToken, VIDEO_TYPES } from '../lib/video.js';
 import { requireVerifiedPhone } from '../middleware/phone.js';
+import { staffAllows, staffCan, staffOf } from '../lib/staff.js';
 import { z } from 'zod';
 import { config } from '../config.js';
 import { query, tx } from '../db.js';
@@ -188,12 +189,19 @@ router.get('/suggest', async (req, res) => {
 
 /** GET /api/products/mine – the seller's own listings in every status. */
 router.get('/mine', requireAuth, async (req, res) => {
+  // ?store=1 – a store employee sees the store's listings.
+  let ownerId = req.user.id;
+  if (req.query.store === '1') {
+    const staff = await staffOf(req.user.id);
+    if (!staffAllows(staff, staff?.owner_id, 'listings')) throw forbidden();
+    ownerId = staff.owner_id;
+  }
   const { rows } = await query(
     `SELECT ${PRODUCT_SELECT}, p.rejection_reason, p.sold_to_id,
        (SELECT COUNT(*) FROM favorites fv WHERE fv.product_id = p.id) AS favorites_count,
        (SELECT COUNT(*) FROM conversations cv WHERE cv.product_id = p.id) AS conversations_count
      ${PRODUCT_FROM} WHERE p.seller_id = $1 ORDER BY p.created_at DESC`,
-    [req.user.id],
+    [ownerId],
   );
   res.json({ items: rows });
 });
@@ -204,14 +212,17 @@ async function loadProduct(id) {
   return rows[0];
 }
 
-function assertOwner(product, user) {
-  if (product.seller_id !== user.id && user.role !== 'admin') throw forbidden();
+/** The seller, an admin, or a store employee allowed to manage listings (deleting needs a manager). */
+async function assertOwner(product, user, need = 'listings') {
+  if (product.seller_id === user.id || user.role === 'admin') return;
+  if (await staffCan(user.id, product.seller_id, need)) return;
+  throw forbidden();
 }
 
 /** POST /api/products/:id/bump – put my listing back at the top of "newest" (free once every N days). */
 router.post('/:id/bump', requireAuth, async (req, res) => {
   const product = await loadProduct(req.params.id);
-  assertOwner(product, req.user);
+  await assertOwner(product, req.user);
   if (product.status !== 'approved' || product.availability !== 'available') throw badRequest('product_not_featurable');
   const { freeBumpDays } = (await getSettings()).pricing;
   const { rows } = await query(
@@ -373,8 +384,11 @@ router.post('/', requireAuth, requireVerifiedPhone, postLimiter, upload.array('i
   // Buyers browse and message; only seller accounts can post listings.
   // An admin can post for anyone (sellerId) and the listing goes live at once.
   const isAdmin = req.user.role === 'admin';
-  if (req.user.account_type === 'buyer' && !isAdmin) throw forbidden('sellers_only');
-  let sellerId = req.user.id;
+  // A store employee can post for the store (forStore=1): the listing belongs to the store owner.
+  const staff = req.body.forStore === '1' ? await staffOf(req.user.id) : null;
+  if (req.body.forStore === '1' && !staffAllows(staff, staff?.owner_id, 'listings')) throw forbidden();
+  if (req.user.account_type === 'buyer' && !isAdmin && !staff) throw forbidden('sellers_only');
+  let sellerId = staff ? staff.owner_id : req.user.id;
   if (isAdmin && req.body.sellerId) {
     sellerId = parseInt(req.body.sellerId, 10) || 0;
     if (!(await query('SELECT 1 FROM users WHERE id = $1', [sellerId])).rowCount) throw badRequest('validation_error', { sellerId: 'not_found' });
@@ -412,7 +426,7 @@ router.post('/', requireAuth, requireVerifiedPhone, postLimiter, upload.array('i
 router.put('/:id', requireAuth, upload.array('images', MAX_IMAGES), async (req, res) => {
   const files = req.files || [];
   const product = await loadProduct(req.params.id);
-  assertOwner(product, req.user);
+  await assertOwner(product, req.user);
   const data = parse(productSchema, req.body);
   await assertCity(data.city);
     checkOldPrice(data);
@@ -463,7 +477,7 @@ router.put('/:id', requireAuth, upload.array('images', MAX_IMAGES), async (req, 
 /** POST /api/products/:id/voice (multipart "voice", "duration" in seconds) – the seller's spoken description, up to 90 s. */
 router.post('/:id/voice', requireAuth, chatUpload.single('voice'), async (req, res) => {
   const product = await loadProduct(req.params.id);
-  assertOwner(product, req.user);
+  await assertOwner(product, req.user);
   if (!req.file) throw badRequest('validation_error', { voice: 'required' });
   const duration = parseInt(req.body?.duration, 10) || 0;
   if (duration < 1 || duration > 90) throw badRequest('validation_error', { voice: 'too_long' });
@@ -475,7 +489,7 @@ router.post('/:id/voice', requireAuth, chatUpload.single('voice'), async (req, r
 
 router.delete('/:id/voice', requireAuth, async (req, res) => {
   const product = await loadProduct(req.params.id);
-  assertOwner(product, req.user);
+  await assertOwner(product, req.user);
   await query('UPDATE products SET voice_url = NULL, voice_duration = NULL WHERE id = $1', [product.id]);
   if (product.voice_url) removeUploads([product.voice_url]);
   res.json({ ok: true });
@@ -487,7 +501,7 @@ router.delete('/:id/voice', requireAuth, async (req, res) => {
  */
 router.patch('/:id/availability', requireAuth, async (req, res) => {
   const product = await loadProduct(req.params.id);
-  assertOwner(product, req.user);
+  await assertOwner(product, req.user);
   const data = parse(
     z.object({
       availability: z.enum(['available', 'sold']),
@@ -523,7 +537,7 @@ router.patch('/:id/availability', requireAuth, async (req, res) => {
 /** GET /api/products/:id/buyers – people who messaged about this listing (to record a sale). */
 router.get('/:id/buyers', requireAuth, async (req, res) => {
   const product = await loadProduct(req.params.id);
-  assertOwner(product, req.user);
+  await assertOwner(product, req.user);
   const { rows } = await query(
     `SELECT u.id, u.name FROM conversations cv JOIN users u ON u.id = cv.buyer_id
      WHERE cv.product_id = $1 ORDER BY cv.last_message_at DESC`,
@@ -534,7 +548,7 @@ router.get('/:id/buyers', requireAuth, async (req, res) => {
 
 router.delete('/:id', requireAuth, async (req, res) => {
   const product = await loadProduct(req.params.id);
-  assertOwner(product, req.user);
+  await assertOwner(product, req.user, 'manager');
   const { rows } = await query('SELECT url FROM product_images WHERE product_id = $1', [product.id]);
   await query('DELETE FROM products WHERE id = $1', [product.id]);
   removeUploads([...rows.map((r) => r.url), product.voice_url]);

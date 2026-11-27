@@ -46,6 +46,7 @@ import Eid, { Livestock } from './pages/Eid.jsx';
 import Auctions from './pages/Auctions.jsx';
 import Wallet from './pages/Wallet.jsx';
 import Invoice from './pages/Invoice.jsx';
+import StaffHome from './pages/Staff.jsx';
 const ProTools = lazy(() => import('./pages/Pro.jsx'));
 import Social, { PostPage } from './pages/Social.jsx';
 import LiveList, { LiveForm, LiveRoom } from './pages/Live.jsx';
@@ -74,7 +75,8 @@ function RequireAuth({ children, admin = false }) {
 function SellerOnly({ children }) {
   const { user } = useApp();
   const { t } = useI18n();
-  if (user.account_type !== 'buyer') return children;
+  // Sellers, and store employees posting for their store.
+  if (user.account_type !== 'buyer' || user.staff) return children;
   return (
     <div className="container-page max-w-3xl py-10">
       <h1 className="mb-2 text-2xl font-bold">{t('form.newTitle')}</h1>
@@ -115,6 +117,7 @@ export default function App() {
         <Route path="livestock" element={<Livestock />} />
         <Route path="auctions" element={<Auctions />} />
         <Route path="wallet" element={<RequireAuth><Wallet /></RequireAuth>} />
+        <Route path="staff" element={<RequireAuth><StaffHome /></RequireAuth>} />
         <Route path="pro" element={<RequireAuth><SellerOnly><Suspense fallback={<Spinner />}><ProTools /></Suspense></SellerOnly></RequireAuth>} />
         <Route path="social" element={<Social />} />
         <Route path="social/posts/:id" element={<PostPage />} />

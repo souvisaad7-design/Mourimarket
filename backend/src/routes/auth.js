@@ -117,6 +117,8 @@ router.get('/me', requireAuth, async (req, res) => {
   const { rows } = await query(
     `SELECT ${USER_FIELDS},
        (SELECT row_to_json(s) FROM (SELECT id, name, slug FROM stores WHERE owner_id = users.id) s) AS store,
+       (SELECT row_to_json(x) FROM (SELECT ss.role, s.id AS store_id, s.name, s.slug FROM store_staff ss JOIN stores s ON s.id = ss.store_id
+          WHERE ss.user_id = users.id AND s.is_active) x) AS staff,
        (SELECT COUNT(*) FROM products p WHERE p.seller_id = users.id AND p.status = 'approved' AND p.availability = 'available') AS live_count,
        (SELECT COUNT(*) FROM products p WHERE p.seller_id = users.id AND p.availability = 'sold') AS sold_count,
        (SELECT COUNT(*) FROM favorites f WHERE f.user_id = users.id) AS favorites_count,

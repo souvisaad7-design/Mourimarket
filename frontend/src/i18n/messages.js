@@ -3007,6 +3007,62 @@ deepMerge(en, {
   notifications: { types: { stock_low: '📦 Only {n} “{title}” left. Update your stock' } },
 });
 
+// v51: store staff
+deepMerge(ar, {
+  pro: { tabs: { staff: '👥 الموظفون' } },
+  staff: {
+    title: 'متجري كموظف', youWorkFor: 'أنت موظف في', listings: 'إعلانات المتجر', orders: 'طلبات المتجر', addListing: 'إعلان جديد للمتجر',
+    noOrders: 'لا توجد طلبات بعد.', none: 'لست موظفاً في أي متجر.', noneHint: 'يضيفك صاحب المتجر من «سوق برو ← الموظفون» برقم هاتفك أو بريدك.',
+    leave: 'مغادرة المتجر', leaveConfirm: 'مغادرة {store}؟ ستفقد صلاحياتك فوراً.',
+    intro: 'أضف أشخاصاً يساعدونك في إدارة متجرك بحساباتهم الخاصة، دون مشاركة كلمة سرّك. المال والمحفظة والكوبونات والتقارير تبقى لك وحدك.',
+    roles: { listings: 'الإعلانات', orders: 'الطلبات', manager: 'مدير' },
+    roleHint: { listings: 'يضيف إعلانات المتجر ويعدّلها ويحدّث المخزون.', orders: 'يستقبل طلبات التوصيل ويقبلها ويجهّزها.', manager: 'الإعلانات والطلبات معاً، ويمكنه حذف الإعلانات.' },
+    login: 'رقم هاتف الموظف أو بريده', loginHint: 'يجب أن يكون لديه حساب في الموقع.', role: 'الصلاحية', add: 'إضافة موظف',
+    remove: 'إزالة', removeConfirm: 'إزالة {name} من موظفي المتجر؟', empty: 'لا يوجد موظفون بعد.',
+  },
+  errors: {
+    staff_self: 'لا يمكنك إضافة نفسك.', staff_admin: 'لا يمكن إضافة حساب إدارة.', staff_elsewhere: 'هذا الشخص موظف في متجر آخر (أو هنا من قبل).',
+    too_many_staff: 'وصلت إلى 20 موظفاً.', staff_not_found: 'الموظف غير موجود.', user_not_found: 'لا يوجد حساب بهذا الرقم أو البريد.',
+  },
+  notifications: { types: { staff_added: '👥 أضافك متجر «{store}» إلى موظفيه' } },
+});
+deepMerge(fr, {
+  pro: { tabs: { staff: '👥 Équipe' } },
+  staff: {
+    title: 'Ma boutique (équipe)', youWorkFor: 'Vous travaillez pour', listings: 'Annonces de la boutique', orders: 'Commandes de la boutique', addListing: 'Nouvelle annonce pour la boutique',
+    noOrders: 'Aucune commande.', none: 'Vous n’êtes membre d’aucune boutique.', noneHint: 'Le propriétaire vous ajoute depuis « Souk Pro → Équipe » avec votre téléphone ou e-mail.',
+    leave: 'Quitter la boutique', leaveConfirm: 'Quitter {store} ? Vos accès disparaissent aussitôt.',
+    intro: 'Ajoutez des personnes pour gérer votre boutique avec leur propre compte, sans partager votre mot de passe. L’argent, le portefeuille, les codes et les rapports restent à vous.',
+    roles: { listings: 'Annonces', orders: 'Commandes', manager: 'Gérant' },
+    roleHint: { listings: 'Ajoute et modifie les annonces, met à jour le stock.', orders: 'Reçoit, accepte et prépare les commandes.', manager: 'Annonces et commandes ; peut supprimer des annonces.' },
+    login: 'Téléphone ou e-mail de l’employé', loginHint: 'Il doit avoir un compte sur le site.', role: 'Rôle', add: 'Ajouter',
+    remove: 'Retirer', removeConfirm: 'Retirer {name} de l’équipe ?', empty: 'Aucun membre.',
+  },
+  errors: {
+    staff_self: 'Vous ne pouvez pas vous ajouter.', staff_admin: 'Impossible d’ajouter un compte administrateur.', staff_elsewhere: 'Cette personne est déjà dans une boutique.',
+    too_many_staff: 'Limite de 20 membres atteinte.', staff_not_found: 'Membre introuvable.', user_not_found: 'Aucun compte avec ce numéro ou e-mail.',
+  },
+  notifications: { types: { staff_added: '👥 La boutique « {store} » vous a ajouté à son équipe' } },
+});
+deepMerge(en, {
+  pro: { tabs: { staff: '👥 Staff' } },
+  staff: {
+    title: 'My store (staff)', youWorkFor: 'You work for', listings: 'Store listings', orders: 'Store orders', addListing: 'New listing for the store',
+    noOrders: 'No orders yet.', none: 'You are not on any store’s staff.', noneHint: 'A store owner adds you from “Souk Pro → Staff” with your phone or e-mail.',
+    leave: 'Leave the store', leaveConfirm: 'Leave {store}? You lose access at once.',
+    intro: 'Add people who help run your store with their own accounts, without sharing your password. Money, wallet, coupons and reports stay yours only.',
+    roles: { listings: 'Listings', orders: 'Orders', manager: 'Manager' },
+    roleHint: { listings: 'Adds and edits the store’s listings and stock.', orders: 'Receives, accepts and prepares delivery orders.', manager: 'Listings and orders; can delete listings.' },
+    login: 'Employee’s phone or e-mail', loginHint: 'They need an account on the site.', role: 'Role', add: 'Add',
+    remove: 'Remove', removeConfirm: 'Remove {name} from the staff?', empty: 'No staff yet.',
+  },
+  errors: {
+    staff_self: 'You cannot add yourself.', staff_admin: 'Admin accounts cannot be added.', staff_elsewhere: 'This person already works for a store.',
+    too_many_staff: 'You reached 20 staff members.', staff_not_found: 'Staff member not found.', user_not_found: 'No account with this phone or e-mail.',
+  },
+  notifications: { types: { staff_added: '👥 The store “{store}” added you to its staff' } },
+});
+
 // v47: Hassaniya (الحسانية) – Arabic with the most visible phrases in the Mauritanian dialect.
 // Everything not listed here stays in standard Arabic; the admin can refine any text (Admin → Texts).
 const hs = deepMerge(structuredClone(ar), {

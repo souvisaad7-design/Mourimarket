@@ -1085,3 +1085,14 @@ ALTER TABLE stores ADD COLUMN IF NOT EXISTS theme_color VARCHAR(7);
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS tagline VARCHAR(140);
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS hours VARCHAR(200);
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS pinned_ids INT[] NOT NULL DEFAULT '{}';
+
+-- Store staff (Souk Pro): employees who manage a store's listings and/or orders, never its money.
+CREATE TABLE IF NOT EXISTS store_staff (
+  store_id    INT NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  user_id     INT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,   -- one store per person
+  role        VARCHAR(10) NOT NULL CHECK (role IN ('listings', 'orders', 'manager')),
+  added_by    INT REFERENCES users(id) ON DELETE SET NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (store_id, user_id)
+);
+ALTER TABLE store_staff ENABLE ROW LEVEL SECURITY;

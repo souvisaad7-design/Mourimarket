@@ -10,11 +10,14 @@ import { query } from '../db.js';
 import { normalizeCode } from '../lib/coupons.js';
 import { badRequest, conflict, forbidden, notFound, parse } from '../lib/http.js';
 import { limiter } from '../lib/rateLimit.js';
+import { notify } from '../lib/notify.js';
+import { normalizePhone } from '../lib/phone.js';
+import { STAFF_ROLES, staffOf } from '../lib/staff.js';
 import { requireAuth } from '../middleware/auth.js';
 import { removeUploads, saveFile, upload } from '../middleware/upload.js';
 
 const router = Router();
-router.use('/pro', requireAuth);
+router.use(['/pro', '/staff'], requireAuth);
 const writeLimiter = limiter('pro-write', { windowMs: 60 * 1000, limit: 60, keyGenerator: (req) => String(req.user.id) });
 
 const sellerOnly = (req) => { if (req.user.account_type === 'buyer') throw forbidden('seller_only'); };
@@ -223,6 +226,71 @@ router.delete('/pro/store-banner', writeLimiter, async (req, res) => {
   const store = await myStore(req.user.id);
   await query('UPDATE stores SET banner_url = NULL, updated_at = now() WHERE id = $1', [store.id]);
   if (store.banner_url) removeUploads([store.banner_url]);
+  res.json({ ok: true });
+});
+
+// ---------- Store staff ----------
+
+const STAFF_SELECT = `ss.user_id, ss.role, ss.created_at, u.name, u.phone, u.avatar_url`;
+
+/** GET /api/pro/staff – my store's employees. */
+router.get('/pro/staff', async (req, res) => {
+  const store = await myStore(req.user.id);
+  const { rows } = await query(`SELECT ${STAFF_SELECT} FROM store_staff ss JOIN users u ON u.id = ss.user_id WHERE ss.store_id = $1 ORDER BY ss.created_at`, [store.id]);
+  res.json({ items: rows });
+});
+
+/** POST /api/pro/staff { login (phone or email of an existing account), role } */
+router.post('/pro/staff', writeLimiter, async (req, res) => {
+  const d = parse(z.object({ login: z.string().trim().min(3).max(160), role: z.enum(STAFF_ROLES) }), req.body);
+  const store = await myStore(req.user.id);
+  const phone = d.login.includes('@') ? null : normalizePhone(d.login);
+  const { rows } = await query(
+    'SELECT id, name, is_active, role FROM users WHERE ($1::text IS NOT NULL AND phone = $1) OR ($2::text IS NOT NULL AND lower(email) = lower($2))',
+    [phone, d.login.includes('@') ? d.login : null],
+  );
+  const u = rows[0];
+  if (!u || !u.is_active) throw notFound('user_not_found');
+  if (u.id === req.user.id) throw badRequest('staff_self');
+  if (u.role === 'admin') throw badRequest('staff_admin');
+  const { rows: count } = await query('SELECT COUNT(*)::int AS n FROM store_staff WHERE store_id = $1', [store.id]);
+  if (count[0].n >= 20) throw badRequest('too_many_staff');
+  try {
+    await query('INSERT INTO store_staff (store_id, user_id, role, added_by) VALUES ($1, $2, $3, $4)', [store.id, u.id, d.role, req.user.id]);
+  } catch (err) {
+    if (err.code === '23505') throw conflict('staff_elsewhere');
+    throw err;
+  }
+  const { rows: st } = await query('SELECT name FROM stores WHERE id = $1', [store.id]);
+  await notify(u.id, 'staff_added', { store: st[0].name, role: d.role }, '/staff');
+  res.status(201).json({ member: { user_id: u.id, name: u.name, role: d.role } });
+});
+
+/** PATCH /api/pro/staff/:userId { role } */
+router.patch('/pro/staff/:userId', writeLimiter, async (req, res) => {
+  const { role } = parse(z.object({ role: z.enum(STAFF_ROLES) }), req.body);
+  const store = await myStore(req.user.id);
+  const { rowCount } = await query('UPDATE store_staff SET role = $3 WHERE store_id = $1 AND user_id = $2', [store.id, parseInt(req.params.userId, 10) || 0, role]);
+  if (!rowCount) throw notFound('staff_not_found');
+  res.json({ role });
+});
+
+/** DELETE /api/pro/staff/:userId – remove an employee (takes effect at once). */
+router.delete('/pro/staff/:userId', writeLimiter, async (req, res) => {
+  const store = await myStore(req.user.id);
+  const { rowCount } = await query('DELETE FROM store_staff WHERE store_id = $1 AND user_id = $2', [store.id, parseInt(req.params.userId, 10) || 0]);
+  if (!rowCount) throw notFound('staff_not_found');
+  res.json({ ok: true });
+});
+
+/** GET /api/staff/me – the store I work for and my role (null if none). */
+router.get('/staff/me', async (req, res) => {
+  res.json({ staff: await staffOf(req.user.id) });
+});
+
+/** DELETE /api/staff/me – leave the store. */
+router.delete('/staff/me', async (req, res) => {
+  await query('DELETE FROM store_staff WHERE user_id = $1', [req.user.id]);
   res.json({ ok: true });
 });
 

@@ -272,7 +272,62 @@ function StoreLook() {
   );
 }
 
-const TABS = ['stock', 'coupons', 'reports', 'look'];
+// ---------- Store staff ----------
+
+function Staff() {
+  const { t } = useI18n();
+  const { notify } = useApp();
+  const { data, loading, error, reload } = useApi('/pro/staff');
+  const [f, setF] = useState({ login: '', role: 'orders' });
+  const [formError, setFormError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const add = async (e) => {
+    e.preventDefault(); setBusy(true); setFormError(null);
+    try { await api('/pro/staff', { method: 'POST', body: f }); notify(t('common.changesSaved')); setF({ login: '', role: 'orders' }); reload(); } catch (err) { setFormError(err); } finally { setBusy(false); }
+  };
+  const setRole = async (m, role) => { await api(`/pro/staff/${m.user_id}`, { method: 'PATCH', body: { role } }); reload(); };
+  const remove = async (m) => { if (window.confirm(t('staff.removeConfirm', { name: m.name }))) { await api(`/pro/staff/${m.user_id}`, { method: 'DELETE' }); reload(); } };
+  if (loading && !data) return <Spinner />;
+  if (error) return error.code === 'store_not_found'
+    ? <EmptyState icon="store" title={t('pro.look.noStore')}><Link to="/dashboard/store" className="btn-primary">{t('nav.myStore')}</Link></EmptyState>
+    : <ErrorBox error={error} />;
+  return (
+    <section className="space-y-4">
+      <p className="text-sm text-slate-600">{t('staff.intro')}</p>
+      <ul className="grid gap-2 text-xs sm:grid-cols-3">
+        {['listings', 'orders', 'manager'].map((r) => <li key={r} className="rounded-xl bg-slate-50 p-3"><b className="block text-sm">{t(`staff.roles.${r}`)}</b>{t(`staff.roleHint.${r}`)}</li>)}
+      </ul>
+      <form onSubmit={add} className="card grid gap-3 p-5 sm:grid-cols-[1fr_12rem_auto] sm:items-end">
+        <Field label={t('staff.login')} hint={t('staff.loginHint')}><input className="input" dir="ltr" required minLength={3} maxLength={160} value={f.login} onChange={(e) => setF({ ...f, login: e.target.value })} /></Field>
+        <Field label={t('staff.role')}>
+          <select className="input" value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>
+            {['listings', 'orders', 'manager'].map((r) => <option key={r} value={r}>{t(`staff.roles.${r}`)}</option>)}
+          </select>
+        </Field>
+        <button className="btn-primary" disabled={busy}>+ {t('staff.add')}</button>
+        {formError && <div className="sm:col-span-3"><ErrorBox error={formError} /></div>}
+      </form>
+      {data.items.length ? (
+        <ul className="card divide-y divide-slate-100 p-0">
+          {data.items.map((m) => (
+            <li key={m.user_id} className="flex flex-wrap items-center gap-3 p-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold">{m.name}</p>
+                <p className="text-xs text-slate-500"><bdi dir="ltr">{m.phone || ''}</bdi></p>
+              </div>
+              <select className="input w-40 py-1.5 text-sm" value={m.role} onChange={(e) => setRole(m, e.target.value)} aria-label={t('staff.role')}>
+                {['listings', 'orders', 'manager'].map((r) => <option key={r} value={r}>{t(`staff.roles.${r}`)}</option>)}
+              </select>
+              <button type="button" className="text-xs font-semibold text-rose-600 hover:underline" onClick={() => remove(m)}>{t('staff.remove')}</button>
+            </li>
+          ))}
+        </ul>
+      ) : <EmptyState icon="users" title={t('staff.empty')} />}
+    </section>
+  );
+}
+
+const TABS = ['stock', 'coupons', 'reports', 'look', 'staff'];
 
 export default function ProTools() {
   const { t } = useI18n();
@@ -280,7 +335,7 @@ export default function ProTools() {
   useDocumentTitle(t('pro.title'));
   const [params, setParams] = useSearchParams();
   const tab = TABS.includes(params.get('tab')) ? params.get('tab') : 'stock';
-  const tabs = TABS.filter((k) => k !== 'look' || user?.account_type === 'merchant');
+  const tabs = TABS.filter((k) => !['look', 'staff'].includes(k) || user?.account_type === 'merchant');
   return (
     <div className="container-page max-w-5xl space-y-5 py-6">
       <header className="rounded-3xl bg-gradient-to-l from-ink to-brand-800 p-6 text-white">
@@ -297,6 +352,7 @@ export default function ProTools() {
       {tab === 'coupons' && <Coupons />}
       {tab === 'reports' && <Reports />}
       {tab === 'look' && <StoreLook />}
+      {tab === 'staff' && <Staff />}
     </div>
   );
 }

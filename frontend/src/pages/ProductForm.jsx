@@ -58,6 +58,8 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
 
   // /sell?category=livestock opens the form with that category chosen (e.g. from the Eid market).
   const [searchParams] = useSearchParams();
+  // A store employee posting for the store (/sell?forStore=1).
+  const forStore = !editing && searchParams.get('forStore') === '1' && Boolean(user.staff);
   useEffect(() => {
     const slug = searchParams.get('category');
     const cat = !editing && slug && categories.find((c) => c.slug === slug);
@@ -123,6 +125,7 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
       fd.append('attrs', JSON.stringify(attrs));
       fd.append('videoUrl', videoUrl);
       if (sellerId) fd.append('sellerId', String(sellerId));
+      if (forStore) fd.append('forStore', '1');
       removeIds.forEach((rid) => fd.append('removeImageIds', rid));
       for (const item of ready) fd.append('images', item.file);
       if (editing) {
@@ -134,7 +137,7 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
         const { product } = await api('/products', { method: 'POST', body: fd });
         await saveVoice(api, product.id, null, voice);
         notify(product.status === 'approved' ? t('form.createdLive') : t('form.created'));
-        if (onCreated) onCreated(product); else navigate('/dashboard');
+        if (onCreated) onCreated(product); else navigate(forStore ? '/staff' : '/dashboard');
       }
     } catch (err) {
       setError(err);
@@ -268,7 +271,7 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
               <input className="input mt-2" maxLength={200} value={form.swapWanted} onChange={set('swapWanted')} placeholder={t('swap.wantedPh')} aria-label={t('swap.wantedPh')} />
             )}
           </div>
-          {user.account_type !== 'buyer' && (
+          {(user.account_type !== 'buyer' || forStore) && (
             <Field label={`📦 ${t('pro.stock.formLabel')}`} optional hint={t('pro.stock.formHint')} error={fieldError('stock')}>
               <input className="input max-w-[10rem]" type="number" min="0" max="100000" inputMode="numeric" dir="ltr" value={form.stock} onChange={set('stock')} />
             </Field>

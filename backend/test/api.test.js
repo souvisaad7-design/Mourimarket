@@ -2843,3 +2843,74 @@ describe('Souk Pro', () => {
     assert.ok('seller_store' in d);
   });
 });
+
+describe('Store staff', () => {
+  let owner; let ownerId; let lister; let listerId; let handler; let handlerId; let buyer;
+  const phoneOf = async (id) => (await pool.query('SELECT phone FROM users WHERE id = $1', [id])).rows[0].phone;
+  const post = async (tok, title, extra = {}) => {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries({ title, description: 'إعلان من موظف المتجر', price: '7000', city: 'nouakchott', condition: 'new', categoryId: '1', ...extra })) fd.append(k, v);
+    fd.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+    return call('/api/products', { method: 'POST', token: tok, form: fd });
+  };
+  before(async () => {
+    owner = await login('amana@example.mr'); lister = await login('mohamed@example.mr'); handler = await login('sidi@example.mr'); buyer = await login('buyer@example.mr');
+    [ownerId, listerId, handlerId] = await Promise.all([owner, lister, handler].map(async (t) => (await call('/api/auth/me', { token: t })).data.user.id));
+    const sf = new FormData(); sf.append('name', 'متجر الأمانة');
+    await call('/api/stores/me', { method: 'PUT', token: owner, form: sf });
+  });
+
+  it('the owner adds employees by phone or e-mail', async () => {
+    assert.equal((await call('/api/pro/staff', { method: 'POST', token: owner, body: { login: '49999999', role: 'listings' } })).status, 404);
+    assert.equal((await call('/api/pro/staff', { method: 'POST', token: owner, body: { login: 'amana@example.mr', role: 'listings' } })).data.error, 'staff_self');
+    assert.equal((await call('/api/pro/staff', { method: 'POST', token: owner, body: { login: 'mohamed@example.mr', role: 'listings' } })).status, 201);
+    const r = await call('/api/pro/staff', { method: 'POST', token: owner, body: { login: await phoneOf(handlerId), role: 'orders' } });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    assert.equal((await call('/api/pro/staff', { method: 'POST', token: owner, body: { login: 'mohamed@example.mr', role: 'orders' } })).data.error, 'staff_elsewhere');
+    assert.equal((await call('/api/pro/staff', { token: owner })).data.items.length, 2);
+    assert.equal((await call('/api/pro/staff', { token: lister })).status, 404, 'employees do not manage staff');
+    assert.equal((await call('/api/auth/me', { token: lister })).data.user.staff.role, 'listings');
+    assert.ok((await pool.query("SELECT 1 FROM notifications WHERE type = 'staff_added' AND user_id = $1", [listerId])).rowCount);
+  });
+
+  it('a listings employee posts and edits for the store, but cannot delete or touch orders', async () => {
+    const r = await post(lister, 'إعلان باسم المتجر', { forStore: '1' });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    assert.equal(r.data.product.seller_id, ownerId, 'the listing belongs to the owner');
+    assert.equal((await post(handler, 'ممنوع', { forStore: '1' })).status, 403, 'orders staff cannot post');
+    const ownerListing = (await call(`/api/products?seller=${ownerId}&limit=1`)).data.items[0];
+    const mine = (await call('/api/products/mine?store=1', { token: lister })).data.items;
+    assert.ok(mine.some((p) => p.id === r.data.product.id));
+    assert.equal((await call(`/api/products/${ownerListing.id}/availability`, { method: 'PATCH', token: lister, body: { availability: 'available' } })).status, 200);
+    assert.equal((await call(`/api/products/${r.data.product.id}`, { method: 'DELETE', token: lister })).status, 403, 'deleting needs a manager');
+    assert.equal((await call(`/api/products/${ownerListing.id}/availability`, { method: 'PATCH', token: handler, body: { availability: 'available' } })).status, 403);
+    assert.equal((await call('/api/orders?as=store', { token: lister })).data.items.length, 0);
+  });
+
+  it('an orders employee handles the store’s orders, and is told about new ones', async () => {
+    const pid = (await post(owner, 'سلعة لطلب الموظف')).data.product.id;
+    await pool.query("UPDATE products SET status = 'approved' WHERE id = $1", [pid]);
+    const o = await call('/api/orders', { method: 'POST', token: buyer, body: { productId: pid, city: 'nouakchott', phone: '22334455' } });
+    assert.equal(o.status, 201, JSON.stringify(o.data));
+    const oid = o.data.order.id;
+    assert.ok((await pool.query("SELECT 1 FROM notifications WHERE type = 'order_new' AND user_id = $1", [handlerId])).rowCount);
+    assert.ok((await call('/api/orders?as=store', { token: handler })).data.items.some((x) => x.id === oid));
+    const seen = (await call(`/api/orders/${oid}`, { token: handler })).data.order;
+    assert.equal(seen.address, undefined, 'like the seller: no full address');
+    assert.equal((await call(`/api/orders/${oid}`, { token: lister })).status, 404);
+    assert.equal((await call(`/api/orders/${oid}/status`, { method: 'POST', token: handler, body: { status: 'accepted' } })).status, 200);
+    // Money stays with the owner.
+    assert.equal((await call('/api/pay/me', { token: handler })).data.sales.length, 0);
+  });
+
+  it('removing an employee takes effect at once; a manager can delete', async () => {
+    await call(`/api/pro/staff/${listerId}`, { method: 'DELETE', token: owner });
+    assert.equal((await post(lister, 'بعد الإزالة', { forStore: '1' })).status, 403);
+    assert.equal((await call('/api/products/mine?store=1', { token: lister })).status, 403);
+    assert.equal((await call(`/api/pro/staff/${handlerId}`, { method: 'PATCH', token: owner, body: { role: 'manager' } })).data.role, 'manager');
+    const pid = (await post(owner, 'للحذف من المدير')).data.product.id;
+    assert.equal((await call(`/api/products/${pid}`, { method: 'DELETE', token: handler })).status, 200);
+    assert.equal((await call('/api/staff/me', { method: 'DELETE', token: handler })).status, 200);
+    assert.equal((await call('/api/staff/me', { token: handler })).data.staff, null);
+  });
+});
