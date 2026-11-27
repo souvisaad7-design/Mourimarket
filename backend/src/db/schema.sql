@@ -1049,3 +1049,39 @@ CREATE INDEX IF NOT EXISTS pay_transfers_order_idx ON pay_transfers (order_id);
 -- One courier → seller hand-over per order (re-declared after a cancellation).
 CREATE UNIQUE INDEX IF NOT EXISTS pay_transfers_one_handover ON pay_transfers (order_id) WHERE kind = 'handover' AND status IN ('pending', 'confirmed', 'disputed');
 ALTER TABLE pay_transfers ENABLE ROW LEVEL SECURITY;
+
+-- ---------- Souk Pro: merchant tools ----------
+-- Inventory: NULL = not tracked (a single item, as before); a number = units in stock.
+ALTER TABLE products ADD COLUMN IF NOT EXISTS stock INT;
+DO $$ BEGIN
+  ALTER TABLE products ADD CONSTRAINT products_stock_check CHECK (stock IS NULL OR stock >= 0);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- Discount coupons a seller gives on delivery orders of their listings.
+CREATE TABLE IF NOT EXISTS coupons (
+  id          SERIAL PRIMARY KEY,
+  seller_id   INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  code        VARCHAR(30) NOT NULL,
+  kind        VARCHAR(10) NOT NULL CHECK (kind IN ('percent', 'amount')),
+  value       BIGINT NOT NULL CHECK (value > 0),
+  min_total   BIGINT NOT NULL DEFAULT 0,
+  max_uses    INT,
+  uses        INT NOT NULL DEFAULT 0,
+  expires_at  TIMESTAMPTZ,
+  is_public   BOOLEAN NOT NULL DEFAULT false,   -- shown on the store page
+  is_active   BOOLEAN NOT NULL DEFAULT true,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (seller_id, code),
+  CHECK (kind <> 'percent' OR value <= 90)
+);
+ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_id INT REFERENCES coupons(id) ON DELETE SET NULL;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code VARCHAR(30);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount BIGINT NOT NULL DEFAULT 0;
+
+-- Store page look: cover image, colour, tagline, opening hours, listings pinned at the top.
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS banner_url TEXT;
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS theme_color VARCHAR(7);
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS tagline VARCHAR(140);
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS hours VARCHAR(200);
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS pinned_ids INT[] NOT NULL DEFAULT '{}';

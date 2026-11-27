@@ -344,6 +344,11 @@ export default function ProductDetail() {
                 </>
               )}
             </div>
+            {product.stock !== null && product.stock !== undefined && product.availability === 'available' && (
+              <p className={`mt-2 text-sm font-semibold ${product.stock <= 3 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                📦 {product.stock <= 3 ? t('pro.stock.onlyLeft', { n: product.stock }) : t('pro.stock.inStock')}
+              </p>
+            )}
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
               <span className="flex items-center gap-1"><Icon name="pin" className="h-4 w-4" />{cityName(meta.cities, product.city)}</span>
               <span className="flex items-center gap-1"><Icon name="clock" className="h-4 w-4" />{ago(product.created_at)}</span>

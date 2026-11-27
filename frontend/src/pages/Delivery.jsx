@@ -74,6 +74,10 @@ export function Checkout() {
   const [f, setF] = useState({ city: user?.city || 'nouakchott', area: '', district: '', address: '', phone: (user?.phone || '').replace(/^\+222/, ''), note: '' });
   const [pin, setPin] = useState(null);
   const [payMethod, setPayMethod] = useState('cod');
+  const [search] = useSearchParams();
+  const [couponInput, setCouponInput] = useState(search.get('coupon') || '');
+  const [coupon, setCoupon] = useState('');
+  const [couponErr, setCouponErr] = useState(null);
   const [quote, setQuote] = useState(null);
   const [quoteErr, setQuoteErr] = useState(null);
   const [locating, setLocating] = useState(false);
@@ -89,12 +93,26 @@ export function Checkout() {
   useEffect(() => {
     if (!f.city || !product.data) return undefined;
     const timer = setTimeout(() => {
-      api('/orders/quote', { method: 'POST', body: { productId: Number(productId), city: f.city, area: f.area, lat: pin?.lat, lng: pin?.lng } })
+      api('/orders/quote', { method: 'POST', body: { productId: Number(productId), city: f.city, area: f.area, lat: pin?.lat, lng: pin?.lng, couponCode: coupon || undefined } })
         .then((q) => { setQuote(q); setQuoteErr(null); })
-        .catch((err) => { setQuote(null); setQuoteErr(err); });
+        .catch((err) => {
+          // A coupon that stopped working (used up, expired) is dropped instead of blocking the order.
+          if (coupon && String(err.code).startsWith('coupon_')) { setCoupon(''); setCouponErr(err); return; }
+          setQuote(null); setQuoteErr(err);
+        });
     }, 250);
     return () => clearTimeout(timer);
-  }, [f.city, f.area, pin, productId, product.data]);
+  }, [f.city, f.area, pin, productId, product.data, coupon]);
+
+  const applyCoupon = async () => {
+    const code = couponInput.trim();
+    setCouponErr(null);
+    if (!code) { setCoupon(''); return; }
+    try {
+      const q = await api('/orders/quote', { method: 'POST', body: { productId: Number(productId), city: f.city, area: f.area, lat: pin?.lat, lng: pin?.lng, couponCode: code } });
+      setQuote(q); setCoupon(code);
+    } catch (err) { setCoupon(''); setCouponErr(err); }
+  };
 
   const useMyLocation = () => {
     if (!navigator.geolocation) return;
@@ -115,7 +133,7 @@ export function Checkout() {
     e.preventDefault();
     setBusy(true); setError(null);
     try {
-      const { order } = await api('/orders', { method: 'POST', body: { ...f, productId: Number(productId), lat: pin?.lat, lng: pin?.lng, paymentMethod: payMethod } });
+      const { order } = await api('/orders', { method: 'POST', body: { ...f, productId: Number(productId), lat: pin?.lat, lng: pin?.lng, paymentMethod: payMethod, couponCode: coupon || undefined } });
       notify(t('delivery.checkout.placed'));
       navigate(`/orders/${order.id}`, { replace: true });
     } catch (err) { setError(err); } finally { setBusy(false); }
@@ -180,12 +198,21 @@ export function Checkout() {
             </div>
             <dl className="space-y-2 p-4 text-sm">
               <div className="flex justify-between"><dt className="text-slate-600">{t('delivery.cost.item')}</dt><dd className="font-semibold ltr-nums">{price(p.price)}</dd></div>
+              {quote?.discount > 0 && <div className="flex justify-between text-emerald-700"><dt>🏷️ {t('pro.coupon.discount', { code: coupon.toUpperCase() })}</dt><dd className="font-semibold"><bdi dir="ltr">−{price(quote.discount)}</bdi></dd></div>}
               <div className="flex justify-between">
                 <dt className="text-slate-600">{t('delivery.cost.delivery')}{quote && <span className="block text-[11px] text-slate-400">{t('delivery.cost.distance', { km: String(quote.distanceKm) })}{quote.interCity ? ` · ${t('delivery.cost.interCity')}` : ''}</span>}</dt>
                 <dd className="font-semibold ltr-nums">{quote ? price(quote.deliveryFee) : '…'}</dd>
               </div>
               <div className="flex justify-between border-t border-dashed border-slate-200 pt-2 text-base"><dt className="font-bold">{t('delivery.cost.total')}</dt><dd className="font-bold text-brand-800 ltr-nums">{quote ? price(quote.total) : '…'}</dd></div>
             </dl>
+            <div className="mx-4 mb-3">
+              <div className="flex gap-2">
+                <input className="input min-w-0 flex-1 py-2 text-sm uppercase" dir="ltr" maxLength={30} value={couponInput} onChange={(e) => setCouponInput(e.target.value)}
+                  placeholder={t('pro.coupon.have')} aria-label={t('pro.coupon.have')} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyCoupon(); } }} />
+                <button type="button" className="btn-outline shrink-0 px-3 py-2 text-xs" onClick={applyCoupon}>{coupon ? '✓' : t('pro.coupon.apply')}</button>
+              </div>
+              {couponErr && <p className="mt-1 text-xs text-rose-700" role="alert">{couponErr.code === 'coupon_min_total' && couponErr.fields?.min ? t('errors.coupon_min_total', { min: price(couponErr.fields.min) }) : t(`errors.${couponErr.code}`)}</p>}
+            </div>
             <fieldset className="mx-4 mb-4 space-y-2" aria-label={t('escrow.choose')}>
               {[['cod', '💵', t('delivery.cod.title'), t('delivery.cod.text')], ...(settings.delivery?.escrow ? [['escrow', '🔒', t('escrow.title'), t('escrow.checkoutText')]] : [])].map(([k, icon, title, text]) => (
                 <label key={k} className={`flex cursor-pointer items-start gap-2 rounded-xl border-2 p-3 text-xs text-brand-900 ${payMethod === k ? 'border-gold-400 bg-gold-300/20' : 'border-slate-200'}`}>
@@ -423,10 +450,12 @@ export function OrderDetailView({ id, admin = false, extra }) {
           <h2 className="mb-3 font-bold">{t('delivery.order.costs')}</h2>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between"><dt className="text-slate-600">{t('delivery.cost.item')}</dt><dd className="ltr-nums">{price(o.item_price)}</dd></div>
+            {Number(o.discount) > 0 && <div className="flex justify-between text-emerald-700"><dt>🏷️ {t('pro.coupon.discount', { code: o.coupon_code || '' })}</dt><dd><bdi dir="ltr">−{price(o.discount)}</bdi></dd></div>}
             <div className="flex justify-between"><dt className="text-slate-600">{t('delivery.cost.delivery')} <span className="text-[11px] text-slate-400">({t('delivery.cost.distance', { km: String(Number(o.distance_km)) })})</span></dt><dd className="ltr-nums">{price(o.delivery_fee)}</dd></div>
             <div className="flex justify-between border-t border-dashed border-slate-200 pt-2 font-bold"><dt>{t('delivery.cost.total')}</dt><dd className="text-brand-800 ltr-nums">{price(o.total)}</dd></div>
           </dl>
           <p className="mt-3 rounded-xl bg-gold-300/20 p-2.5 text-xs text-brand-900">{o.payment_method === 'escrow' ? `🔒 ${t('escrow.paidOnline')}` : `💵 ${t('delivery.cod.short')}`}</p>
+          {!admin && <Link to={`/orders/${o.id}/invoice`} className="btn-outline mt-3 w-full text-xs">🧾 {t('pro.invoice.open')}</Link>}
         </section>
 
         <section className="card space-y-2 p-5 text-sm">

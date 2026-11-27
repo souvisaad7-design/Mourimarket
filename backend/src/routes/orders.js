@@ -9,6 +9,7 @@ import { notify } from '../lib/notify.js';
 import { normalizePhone } from '../lib/phone.js';
 import { getSettings } from '../lib/settings.js';
 import { onDelivered } from '../lib/pay.js';
+import { checkCoupon, useCoupon } from '../lib/coupons.js';
 import { limiter } from '../lib/rateLimit.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireVerifiedPhone } from '../middleware/phone.js';
@@ -26,11 +27,13 @@ const destSchema = z.object({
   area: z.string().trim().max(80).optional().transform((v) => v || null),
   lat: coord(14, 28),
   lng: coord(-18, -4),
+  couponCode: z.string().trim().max(30).optional().transform((v) => v || null),
 });
 
 async function loadOrderable(productId, userId) {
   const { rows } = await query(
-    `SELECT p.id, p.title, p.price, p.city, p.lat, p.lng, p.seller_id, p.status, p.availability, u.is_active
+    `SELECT p.id, p.title, p.price, p.city, p.lat, p.lng, p.seller_id, p.status, p.availability, p.stock, u.is_active,
+       (SELECT COUNT(*)::int FROM orders o WHERE o.product_id = p.id AND o.status NOT IN ('delivered', 'cancelled')) AS open_orders
      FROM products p JOIN users u ON u.id = p.seller_id WHERE p.id = $1`,
     [productId],
   );
@@ -38,6 +41,8 @@ async function loadOrderable(productId, userId) {
   if (!p || p.status !== 'approved' || !p.is_active) throw notFound('product_not_found');
   if (p.availability !== 'available') throw badRequest('product_sold');
   if (p.seller_id === userId) throw badRequest('own_product');
+  // Inventory: units already promised to open orders are not for sale again.
+  if (p.stock !== null && p.open_orders >= p.stock) throw badRequest('out_of_stock');
   return p;
 }
 
@@ -54,7 +59,8 @@ router.post('/orders/quote', quoteLimiter, async (req, res) => {
   const pricing = await deliverySettings();
   const product = await loadOrderable(d.productId, req.user.id);
   const q = await quote(pricing, product, d);
-  res.json({ itemPrice: q.itemPrice, deliveryFee: q.deliveryFee, total: q.itemPrice + q.deliveryFee, distanceKm: q.distanceKm, interCity: q.interCity, deliverable: q.deliverable, maxKm: pricing.maxKm });
+  const { discount } = await checkCoupon({ query }, product.seller_id, d.couponCode, q.itemPrice);
+  res.json({ itemPrice: q.itemPrice, discount, deliveryFee: q.deliveryFee, total: q.itemPrice - discount + q.deliveryFee, distanceKm: q.distanceKm, interCity: q.interCity, deliverable: q.deliverable, maxKm: pricing.maxKm });
 });
 
 const orderSchema = destSchema.extend({
@@ -77,15 +83,18 @@ router.post('/orders', requireVerifiedPhone, writeLimiter, async (req, res) => {
   if (!q.deliverable) throw badRequest('too_far');
   if (d.paymentMethod === 'escrow' && !pricing.escrow) throw badRequest('escrow_disabled');
   const order = await tx(async (client) => {
+    const { coupon, discount } = await checkCoupon(client, product.seller_id, d.couponCode, q.itemPrice);
+    if (coupon) await useCoupon(client, coupon.id);
     let rows;
     try {
       ({ rows } = await client.query(
         `INSERT INTO orders (product_id, product_title, buyer_id, seller_id, item_price, delivery_fee, total, distance_km,
-           city, area, district, address, phone, lat, lng, pickup_city, pickup_lat, pickup_lng, note, payment_method, payment_status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) RETURNING id, status, total, payment_method, payment_status`,
-        [product.id, product.title, req.user.id, product.seller_id, q.itemPrice, q.deliveryFee, q.itemPrice + q.deliveryFee, q.distanceKm,
+           city, area, district, address, phone, lat, lng, pickup_city, pickup_lat, pickup_lng, note, payment_method, payment_status,
+           coupon_id, coupon_code, discount)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24) RETURNING id, status, total, discount, payment_method, payment_status`,
+        [product.id, product.title, req.user.id, product.seller_id, q.itemPrice, q.deliveryFee, q.itemPrice - discount + q.deliveryFee, q.distanceKm,
           d.city, d.area, d.district, d.address, phone, d.lat, d.lng, product.city, q.pickup?.lat ?? null, q.pickup?.lng ?? null, d.note,
-          d.paymentMethod, d.paymentMethod === 'escrow' ? 'awaiting_payment' : null],
+          d.paymentMethod, d.paymentMethod === 'escrow' ? 'awaiting_payment' : null, coupon?.id ?? null, coupon?.code ?? null, discount],
       ));
     } catch (err) {
       if (err.code === '23505') throw conflict('order_exists');
@@ -175,6 +184,8 @@ router.get('/orders/:id', async (req, res) => {
   ]);
   const order = shape(o, roles);
   order.events = events.rows;
+  // For the printable invoice: the seller's store, if they have one.
+  order.seller_store = (await query('SELECT name, logo_url, phone, city FROM stores WHERE owner_id = $1 AND is_active', [o.seller_id])).rows[0] || null;
   order.rating = rating.rows[0] || null;
   order.next = Object.entries(FLOW[o.status] || {})
     .filter(([, who]) => who.some((r) => roles.includes(r)))
@@ -222,13 +233,25 @@ router.post('/orders/:id/status', writeLimiter, async (req, res) => {
       [d.status, d.note || null, role, id],
     );
     await client.query('INSERT INTO order_events (order_id, status, actor_id, actor_role, note) VALUES ($1, $2, $3, $4, $5)', [id, d.status, req.user.id, role, d.note || null]);
+    if (d.status === 'cancelled' && o.coupon_id) await client.query('UPDATE coupons SET uses = GREATEST(uses - 1, 0) WHERE id = $1', [o.coupon_id]);
     if (d.status === 'cancelled' && ['submitted', 'held'].includes(o.payment_status)) {
       await client.query("UPDATE orders SET payment_status = 'refund_due', payment_updated_at = now() WHERE id = $1", [id]);
     }
     if (d.status === 'delivered') await onDelivered(client, o, o.courier_user_id, req.user.id);
     if (d.status === 'delivered' && o.product_id) {
       // A delivered order is a documented sale: the listing is sold to this buyer (unlocks the review).
-      await client.query(`UPDATE products SET availability = 'sold', sold_to_id = $1, updated_at = now() WHERE id = $2 AND availability = 'available'`, [o.buyer_id, o.product_id]);
+      // With inventory, one unit leaves the stock; the listing is sold only when the last unit goes.
+      const { rows: left } = await client.query(
+        `UPDATE products SET
+           stock = CASE WHEN stock IS NULL THEN NULL ELSE GREATEST(stock - 1, 0) END,
+           availability = CASE WHEN stock IS NULL OR stock <= 1 THEN 'sold' ELSE availability END,
+           sold_to_id = CASE WHEN stock IS NULL OR stock <= 1 THEN $1 ELSE sold_to_id END,
+           updated_at = now()
+         WHERE id = $2 AND availability = 'available' RETURNING stock, title`, [o.buyer_id, o.product_id],
+      );
+      if (left[0] && left[0].stock !== null && left[0].stock <= 2) {
+        await notify(o.seller_id, 'stock_low', { productId: o.product_id, title: left[0].title, n: left[0].stock }, '/pro', client);
+      }
     }
     await notifyParties(o, 'order_status', { id, title: o.product_title, status: d.status }, req.user.id, client);
     if (d.status === 'accepted') {

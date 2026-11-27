@@ -134,7 +134,7 @@ router.get('/stores', async (req, res) => {
   res.json({ items: rows });
 });
 
-const STORE_FIELDS = 'id, owner_id, name, slug, logo_url, description, phone, whatsapp, email, city, is_active, created_at, plan, plan_until, feature_credits';
+const STORE_FIELDS = 'id, owner_id, name, slug, logo_url, description, phone, whatsapp, email, city, is_active, created_at, plan, plan_until, feature_credits, banner_url, theme_color, tagline, hours, pinned_ids';
 
 router.get('/stores/me', requireAuth, async (req, res) => {
   const { rows } = await query(`SELECT ${STORE_FIELDS} FROM stores WHERE owner_id = $1`, [req.user.id]);
@@ -193,6 +193,10 @@ router.put('/stores/me', requireAuth, upload.single('logo'), async (req, res) =>
 router.get('/stores/:slug', async (req, res) => {
   const { rows } = await query(
     `SELECT s.id, s.owner_id, s.name, s.slug, s.logo_url, s.description, s.phone, s.whatsapp, s.email, s.city, s.created_at, (s.plan IS NOT NULL AND s.plan_until > now()) AS pro,
+       s.banner_url, s.theme_color, s.tagline, s.hours, s.pinned_ids,
+       (SELECT COALESCE(json_agg(json_build_object('code', c.code, 'kind', c.kind, 'value', c.value, 'min_total', c.min_total, 'expires_at', c.expires_at) ORDER BY c.created_at DESC), '[]')
+          FROM coupons c WHERE c.seller_id = s.owner_id AND c.is_public AND c.is_active AND (c.expires_at IS NULL OR c.expires_at > now())
+            AND (c.max_uses IS NULL OR c.uses < c.max_uses)) AS coupons,
        u.name AS owner_name, u.is_verified AS verified,
        (SELECT ROUND(AVG(rating)::numeric, 1) FROM reviews WHERE seller_id = s.owner_id) AS rating,
        (SELECT COUNT(*) FROM reviews WHERE seller_id = s.owner_id) AS reviews_count

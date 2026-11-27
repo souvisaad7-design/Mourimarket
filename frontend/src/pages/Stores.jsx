@@ -53,6 +53,42 @@ export function Stores() {
   );
 }
 
+/** Discount codes the store chose to show (used at checkout with delivery). */
+function StoreCoupons({ coupons, color }) {
+  const { t, price, date } = useI18n();
+  const { notify } = useApp();
+  if (!coupons?.length) return null;
+  const copy = async (code) => { try { await navigator.clipboard.writeText(code); notify(t('pro.coupon.copied')); } catch { /* ignore */ } };
+  return (
+    <section className="mt-6 flex gap-3 overflow-x-auto pb-1">
+      {coupons.map((c) => (
+        <button key={c.code} type="button" onClick={() => copy(c.code)} className="shrink-0 rounded-2xl border-2 border-dashed bg-surface p-3 text-start text-sm" style={{ borderColor: color || '#10b981' }}>
+          <span className="block font-bold" style={{ color: color || '#047857' }}>🏷️ {c.kind === 'percent' ? <bdi dir="ltr">−{Number(c.value)}%</bdi> : <bdi dir="ltr">−{price(c.value)}</bdi>}</span>
+          <span className="block font-mono text-base tracking-wider" dir="ltr">{c.code}</span>
+          <span className="block text-[11px] text-slate-500">
+            {Number(c.min_total) > 0 ? t('pro.coupon.from', { amount: price(c.min_total) }) : t('pro.coupon.onDelivery')}
+            {c.expires_at ? ` · ${t('pro.coupon.until', { d: date(c.expires_at) })}` : ''}
+          </span>
+        </button>
+      ))}
+    </section>
+  );
+}
+
+/** Listings the store pinned at the top. */
+function PinnedListings({ ids }) {
+  const { t } = useI18n();
+  const list = useApi(ids?.length ? `/products?ids=${ids.join(',')}&limit=4` : null, undefined, [ids?.join(',')]);
+  const items = (list.data?.items || []).sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+  if (!items.length) return null;
+  return (
+    <section className="mt-8">
+      <h2 className="mb-4 text-xl font-bold">📌 {t('pro.look.pinnedTitle')}</h2>
+      <ProductGrid items={items} />
+    </section>
+  );
+}
+
 export function StoreDetail() {
   const { slug } = useParams();
   const { t, date } = useI18n();
@@ -70,7 +106,9 @@ export function StoreDetail() {
 
   return (
     <div>
-      <div className="h-32 bg-gradient-to-br from-brand-800 to-brand-600 sm:h-44" />
+      {s.banner_url
+        ? <img src={s.banner_url} alt="" className="h-40 w-full object-cover sm:h-56" />
+        : <div className="h-32 bg-gradient-to-br from-brand-800 to-brand-600 sm:h-44" style={s.theme_color ? { background: s.theme_color } : undefined} />}
       <div className="container-page">
         <div className="card -mt-16 flex flex-col gap-5 p-6 sm:flex-row">
           <StoreLogo store={s} size="h-24 w-24" />
@@ -83,6 +121,8 @@ export function StoreDetail() {
               <Link to={`/users/${s.owner_id}`} className="link">{t('store.owner')}: {s.owner_name}</Link>
               <FollowButton userId={s.owner_id} />
             </div>
+            {s.tagline && <p className="mt-2 text-base font-semibold" style={s.theme_color ? { color: s.theme_color } : undefined}>{s.tagline}</p>}
+            {s.hours && <p className="mt-1 text-sm text-slate-600">🕒 {s.hours}</p>}
             {s.description && <p className="mt-3 max-w-3xl whitespace-pre-line text-slate-700">{s.description}</p>}
           </div>
           <div className="flex shrink-0 flex-col gap-2 sm:w-48">
@@ -93,6 +133,8 @@ export function StoreDetail() {
           </div>
         </div>
 
+        <StoreCoupons coupons={s.coupons} color={s.theme_color} />
+        <PinnedListings ids={s.pinned_ids} />
         <section className="mt-8">
           <h2 className="mb-4 text-xl font-bold">{t('store.listings')}</h2>
           {products.loading ? <Spinner /> : products.data?.items?.length ? (

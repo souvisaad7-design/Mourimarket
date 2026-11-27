@@ -34,7 +34,7 @@ export function gatewayFor(key) {
 
 /** Split a delivered order: seller gets the item price − commission, courier the fee − delivery commission. */
 export function split(order, pct, deliveryPct, hasCourier) {
-  const item = Number(order.item_price);
+  const item = Number(order.item_price) - Number(order.discount || 0); // after the seller's coupon
   const fee = Number(order.delivery_fee);
   const commission = Math.round((item * pct) / 100);
   const feeCut = hasCourier ? Math.round((fee * deliveryPct) / 100) : 0;

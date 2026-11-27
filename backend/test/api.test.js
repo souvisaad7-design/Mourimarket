@@ -2710,3 +2710,136 @@ describe('Souk Pay', () => {
     assert.equal((await call('/api/pay/webhook/cod', { method: 'POST', body: {} })).status, 404);
   });
 });
+
+describe('Souk Pro', () => {
+  let admin; let seller; let buyer; let courier; let sid; let cid;
+  const NKC = { lat: 18.0735, lng: -15.9582 };
+  const listing = async (title, price, extra = {}) => {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries({ title, description: 'سلعة لاختبار سوق برو', price: String(price), city: 'nouakchott', condition: 'new', categoryId: '1', ...extra })) fd.append(k, v);
+    fd.append('images', new Blob([PNG], { type: 'image/png' }), 'a.png');
+    const r = await call('/api/products', { method: 'POST', token: seller, form: fd });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    await pool.query("UPDATE products SET status = 'approved' WHERE id = $1", [r.data.product.id]);
+    return r.data.product.id;
+  };
+  const order = (pid, tok = buyer, extra = {}) => call('/api/orders', { method: 'POST', token: tok, body: { productId: pid, city: 'nouakchott', phone: '22334455', ...NKC, ...extra } });
+  const deliver = async (oid) => {
+    const move = (tok, status) => call(`/api/orders/${oid}/status`, { method: 'POST', token: tok, body: { status } });
+    assert.equal((await move(seller, 'accepted')).status, 200);
+    assert.equal((await call(`/api/orders/${oid}/claim`, { method: 'POST', token: courier })).status, 200);
+    for (const st of ['picked_up', 'on_the_way', 'delivered']) assert.equal((await move(courier, st)).status, 200, st);
+  };
+  before(async () => {
+    admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
+    seller = await login('fatimetou@example.mr'); buyer = await login('buyer@example.mr'); courier = await login('sidi@example.mr');
+    sid = (await call('/api/auth/me', { token: seller })).data.user.id;
+    cid = (await call('/api/auth/me', { token: courier })).data.user.id;
+    await pool.query("INSERT INTO couriers (user_id, status, phone, city, vehicle) VALUES ($1, 'approved', '+22246007766', 'nouakchott', 'motorbike') ON CONFLICT (user_id) DO UPDATE SET status = 'approved'", [cid]);
+  });
+
+  it('inventory: units promised to open orders cannot be sold twice; the last unit marks it sold', async () => {
+    const pid = await listing('قميص بمخزون', 1000, { stock: '2' });
+    assert.equal((await call(`/api/products/${pid}`)).data.product.stock, 2);
+    const o1 = await order(pid);
+    assert.equal(o1.status, 201, JSON.stringify(o1.data));
+    const other = await login('mohamed@example.mr');
+    const o2 = await order(pid, other);
+    assert.equal(o2.status, 201);
+    const amana = await login('amana@example.mr');
+    assert.equal((await order(pid, amana)).data.error, 'out_of_stock', 'both units are promised');
+    await deliver(o1.data.order.id);
+    let p = (await call(`/api/products/${pid}`)).data.product;
+    assert.equal(p.stock, 1); assert.equal(p.availability, 'available');
+    await deliver(o2.data.order.id);
+    p = (await call(`/api/products/${pid}`)).data.product;
+    assert.equal(p.stock, 0); assert.equal(p.availability, 'sold');
+    assert.ok((await pool.query("SELECT 1 FROM notifications WHERE type = 'stock_low' AND user_id = $1", [sid])).rowCount >= 1);
+    // Restock without a new review.
+    assert.equal((await call(`/api/pro/inventory/${pid}`, { method: 'PATCH', token: buyer, body: { stock: 5 } })).status, 403);
+    const r = await call(`/api/pro/inventory/${pid}`, { method: 'PATCH', token: seller, body: { stock: 5 } });
+    assert.equal(r.data.product.availability, 'available');
+    assert.equal((await call(`/api/products/${pid}`)).data.product.status, 'approved');
+    const inv = (await call('/api/pro/inventory', { token: seller })).data.items.find((x) => x.id === pid);
+    assert.equal(inv.stock, 5); assert.equal(inv.delivered, 2);
+  });
+
+  it('coupons: percent / amount, minimum, uses, expiry; the discount reaches the split', async () => {
+    assert.equal((await call('/api/pro/coupons', { method: 'POST', token: buyer, body: { code: 'X10', kind: 'percent', value: 10 } })).status, 403, 'buyers have no coupons');
+    assert.equal((await call('/api/pro/coupons', { method: 'POST', token: seller, body: { code: 'TOO', kind: 'percent', value: 95 } })).data.fields.value, 'max_90');
+    const c = await call('/api/pro/coupons', { method: 'POST', token: seller, body: { code: 'eid 10', kind: 'percent', value: 10, minTotal: 5000, maxUses: 1, isPublic: true } });
+    assert.equal(c.status, 201, JSON.stringify(c.data));
+    assert.equal(c.data.coupon.code, 'EID10');
+    assert.equal((await call('/api/pro/coupons', { method: 'POST', token: seller, body: { code: 'EID10', kind: 'amount', value: 5 } })).data.error, 'coupon_exists');
+    await call('/api/pro/coupons', { method: 'POST', token: seller, body: { code: 'OLD', kind: 'amount', value: 100, expiresAt: '2020-01-01' } });
+    const cheap = await listing('حزام', 3000);
+    const pid = await listing('ساعة بكوبون', 20000);
+    const q0 = await call('/api/orders/quote', { method: 'POST', token: buyer, body: { productId: cheap, city: 'nouakchott', couponCode: 'eid10' } });
+    assert.equal(q0.data.error, 'coupon_min_total');
+    assert.equal((await call('/api/orders/quote', { method: 'POST', token: buyer, body: { productId: pid, city: 'nouakchott', couponCode: 'OLD' } })).data.error, 'coupon_expired');
+    assert.equal((await call('/api/orders/quote', { method: 'POST', token: buyer, body: { productId: pid, city: 'nouakchott', couponCode: 'NOPE' } })).data.error, 'coupon_invalid');
+    const q = (await call('/api/orders/quote', { method: 'POST', token: buyer, body: { productId: pid, city: 'nouakchott', couponCode: 'eid10', ...NKC } })).data;
+    assert.equal(q.discount, 2000);
+    assert.equal(q.total, 18000 + q.deliveryFee);
+    const o = await order(pid, buyer, { couponCode: 'EID10' });
+    assert.equal(o.status, 201, JSON.stringify(o.data));
+    assert.equal(Number(o.data.order.discount), 2000);
+    const other = await login('mohamed@example.mr');
+    assert.equal((await order(await listing('ساعة ثانية', 20000), other, { couponCode: 'EID10' })).data.error, 'coupon_used_up');
+    // Public coupons show on the store page.
+    const slug = (await call('/api/stores/me', { token: seller })).data.store?.slug;
+    if (slug) assert.ok((await call(`/api/stores/${slug}`)).data.store.coupons.some((x) => x.code === 'EID10') === false, 'used up: hidden');
+    await deliver(o.data.order.id);
+    const st = (await pool.query('SELECT * FROM order_settlements WHERE order_id = $1', [o.data.order.id])).rows[0];
+    assert.equal(Number(st.seller_amount), 18000, 'the seller receives the price after the coupon');
+    // Cancelling gives the use back.
+    const c2 = (await call('/api/pro/coupons', { method: 'POST', token: seller, body: { code: 'ONCE', kind: 'amount', value: 500, maxUses: 1 } })).data.coupon;
+    const pid2 = await listing('نظارة', 4000);
+    const o2 = await order(pid2, buyer, { couponCode: 'ONCE' });
+    await call(`/api/orders/${o2.data.order.id}/status`, { method: 'POST', token: buyer, body: { status: 'cancelled' } });
+    assert.equal((await pool.query('SELECT uses FROM coupons WHERE id = $1', [c2.id])).rows[0].uses, 0);
+    assert.equal((await call(`/api/pro/coupons/${c2.id}`, { method: 'PATCH', token: seller, body: { isActive: false } })).data.coupon.is_active, false);
+    assert.equal((await call('/api/orders/quote', { method: 'POST', token: buyer, body: { productId: pid2, city: 'nouakchott', couponCode: 'ONCE' } })).data.error, 'coupon_invalid');
+  });
+
+  it('sales reports and CSV for the seller only', async () => {
+    const r = (await call('/api/pro/reports?days=30', { token: seller })).data;
+    assert.ok(r.summary.delivered >= 3, JSON.stringify(r.summary));
+    assert.ok(r.summary.revenue >= 20000);
+    assert.equal(r.summary.discounts, 2000);
+    assert.ok(r.top.length >= 1 && r.series.length >= 1);
+    assert.equal(r.coupons[0].code, 'EID10');
+    const csv = await fetch(`${base}/api/pro/reports.csv?days=30`, { headers: { Authorization: `Bearer ${seller}` } });
+    assert.equal(csv.status, 200);
+    assert.ok((await csv.text()).includes('EID10'));
+    assert.equal((await call('/api/pro/reports', { token: buyer })).status, 403);
+  });
+
+  it('store page look: banner, colour, tagline, hours, pinned listings (own live ones only)', async () => {
+    const merchant = await login('amana@example.mr');
+    const sf = new FormData(); sf.append('name', 'متجر الأمانة');
+    await call('/api/stores/me', { method: 'PUT', token: merchant, form: sf });
+    const mine = (await call(`/api/products?seller=${(await call('/api/auth/me', { token: merchant })).data.user.id}&limit=2`)).data.items.map((x) => x.id);
+    const notMine = (await call(`/api/products?seller=${sid}&limit=1`)).data.items[0].id;
+    assert.equal((await call('/api/pro/store-look', { method: 'PUT', token: merchant, body: { themeColor: 'red' } })).data.fields.themeColor, 'invalid');
+    const r = await call('/api/pro/store-look', { method: 'PUT', token: merchant, body: { tagline: 'أفضل الأسعار في نواكشوط', hours: 'كل يوم 9:00–22:00', themeColor: '#7c3aed', pinnedIds: [...mine, notMine] } });
+    assert.equal(r.status, 200, JSON.stringify(r.data));
+    assert.deepEqual(r.data.look.pinned_ids.sort(), mine.sort(), 'other sellers’ listings are dropped');
+    const fd = new FormData(); fd.append('banner', new Blob([PNG], { type: 'image/png' }), 'b.png');
+    assert.ok((await call('/api/pro/store-banner', { method: 'POST', token: merchant, form: fd })).data.banner_url);
+    const slug = (await call('/api/stores/me', { token: merchant })).data.store.slug;
+    const s = (await call(`/api/stores/${slug}`)).data.store;
+    assert.equal(s.tagline, 'أفضل الأسعار في نواكشوط');
+    assert.equal(s.theme_color, '#7c3aed');
+    assert.ok(s.banner_url);
+    assert.equal(s.pinned_ids.length, mine.length);
+    assert.equal((await call('/api/pro/store-look', { method: 'PUT', token: buyer, body: {} })).status, 404, 'no store');
+  });
+
+  it('the order detail carries what the invoice needs', async () => {
+    const o = (await call('/api/orders?as=buyer', { token: buyer })).data.items.find((x) => x.coupon_code === 'EID10');
+    const d = (await call(`/api/orders/${o.id}`, { token: buyer })).data.order;
+    assert.equal(Number(d.discount), 2000);
+    assert.ok('seller_store' in d);
+  });
+});

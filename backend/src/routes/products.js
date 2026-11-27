@@ -26,7 +26,7 @@ const router = Router();
 export const PRODUCT_SELECT = `
   p.id, p.title, p.price, p.old_price, p.city, p.condition, p.status, p.availability, p.views,
   p.created_at, p.updated_at, p.category_id, p.seller_id, p.store_id, p.attrs, p.video_url, p.bumped_at,
-  p.accepts_swap, p.swap_wanted, p.voice_url, p.voice_duration,
+  p.accepts_swap, p.swap_wanted, p.voice_url, p.voice_duration, p.stock,
   (SELECT json_build_object('id', a.id, 'ends_at', a.ends_at, 'current', COALESCE(a.current_bid, a.start_price), 'bids', a.bid_count)
      FROM auctions a WHERE a.product_id = p.id AND a.status = 'active') AS auction,
   c.slug AS category_slug, c.name_ar AS category_name_ar, c.name_fr AS category_name_fr, c.name_en AS category_name_en,
@@ -120,6 +120,11 @@ router.get('/', optionalAuth, async (req, res) => {
   if (f.availability !== 'all') add('p.availability = ?', f.availability);
   if (f.seller) add('p.seller_id = ?', f.seller);
   if (f.store) add('s.slug = ?', f.store);
+  // A short list of listings by id (e.g. the ones a store pinned).
+  if (typeof req.query.ids === 'string' && req.query.ids) {
+    const ids = req.query.ids.split(',').map((x) => parseInt(x, 10)).filter((x) => x > 0).slice(0, 24);
+    add('p.id = ANY(?::int[])', ids);
+  }
 
   // Distance from the visitor, the "near me" radius and sorting by distance.
   let distSelect = ', NULL::float8 AS distance_km';
@@ -322,6 +327,8 @@ const productSchema = z.object({
   // Barter: the seller also accepts a swap, optionally saying for what.
   acceptsSwap: z.preprocess((v) => v === true || v === 'true' || v === '1' || v === 'on', z.boolean()).default(false),
   swapWanted: z.string().trim().max(200).optional().transform((v) => v || null),
+  // Inventory (Souk Pro): empty = a single item, not tracked.
+  stock: z.preprocess(emptyToNull, z.coerce.number({ invalid_type_error: 'invalid_number' }).int().min(0, 'min_0').max(100000).nullable()).default(null),
 }).refine((d) => (d.lat === null) === (d.lng === null), { message: 'required', path: ['lat'] });
 
 function emptyToNull(v) {
@@ -384,10 +391,10 @@ router.post('/', requireAuth, requireVerifiedPhone, postLimiter, upload.array('i
     const storeId = await storeIdFor(sellerId, client);
     const { rows } = await client.query(
       `INSERT INTO products (seller_id, category_id, store_id, title, description, price, old_price, city, condition, status,
-         lat, lng, area, district, loc_exact, attrs, video_url, accepts_swap, swap_wanted)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING id, status, seller_id`,
+         lat, lng, area, district, loc_exact, attrs, video_url, accepts_swap, swap_wanted, stock)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING id, status, seller_id`,
       [sellerId, data.categoryId, storeId, data.title, data.description, data.price, data.oldPrice ?? null, data.city, data.condition, status,
-        data.lat, data.lng, data.area, data.district, data.locExact, attrs, data.videoUrl, data.acceptsSwap, data.acceptsSwap ? data.swapWanted : null],
+        data.lat, data.lng, data.area, data.district, data.locExact, attrs, data.videoUrl, data.acceptsSwap, data.acceptsSwap ? data.swapWanted : null, data.stock],
     );
     for (const [i, file] of files.entries()) {
       await client.query('INSERT INTO product_images (product_id, url, sort_order) VALUES ($1, $2, $3)', [
@@ -438,10 +445,11 @@ router.put('/:id', requireAuth, upload.array('images', MAX_IMAGES), async (req, 
          status = CASE WHEN $7 THEN status ELSE 'pending' END,
          rejection_reason = CASE WHEN $7 THEN rejection_reason ELSE NULL END,
          old_price = $9, lat = $10, lng = $11, area = $12, district = $13, loc_exact = $14, attrs = $15, video_url = $16,
-         accepts_swap = $17, swap_wanted = $18, updated_at = now()
+         accepts_swap = $17, swap_wanted = $18, stock = CASE WHEN $19 THEN $20::int ELSE stock END, updated_at = now()
        WHERE id = $8`,
       [data.title, data.description, data.price, data.categoryId, data.city, data.condition, keepApproved, product.id, data.oldPrice ?? null,
-        data.lat, data.lng, data.area, data.district, data.locExact, attrs, data.videoUrl, data.acceptsSwap, data.acceptsSwap ? data.swapWanted : null],
+        data.lat, data.lng, data.area, data.district, data.locExact, attrs, data.videoUrl, data.acceptsSwap, data.acceptsSwap ? data.swapWanted : null,
+        'stock' in req.body, data.stock],
     );
     return del.rows.map((r) => r.url);
   });

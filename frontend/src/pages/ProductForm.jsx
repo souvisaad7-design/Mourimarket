@@ -28,7 +28,7 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
   const { t, tl, price } = useI18n();
   const { categories, meta, user, notify } = useApp();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ title: '', description: '', price: '', oldPrice: '', categoryId: '', city: user.city || '', condition: 'used', acceptsSwap: false, swapWanted: '' });
+  const [form, setForm] = useState({ title: '', description: '', price: '', oldPrice: '', categoryId: '', city: user.city || '', condition: 'used', acceptsSwap: false, swapWanted: '', stock: '' });
   // Where the item is: optional pin, moughataa and neighbourhood (see the "Location" section).
   const [loc, setLoc] = useState({ lat: null, lng: null, area: '', district: '', locExact: false });
   const [attrs, setAttrs] = useState({});
@@ -70,7 +70,7 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
         title: product.title, description: product.description, price: String(product.price),
         oldPrice: product.old_price ? String(product.old_price) : '',
         categoryId: String(product.category_id), city: product.city, condition: product.condition,
-        acceptsSwap: Boolean(product.accepts_swap), swapWanted: product.swap_wanted || '',
+        acceptsSwap: Boolean(product.accepts_swap), swapWanted: product.swap_wanted || '', stock: product.stock ?? '',
       });
       setAttrs(product.attrs || {});
       setVideoUrl(product.video_url || '');
@@ -268,6 +268,11 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
               <input className="input mt-2" maxLength={200} value={form.swapWanted} onChange={set('swapWanted')} placeholder={t('swap.wantedPh')} aria-label={t('swap.wantedPh')} />
             )}
           </div>
+          {user.account_type !== 'buyer' && (
+            <Field label={`📦 ${t('pro.stock.formLabel')}`} optional hint={t('pro.stock.formHint')} error={fieldError('stock')}>
+              <input className="input max-w-[10rem]" type="number" min="0" max="100000" inputMode="numeric" dir="ltr" value={form.stock} onChange={set('stock')} />
+            </Field>
+          )}
           <AttributeFields categorySlug={categories.find((c) => String(c.id) === String(form.categoryId))?.slug} value={attrs} onChange={setAttrs} fieldError={fieldError} />
           <VideoField value={videoUrl} onChange={setVideoUrl} />
           <VoiceField value={voice} onChange={setVoice} />

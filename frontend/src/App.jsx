@@ -45,6 +45,8 @@ import SoukAI from './pages/SoukAI.jsx';
 import Eid, { Livestock } from './pages/Eid.jsx';
 import Auctions from './pages/Auctions.jsx';
 import Wallet from './pages/Wallet.jsx';
+import Invoice from './pages/Invoice.jsx';
+const ProTools = lazy(() => import('./pages/Pro.jsx'));
 import Social, { PostPage } from './pages/Social.jsx';
 import LiveList, { LiveForm, LiveRoom } from './pages/Live.jsx';
 const AdminCommunity = lazy(() => import('./pages/admin/AdminCommunity.jsx'));
@@ -97,6 +99,7 @@ function GuestOnly({ children }) {
 export default function App() {
   return (
     <Routes>
+      <Route path="orders/:id/invoice" element={<RequireAuth><Invoice /></RequireAuth>} />
       <Route element={<Layout />}>
         {/* Public */}
         <Route index element={<Home />} />
@@ -112,6 +115,7 @@ export default function App() {
         <Route path="livestock" element={<Livestock />} />
         <Route path="auctions" element={<Auctions />} />
         <Route path="wallet" element={<RequireAuth><Wallet /></RequireAuth>} />
+        <Route path="pro" element={<RequireAuth><SellerOnly><Suspense fallback={<Spinner />}><ProTools /></Suspense></SellerOnly></RequireAuth>} />
         <Route path="social" element={<Social />} />
         <Route path="social/posts/:id" element={<PostPage />} />
         <Route path="live" element={<LiveList />} />

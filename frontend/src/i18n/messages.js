@@ -2885,6 +2885,128 @@ deepMerge(en, {
   } },
 });
 
+// v50: Souk Pro (inventory, coupons, invoices, reports, store look)
+deepMerge(ar, {
+  pro: {
+    nav: 'سوق برو', title: 'سوق برو: أدوات التاجر', subtitle: 'المخزون، كوبونات الخصم، تقارير المبيعات وواجهة متجرك. كلها مجانية.',
+    tabs: { stock: '📦 المخزون', coupons: '🏷️ الكوبونات', reports: '📊 التقارير', look: '🎨 واجهة المتجر' },
+    stock: {
+      intro: 'حدّد عدد القطع المتوفرة من كل إعلان. يُنقص العدد تلقائياً عند تسليم كل طلب، ويصبح الإعلان «مباعاً» عند نفاد آخر قطعة. اترك الخانة فارغة لقطعة واحدة دون تتبّع.',
+      lowWarning: '{n} إعلان أوشك مخزونه على النفاد.', none: 'لا توجد إعلانات بعد.', reserved: '{n} محجوزة لطلبات مفتوحة', sold: '{n} بيعت بالتوصيل', units: 'عدد القطع',
+      formLabel: 'الكمية المتوفرة', formHint: 'اختياري. للتجار الذين لديهم عدة قطع من نفس السلعة.', onlyLeft: 'باقي {n} فقط!', inStock: 'متوفر',
+    },
+    coupon: {
+      intro: 'أنشئ رمز خصم يكتبه المشتري عند طلب التوصيل. الخصم يُطبَّق على ثمن السلعة فقط ويُنقص من مستحقاتك.',
+      code: 'الرمز', kind: 'النوع', percent: 'نسبة مئوية', amount: 'مبلغ ثابت', valuePct: 'النسبة (%)', valueMru: 'المبلغ (أوقية)',
+      minTotal: 'أقل ثمن للسلعة', maxUses: 'عدد مرات الاستعمال', expires: 'ينتهي في', public: 'اعرضه في صفحة متجري', create: 'إنشاء الكوبون',
+      used: 'استُعمل {n}', from: 'من {amount}', until: 'حتى {d}', active: 'مفعّل', onStore: 'ظاهر في المتجر', deleteConfirm: 'حذف الكوبون {code}؟', none: 'لا توجد كوبونات بعد.',
+      discount: 'خصم الكوبون {code}', have: 'عندك كوبون خصم؟', apply: 'تطبيق', copied: 'نُسخ الرمز. اكتبه عند طلب التوصيل.', onDelivery: 'عند طلب التوصيل',
+    },
+    report: {
+      days: 'آخر {n} يوم', revenue: 'المبيعات', orders: 'طلبات مُسلّمة', average: 'متوسط الطلب', buyers: 'مشترون', discounts: 'خصومات الكوبونات',
+      cancelRate: 'نسبة الإلغاء', open: 'طلبات جارية', manual: 'مبيعات مسجّلة يدوياً', empty: 'لا توجد طلبات مُسلّمة في هذه الفترة.',
+      top: 'الأكثر مبيعاً', coupons: 'الكوبونات المستعملة', manualHint: 'إضافةً إلى ذلك علّمتَ {n} إعلاناً «مباعاً» بنفسك (قيمتها {amount}) دون طلب توصيل.',
+    },
+    look: {
+      noStore: 'أنشئ متجرك أولاً لتخصيص واجهته.', banner: 'صورة الغلاف', tagline: 'شعار قصير', hours: 'أوقات العمل', hoursPh: 'مثلاً: كل يوم من 9 صباحاً إلى 10 ليلاً',
+      color: 'لون المتجر', defaultColor: 'اللون الافتراضي', pinned: 'إعلانات مثبّتة في الأعلى', pinnedHint: 'اختر حتى 4 إعلانات تظهر أولاً في صفحة متجرك.',
+      view: 'عرض صفحة المتجر', pinnedTitle: 'مختارات المتجر',
+    },
+    invoice: {
+      title: 'فاتورة', print: 'طباعة / حفظ PDF', back: 'رجوع للطلب', pdfHint: 'لحفظها PDF: اضغط «طباعة» ثم اختر «حفظ كـ PDF».',
+      paid: 'مدفوعة', cancelled: 'ملغاة', unpaid: 'لم تُدفع بعد', billedTo: 'إلى', payment: 'طريقة الدفع', deliveredOn: 'سُلّمت في {d}',
+      item: 'البيان', qty: 'الكمية', amount: 'المبلغ', itemAfter: 'ثمن السلعة بعد الخصم: {amount}', footer: 'فاتورة صادرة عبر {site}', open: 'الفاتورة',
+    },
+  },
+  errors: {
+    out_of_stock: 'نفدت الكمية المتوفرة من هذا المنتج.', coupon_invalid: 'رمز الخصم غير صحيح.', coupon_expired: 'انتهت صلاحية رمز الخصم.',
+    coupon_used_up: 'استُعمل رمز الخصم بالكامل.', coupon_min_total: 'هذا الكوبون يتطلب سلعة بثمن {min} على الأقل.', coupon_exists: 'لديك كوبون بهذا الرمز.',
+    too_many_coupons: 'لديك 30 كوبوناً مفعّلاً، أوقف بعضها أولاً.', coupon_not_found: 'الكوبون غير موجود.', seller_only: 'هذه الأداة للبائعين.', store_not_found: 'المتجر غير موجود.',
+  },
+  fields: { max_90: 'النسبة القصوى 90٪', invalid: 'قيمة غير صحيحة' },
+  notifications: { types: { stock_low: '📦 باقي {n} فقط من «{title}». حدّث المخزون' } },
+});
+deepMerge(fr, {
+  pro: {
+    nav: 'Souk Pro', title: 'Souk Pro : outils vendeur', subtitle: 'Stock, codes promo, rapports de ventes et vitrine de votre boutique. Tout est gratuit.',
+    tabs: { stock: '📦 Stock', coupons: '🏷️ Codes promo', reports: '📊 Rapports', look: '🎨 Vitrine' },
+    stock: {
+      intro: 'Indiquez le nombre d’unités de chaque annonce. Il baisse à chaque livraison ; à la dernière unité l’annonce passe « vendue ». Laissez vide pour un article unique non suivi.',
+      lowWarning: '{n} annonce(s) bientôt en rupture.', none: 'Aucune annonce.', reserved: '{n} réservée(s)', sold: '{n} vendue(s) en livraison', units: 'Unités',
+      formLabel: 'Quantité disponible', formHint: 'Facultatif. Pour les vendeurs ayant plusieurs unités du même article.', onlyLeft: 'Plus que {n} !', inStock: 'En stock',
+    },
+    coupon: {
+      intro: 'Créez un code que l’acheteur saisit lors de la commande avec livraison. La remise s’applique au prix de l’article et réduit ce qui vous revient.',
+      code: 'Code', kind: 'Type', percent: 'Pourcentage', amount: 'Montant fixe', valuePct: 'Pourcentage (%)', valueMru: 'Montant (MRU)',
+      minTotal: 'Prix minimum de l’article', maxUses: 'Nombre d’utilisations', expires: 'Expire le', public: 'Afficher sur ma boutique', create: 'Créer le code',
+      used: 'Utilisé {n}', from: 'dès {amount}', until: 'jusqu’au {d}', active: 'Actif', onStore: 'Sur la boutique', deleteConfirm: 'Supprimer le code {code} ?', none: 'Aucun code.',
+      discount: 'Remise {code}', have: 'Un code promo ?', apply: 'Appliquer', copied: 'Code copié : saisissez-le à la commande.', onDelivery: 'à la commande avec livraison',
+    },
+    report: {
+      days: '{n} derniers jours', revenue: 'Ventes', orders: 'Commandes livrées', average: 'Panier moyen', buyers: 'Acheteurs', discounts: 'Remises',
+      cancelRate: 'Taux d’annulation', open: 'En cours', manual: 'Ventes saisies à la main', empty: 'Aucune commande livrée sur la période.',
+      top: 'Meilleures ventes', coupons: 'Codes utilisés', manualHint: 'Vous avez aussi marqué {n} annonce(s) « vendue(s) » vous-même ({amount}) sans commande.',
+    },
+    look: {
+      noStore: 'Créez d’abord votre boutique.', banner: 'Image de couverture', tagline: 'Slogan', hours: 'Horaires', hoursPh: 'ex. tous les jours 9h–22h',
+      color: 'Couleur', defaultColor: 'Couleur par défaut', pinned: 'Annonces épinglées', pinnedHint: 'Jusqu’à 4 annonces affichées en premier.',
+      view: 'Voir la boutique', pinnedTitle: 'Sélection de la boutique',
+    },
+    invoice: {
+      title: 'Facture', print: 'Imprimer / PDF', back: 'Retour à la commande', pdfHint: 'Pour un PDF : « Imprimer » puis « Enregistrer en PDF ».',
+      paid: 'Payée', cancelled: 'Annulée', unpaid: 'Non payée', billedTo: 'Facturé à', payment: 'Paiement', deliveredOn: 'Livrée le {d}',
+      item: 'Désignation', qty: 'Qté', amount: 'Montant', itemAfter: 'Prix de l’article après remise : {amount}', footer: 'Facture émise via {site}', open: 'Facture',
+    },
+  },
+  errors: {
+    out_of_stock: 'Plus de stock pour ce produit.', coupon_invalid: 'Code promo invalide.', coupon_expired: 'Code promo expiré.',
+    coupon_used_up: 'Code promo épuisé.', coupon_min_total: 'Ce code demande un article d’au moins {min}.', coupon_exists: 'Vous avez déjà ce code.',
+    too_many_coupons: 'Vous avez déjà 30 codes actifs.', coupon_not_found: 'Code introuvable.', seller_only: 'Outil réservé aux vendeurs.', store_not_found: 'Boutique introuvable.',
+  },
+  fields: { max_90: '90 % maximum', invalid: 'Valeur invalide' },
+  notifications: { types: { stock_low: '📦 Plus que {n} « {title} » en stock. Mettez à jour' } },
+});
+deepMerge(en, {
+  pro: {
+    nav: 'Souk Pro', title: 'Souk Pro: seller tools', subtitle: 'Stock, discount codes, sales reports and your store page. All free.',
+    tabs: { stock: '📦 Stock', coupons: '🏷️ Coupons', reports: '📊 Reports', look: '🎨 Store page' },
+    stock: {
+      intro: 'Set how many units of each listing you have. It goes down with every delivered order; the last unit marks the listing sold. Leave empty for a single, untracked item.',
+      lowWarning: '{n} listing(s) about to run out.', none: 'No listings yet.', reserved: '{n} reserved by open orders', sold: '{n} sold by delivery', units: 'Units',
+      formLabel: 'Quantity in stock', formHint: 'Optional. For sellers with several units of the same item.', onlyLeft: 'Only {n} left!', inStock: 'In stock',
+    },
+    coupon: {
+      intro: 'Create a code buyers type when ordering with delivery. The discount comes off the item price and from what you receive.',
+      code: 'Code', kind: 'Type', percent: 'Percentage', amount: 'Fixed amount', valuePct: 'Percentage (%)', valueMru: 'Amount (MRU)',
+      minTotal: 'Minimum item price', maxUses: 'Number of uses', expires: 'Expires on', public: 'Show on my store page', create: 'Create coupon',
+      used: 'Used {n}', from: 'from {amount}', until: 'until {d}', active: 'Active', onStore: 'On store page', deleteConfirm: 'Delete coupon {code}?', none: 'No coupons yet.',
+      discount: 'Coupon {code}', have: 'Have a coupon code?', apply: 'Apply', copied: 'Code copied: type it when ordering.', onDelivery: 'on delivery orders',
+    },
+    report: {
+      days: 'Last {n} days', revenue: 'Sales', orders: 'Delivered orders', average: 'Average order', buyers: 'Buyers', discounts: 'Coupon discounts',
+      cancelRate: 'Cancellation rate', open: 'Open orders', manual: 'Sales recorded by hand', empty: 'No delivered orders in this period.',
+      top: 'Best sellers', coupons: 'Coupons used', manualHint: 'You also marked {n} listing(s) sold yourself ({amount}) without a delivery order.',
+    },
+    look: {
+      noStore: 'Create your store first.', banner: 'Cover image', tagline: 'Tagline', hours: 'Opening hours', hoursPh: 'e.g. every day 9am–10pm',
+      color: 'Store colour', defaultColor: 'Default colour', pinned: 'Pinned listings', pinnedHint: 'Up to 4 listings shown first on your store page.',
+      view: 'View store page', pinnedTitle: 'Store picks',
+    },
+    invoice: {
+      title: 'Invoice', print: 'Print / Save PDF', back: 'Back to order', pdfHint: 'For a PDF: tap “Print” and choose “Save as PDF”.',
+      paid: 'Paid', cancelled: 'Cancelled', unpaid: 'Not paid yet', billedTo: 'Billed to', payment: 'Payment', deliveredOn: 'Delivered on {d}',
+      item: 'Item', qty: 'Qty', amount: 'Amount', itemAfter: 'Item price after discount: {amount}', footer: 'Invoice issued through {site}', open: 'Invoice',
+    },
+  },
+  errors: {
+    out_of_stock: 'This product is out of stock.', coupon_invalid: 'Invalid coupon code.', coupon_expired: 'This coupon has expired.',
+    coupon_used_up: 'This coupon has been used up.', coupon_min_total: 'This coupon needs an item of at least {min}.', coupon_exists: 'You already have this code.',
+    too_many_coupons: 'You already have 30 active coupons.', coupon_not_found: 'Coupon not found.', seller_only: 'This tool is for sellers.', store_not_found: 'Store not found.',
+  },
+  fields: { max_90: '90% at most', invalid: 'Invalid value' },
+  notifications: { types: { stock_low: '📦 Only {n} “{title}” left. Update your stock' } },
+});
+
 // v47: Hassaniya (الحسانية) – Arabic with the most visible phrases in the Mauritanian dialect.
 // Everything not listed here stays in standard Arabic; the admin can refine any text (Admin → Texts).
 const hs = deepMerge(structuredClone(ar), {
