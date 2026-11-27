@@ -10,6 +10,7 @@ import ProfileCard from '../components/ProfileCard.jsx';
 import MerchantStatus from '../components/MerchantStatus.jsx';
 import { UpgradeModal, UpgradePanel, isFeaturable } from '../components/Upgrades.jsx';
 import { InspectionButton } from '../components/Inspection.jsx';
+import { useModule } from '../lib/modules.js';
 
 function SoldModal({ product, onClose, onDone }) {
   const { t } = useI18n();
@@ -51,6 +52,7 @@ function SellerDashboard() {
     try { await api(`/products/${p.id}/feature-credit`, { method: 'POST' }); notify(t('plans.featuredDone')); reload(); myStore.reload(); } catch { notify(t('common.error')); }
   };
   const [bumpWait, setBumpWait] = useState(null); // { product, next }
+  const bumpOn = useModule('bump');
   const bump = async (p) => {
     try {
       await api(`/products/${p.id}/bump`, { method: 'POST' });
@@ -165,7 +167,7 @@ function SellerDashboard() {
                     <Icon name="star" filled className="h-4 w-4" />{t('upgrades.featureThis')}
                   </button>
                 )}
-                {isFeaturable(p) && (
+                {bumpOn && isFeaturable(p) && (
                   <button className="btn-outline border-brand-300 px-3 py-2 text-xs text-brand-800" onClick={() => bump(p)} title={t('bump.hint', { n: meta.freeBumpDays || 7 })}>⬆ {t('bump.cta')}</button>
                 )}
                 <InspectionButton product={p} />

@@ -10,6 +10,7 @@ import MapView, { MAURITANIA } from '../components/MapView.jsx';
 import { useGeo } from '../context/LocationContext.jsx';
 import { SaveSearchButton } from './SavedSearches.jsx';
 import { AttributeFilters } from '../components/Attributes.jsx';
+import { useModule } from '../lib/modules.js';
 
 // `near` is the radius in km around the visitor; their position itself never goes in the URL.
 const FILTER_KEYS = ['q', 'category', 'city', 'minPrice', 'maxPrice', 'condition', 'sort', 'availability', 'featured', 'deals', 'swap', 'near', 'view', 'page'];
@@ -17,6 +18,8 @@ const RADII = ['2', '5', '10', '25', '50'];
 
 /** All listings + search results. Every filter lives in the URL so results are shareable. */
 export default function Products() {
+  const barterOn = useModule('barter');
+  const livestockOn = useModule('livestock');
   const { t, tl, number } = useI18n();
   const { categories, meta } = useApp();
   const [params, setParams] = useSearchParams();
@@ -104,10 +107,12 @@ export default function Products() {
         <input type="checkbox" className="h-4 w-4 rounded accent-brand-700" checked={draft.availability === 'all'} onChange={(e) => setDraft({ ...draft, availability: e.target.checked ? 'all' : '' })} />
         {t('products.includeSold')}
       </label>
+      {barterOn && (
       <label className="flex items-center gap-2 text-sm text-slate-700">
         <input type="checkbox" className="h-4 w-4 rounded accent-violet-700" checked={draft.swap === '1'} onChange={(e) => setDraft({ ...draft, swap: e.target.checked ? '1' : '' })} />
         🔄 {t('swap.filter')}
       </label>
+      )}
       <div className="flex gap-2">
         <button className="btn-primary flex-1">{t('common.apply')}</button>
         <button type="button" className="btn-outline" onClick={() => { setParams(new URLSearchParams()); setShowFilters(false); }}>{t('common.reset')}</button>
@@ -166,7 +171,7 @@ export default function Products() {
         ))}
       </div>
 
-      {current.category === 'livestock' && (
+      {livestockOn && current.category === 'livestock' && (
         <Link to="/livestock" className="mb-4 flex items-center gap-3 rounded-2xl bg-amber-50 p-3 text-sm font-semibold text-amber-900 ring-1 ring-amber-200">
           <span className="text-2xl" aria-hidden="true">🐪</span><span className="flex-1">{t('livestock.title')} · {t('livestock.marketsTitle')}</span><span aria-hidden="true">←</span>
         </Link>

@@ -32,6 +32,7 @@ import placesRoutes from './routes/places.js';
 import auctionRoutes from './routes/auctions.js';
 import payRoutes from './routes/pay.js';
 import proRoutes from './routes/pro.js';
+import adminMarketRoutes from './routes/adminMarket.js';
 
 export function createApp() {
   const app = express();
@@ -96,6 +97,7 @@ export function createApp() {
   app.use('/api', proRoutes);
   app.use('/api', inspectionRoutes);
   app.use('/api', escrowRoutes);
+  app.use('/api/admin/market', adminMarketRoutes);
   app.use('/api/admin', adminRoutes);
   app.use('/api/geo', geoRoutes);
   app.use('/api/push', pushRoutes);

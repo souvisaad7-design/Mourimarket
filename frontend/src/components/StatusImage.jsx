@@ -7,6 +7,7 @@ import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { taggedUrl } from '../lib/viewSource.js';
 import { Modal, useCityName } from './ui.jsx';
+import { useModule } from '../lib/modules.js';
 
 const W = 1080;
 const H = 1920;
@@ -105,7 +106,7 @@ async function draw({ product, url, t, price, oldMoney, city, siteName, dir }) {
   return canvas;
 }
 
-export default function StatusImageButton({ product, className = '' }) {
+function StatusImageButtonInner({ product, className = '' }) {
   const { t, price, oldMoney, siteName, dir } = useI18n();
   const cityName = useCityName();
   const { meta } = useApp();
@@ -149,4 +150,9 @@ export default function StatusImageButton({ product, className = '' }) {
       </Modal>
     </>
   );
+}
+
+/** Hidden while the admin has switched this feature off. */
+export default function StatusImageButton(props) {
+  return useModule('statusImage') ? <StatusImageButtonInner {...props} /> : null;
 }

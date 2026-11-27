@@ -9,6 +9,7 @@ import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
 import { EscrowPanel } from '../components/Escrow.jsx';
+import { useModule } from '../lib/modules.js';
 
 export const ORDER_STEPS = ['pending', 'accepted', 'preparing', 'picked_up', 'on_the_way', 'delivered'];
 const STATUS_STYLE = {
@@ -63,6 +64,7 @@ export function OrderDeliveryButton({ product }) {
 // ---------- Checkout ----------
 
 export function Checkout() {
+  const proOn = useModule('pro');
   const { productId } = useParams();
   const { t, lang, price } = useI18n();
   const { user, meta, notify } = useApp();
@@ -205,6 +207,7 @@ export function Checkout() {
               </div>
               <div className="flex justify-between border-t border-dashed border-slate-200 pt-2 text-base"><dt className="font-bold">{t('delivery.cost.total')}</dt><dd className="font-bold text-brand-800 ltr-nums">{quote ? price(quote.total) : '…'}</dd></div>
             </dl>
+            {proOn && (
             <div className="mx-4 mb-3">
               <div className="flex gap-2">
                 <input className="input min-w-0 flex-1 py-2 text-sm uppercase" dir="ltr" maxLength={30} value={couponInput} onChange={(e) => setCouponInput(e.target.value)}
@@ -213,6 +216,7 @@ export function Checkout() {
               </div>
               {couponErr && <p className="mt-1 text-xs text-rose-700" role="alert">{couponErr.code === 'coupon_min_total' && couponErr.fields?.min ? t('errors.coupon_min_total', { min: price(couponErr.fields.min) }) : t(`errors.${couponErr.code}`)}</p>}
             </div>
+            )}
             <fieldset className="mx-4 mb-4 space-y-2" aria-label={t('escrow.choose')}>
               {[['cod', '💵', t('delivery.cod.title'), t('delivery.cod.text')], ...(settings.delivery?.escrow ? [['escrow', '🔒', t('escrow.title'), t('escrow.checkoutText')]] : [])].map(([k, icon, title, text]) => (
                 <label key={k} className={`flex cursor-pointer items-start gap-2 rounded-xl border-2 p-3 text-xs text-brand-900 ${payMethod === k ? 'border-gold-400 bg-gold-300/20' : 'border-slate-200'}`}>
@@ -401,6 +405,7 @@ function TrackingMap({ order }) {
 }
 
 export function OrderDetailView({ id, admin = false, extra }) {
+  const invoicesOn = useModule('invoices');
   const { t, price, dateTime } = useI18n();
   const place = usePlace();
   const { data, loading, error, reload } = useApi(`/orders/${id}`);
@@ -455,7 +460,7 @@ export function OrderDetailView({ id, admin = false, extra }) {
             <div className="flex justify-between border-t border-dashed border-slate-200 pt-2 font-bold"><dt>{t('delivery.cost.total')}</dt><dd className="text-brand-800 ltr-nums">{price(o.total)}</dd></div>
           </dl>
           <p className="mt-3 rounded-xl bg-gold-300/20 p-2.5 text-xs text-brand-900">{o.payment_method === 'escrow' ? `🔒 ${t('escrow.paidOnline')}` : `💵 ${t('delivery.cod.short')}`}</p>
-          {!admin && <Link to={`/orders/${o.id}/invoice`} className="btn-outline mt-3 w-full text-xs">🧾 {t('pro.invoice.open')}</Link>}
+          {!admin && invoicesOn && <Link to={`/orders/${o.id}/invoice`} className="btn-outline mt-3 w-full text-xs">🧾 {t('pro.invoice.open')}</Link>}
         </section>
 
         <section className="card space-y-2 p-5 text-sm">

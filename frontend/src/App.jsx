@@ -54,6 +54,7 @@ const AdminCommunity = lazy(() => import('./pages/admin/AdminCommunity.jsx'));
 const AdminPlaces = lazy(() => import('./pages/admin/AdminPlaces.jsx'));
 const AdminAI = lazy(() => import('./pages/admin/AdminAI.jsx'));
 import SellerStats from './pages/SellerStats.jsx';
+import ModuleGate from './components/ModuleGate.jsx';
 const BulkImport = lazy(() => import('./pages/BulkImport.jsx'));
 const adminDelivery = () => import('./pages/admin/AdminDelivery.jsx');
 const [AdminOrders, AdminCouriers] = ['AdminOrders', 'AdminCouriers'].map((n) => lazyNamed(adminDelivery, n));
@@ -61,6 +62,8 @@ const AdminDeliveryPricing = lazyNamed(adminSite, 'AdminDeliveryPricing');
 const AdminInspections = lazyNamed(() => import('./pages/admin/AdminInspections.jsx'), 'AdminInspections');
 const AdminEscrow = lazyNamed(() => import('./pages/admin/AdminEscrow.jsx'), 'AdminEscrow');
 const AdminPay = lazyNamed(() => import('./pages/admin/AdminPay.jsx'), 'AdminPay');
+const AdminControl = lazyNamed(() => import('./pages/admin/AdminControl.jsx'), 'AdminControl');
+const AdminMarket = lazyNamed(() => import('./pages/admin/AdminMarket.jsx'), 'AdminMarket');
 
 function RequireAuth({ children, admin = false }) {
   const { user, ready } = useApp();
@@ -111,14 +114,14 @@ export default function App() {
         <Route path="products/:id" element={<ProductDetail />} />
         <Route path="users/:id" element={<SellerProfile />} />
         <Route path="stores" element={<Stores />} />
-        <Route path="wanted" element={<Wanted />} />
+        <Route path="wanted" element={<ModuleGate k="wanted"><Wanted /></ModuleGate>} />
         <Route path="ai" element={<SoukAI />} />
         <Route path="eid" element={<Eid />} />
-        <Route path="livestock" element={<Livestock />} />
+        <Route path="livestock" element={<ModuleGate k="livestock"><Livestock /></ModuleGate>} />
         <Route path="auctions" element={<Auctions />} />
         <Route path="wallet" element={<RequireAuth><Wallet /></RequireAuth>} />
-        <Route path="staff" element={<RequireAuth><StaffHome /></RequireAuth>} />
-        <Route path="pro" element={<RequireAuth><SellerOnly><Suspense fallback={<Spinner />}><ProTools /></Suspense></SellerOnly></RequireAuth>} />
+        <Route path="staff" element={<RequireAuth><ModuleGate k="pro"><StaffHome /></ModuleGate></RequireAuth>} />
+        <Route path="pro" element={<RequireAuth><SellerOnly><ModuleGate k="pro"><Suspense fallback={<Spinner />}><ProTools /></Suspense></ModuleGate></SellerOnly></RequireAuth>} />
         <Route path="social" element={<Social />} />
         <Route path="social/posts/:id" element={<PostPage />} />
         <Route path="live" element={<LiveList />} />
@@ -189,6 +192,8 @@ export default function App() {
         <Route path="inspections" element={<AdminInspections />} />
         <Route path="escrow" element={<AdminEscrow />} />
         <Route path="pay" element={<AdminPay />} />
+        <Route path="control" element={<AdminControl />} />
+        <Route path="market" element={<AdminMarket />} />
         <Route path="ai" element={<AdminAI />} />
         <Route path="community" element={<AdminCommunity />} />
         <Route path="places" element={<AdminPlaces />} />

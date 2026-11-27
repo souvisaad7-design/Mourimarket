@@ -10,6 +10,8 @@ import { SearchBar } from './SearchBar.jsx';
 import { Avatar, CategoryIcon, Icon, Logo, SiteMark } from './ui.jsx';
 import { AiFab } from '../pages/SoukAI.jsx';
 import { DataSaverToggle } from './DataSaver.jsx';
+import { featureOn } from '../lib/modules.js';
+import { liteOn, setLite } from '../lib/dataSaver.js';
 
 function Badge({ n }) {
   if (!n) return null;
@@ -63,13 +65,15 @@ function CityChip() {
 
 export function LangSwitcher({ compact, dark = false }) {
   const { uiLang: lang, setLang } = useI18n();
+  const hsOn = featureOn(useSettings().settings, 'hassaniya');
+  const langs = LANGS.filter((l) => l.code !== 'hs' || hsOn);
   if (dark) {
     return (
       <label className="relative flex items-center gap-1 text-white">
         <Icon name="globe" className="pointer-events-none h-4 w-4" />
         <select aria-label="Language" value={lang} onChange={(e) => setLang(e.target.value)}
           className="cursor-pointer appearance-none bg-transparent pe-1 text-xs font-semibold text-white focus:outline-none [&>option]:text-slate-900">
-          {LANGS.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
+          {langs.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
         </select>
         <Icon name="chevronDown" className="pointer-events-none h-3 w-3" />
       </label>
@@ -84,7 +88,7 @@ export function LangSwitcher({ compact, dark = false }) {
         onChange={(e) => setLang(e.target.value)}
         className={`cursor-pointer appearance-none rounded-lg border border-slate-200 bg-surface py-1.5 pe-2 ps-7 text-sm hover:bg-slate-50 ${compact ? 'w-full' : ''}`}
       >
-        {LANGS.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
+        {langs.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
       </select>
     </label>
   );
@@ -92,6 +96,7 @@ export function LangSwitcher({ compact, dark = false }) {
 
 function UserMenu() {
   const { user, logout } = useApp();
+  const proOn = featureOn(useSettings().settings, 'pro');
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef();
@@ -118,8 +123,8 @@ function UserMenu() {
             <Link className={item} to="/profile"><Icon name="shield" className="h-4 w-4" />{t('card.title')}</Link>
             {user.account_type === 'merchant' && <Link className={item} to="/dashboard/store"><Icon name="store" className="h-4 w-4" />{t('nav.myStore')}</Link>}
             <Link className={item} to="/orders"><span className="w-4 text-center" aria-hidden="true">📦</span>{t('delivery.nav.orders')}</Link>
-            {user.staff && <Link className={item} to="/staff"><span className="w-4 text-center" aria-hidden="true">👥</span>{user.staff.name}</Link>}
-            {user.account_type !== 'buyer' && <Link className={item} to="/pro"><span className="w-4 text-center" aria-hidden="true">⚡</span>{t('pro.nav')}</Link>}
+            {user.staff && proOn && <Link className={item} to="/staff"><span className="w-4 text-center" aria-hidden="true">👥</span>{user.staff.name}</Link>}
+            {user.account_type !== 'buyer' && proOn && <Link className={item} to="/pro"><span className="w-4 text-center" aria-hidden="true">⚡</span>{t('pro.nav')}</Link>}
             <Link className={item} to="/wallet"><span className="w-4 text-center" aria-hidden="true">💳</span>{t('pay.nav')}</Link>
             <Link className={item} to="/courier"><span className="w-4 text-center" aria-hidden="true">🛵</span>{t('delivery.nav.courier')}</Link>
             <Link className={item} to="/favorites"><Icon name="heart" className="h-4 w-4" />{t('nav.favorites')}</Link>
@@ -240,12 +245,16 @@ function Header() {
   const inAdmin = location.pathname.startsWith('/admin');
   // Top menu: the admin's list (Admin → Menus) or the built-in one.
   const { lang } = useI18n();
-  const custom = useSettings().settings.menu?.header;
+  const siteSettings = useSettings().settings;
+  const custom = siteSettings.menu?.header;
+  // Data saver switched off by the admin: everyone goes back to full images.
+  const saverOn = featureOn(siteSettings, 'dataSaver');
+  useEffect(() => { if (!saverOn && liteOn()) setLite(false); }, [saverOn]);
   const { meta } = useApp();
   // While the Eid market is on, it leads the built-in menu.
   const baseMenu = custom || (meta.eid ? [{ type: 'builtin', key: 'eid' }, ...DEFAULT_HEADER] : DEFAULT_HEADER);
-  const items = baseMenu.map((it) => resolveLink(it, t, lang)).filter(Boolean);
-  const mobileItems = custom ? items : [...items, resolveLink({ type: 'builtin', key: 'help' }, t, lang)];
+  const items = baseMenu.map((it) => resolveLink(it, t, lang, siteSettings)).filter(Boolean);
+  const mobileItems = custom ? items : [...items, resolveLink({ type: 'builtin', key: 'help' }, t, lang, siteSettings)];
   const here = location.pathname + location.search;
   const isActiveLink = (l) => {
     if (l.key === 'offers') return offersActive;
@@ -271,7 +280,7 @@ function Header() {
           <Logo size="lg" onDark />
           {!inAdmin && <div className="mx-auto hidden w-full max-w-xl md:block"><SearchBar compact /></div>}
           <div className="ms-auto flex shrink-0 items-center gap-1 sm:gap-2 md:ms-0">
-            <div className="hidden sm:block"><DataSaverToggle /></div>
+            {featureOn(siteSettings, 'dataSaver') && <div className="hidden sm:block"><DataSaverToggle /></div>}
             <div className="hidden sm:block"><ThemeToggle /></div>
             {user ? (
               <>
@@ -313,7 +322,7 @@ function Header() {
               {mobileItems.map((l) => renderLink(l, mobileCls, true))}
               {!user && <NavLink to="/login" className={mobileCls}><Icon name="user" className="h-4 w-4" />{t('nav.login')}</NavLink>}
               <div className="flex items-center gap-2 pt-2"><div className="flex-1"><LangSwitcher compact /></div><ThemeToggle withLabel /></div>
-              <DataSaverToggle withLabel />
+              {featureOn(siteSettings, 'dataSaver') && <DataSaverToggle withLabel />}
             </nav>
           </div>
         )}
@@ -325,9 +334,10 @@ function Header() {
 function Footer() {
   const { t, tl, lang, siteName } = useI18n();
   const { categories } = useApp();
-  const { menu, delivery } = useSettings().settings;
+  const siteSettings = useSettings().settings;
+  const { menu, delivery } = siteSettings;
   const custom = menu?.footer;
-  const links = (custom || DEFAULT_FOOTER).map((it) => resolveLink(it, t, lang)).filter(Boolean);
+  const links = (custom || DEFAULT_FOOTER).map((it) => resolveLink(it, t, lang, siteSettings)).filter(Boolean);
   return (
     <footer className="mt-16 border-t border-slate-200 bg-surface pb-[calc(110px+env(safe-area-inset-bottom))] sm:pb-0">
       <div className="container-page grid gap-8 py-10 sm:grid-cols-2 lg:grid-cols-4">

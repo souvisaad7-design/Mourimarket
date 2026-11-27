@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
 import { ErrorBox, Field, Modal } from './ui.jsx';
+import { useModule } from '../lib/modules.js';
 
 export const CHECK_ITEMS = ['engine', 'gearbox', 'brakes', 'suspension', 'steering', 'body', 'electrical', 'ac', 'tires', 'interior'];
 const OVERALL = { excellent: 'bg-emerald-100 text-emerald-800', good: 'bg-brand-100 text-brand-900', fair: 'bg-amber-100 text-amber-800', poor: 'bg-rose-100 text-rose-700' };
@@ -42,7 +43,7 @@ export function InspectionReport({ inspection }) {
 }
 
 /** Seller: ask for an inspection of a car listing. */
-export function InspectionButton({ product }) {
+function InspectionButtonInner({ product }) {
   const { t } = useI18n();
   const { notify } = useApp();
   const [open, setOpen] = useState(false);
@@ -68,4 +69,9 @@ export function InspectionButton({ product }) {
       </Modal>
     </>
   );
+}
+
+/** Hidden while the admin has switched this feature off. */
+export function InspectionButton(props) {
+  return useModule('inspections') ? <InspectionButtonInner {...props} /> : null;
 }

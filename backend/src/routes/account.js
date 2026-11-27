@@ -4,7 +4,7 @@ import { limiter } from '../lib/rateLimit.js';
 import { z } from 'zod';
 import { query, tx } from '../db.js';
 import { PAYMENT_METHODS, REPORT_REASONS } from '../lib/constants.js';
-import { getSettings, paidUpgradesEnabled } from '../lib/settings.js';
+import { getSettings, paidUpgradesEnabled, requireModule } from '../lib/settings.js';
 import { badRequest, conflict, forbidden, notFound, pagination, parse } from '../lib/http.js';
 import { notify } from '../lib/notify.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -172,7 +172,7 @@ async function placeOffer(conversation, userId, userName, amount, client = { que
 }
 
 /** POST /api/conversations/:id/offers { amount } – propose a price. */
-router.post('/conversations/:id/offers', requireVerifiedPhone, writeLimiter, async (req, res) => {
+router.post('/conversations/:id/offers', requireModule('offers'), requireVerifiedPhone, writeLimiter, async (req, res) => {
   const conversation = await loadConversation(req.params.id, req.user.id);
   const { amount } = parse(z.object({ amount: amountSchema }), req.body);
   if (!conversation.product_id || conversation.product_availability !== 'available') throw badRequest('product_sold');
@@ -210,7 +210,7 @@ router.post('/conversations/:id/offers/:messageId', requireVerifiedPhone, writeL
 // ---------- Barter: swap one of your listings (plus or minus some cash) for this one ----------
 
 /** POST /api/conversations/:id/swaps { productId, cash } – cash > 0: I add money; < 0: I ask for money. */
-router.post('/conversations/:id/swaps', requireVerifiedPhone, writeLimiter, async (req, res) => {
+router.post('/conversations/:id/swaps', requireModule('barter'), requireVerifiedPhone, writeLimiter, async (req, res) => {
   const conversation = await loadConversation(req.params.id, req.user.id);
   const d = parse(z.object({ productId: z.coerce.number().int().positive(), cash: z.coerce.number().int().min(-1e12).max(1e12).default(0) }), req.body);
   if (!conversation.product_id || conversation.product_availability !== 'available') throw badRequest('product_sold');

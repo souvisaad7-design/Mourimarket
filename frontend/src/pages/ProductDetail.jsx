@@ -19,6 +19,7 @@ import { VoicePlayer } from '../components/VoiceNote.jsx';
 import { AuctionBox } from '../components/Auction.jsx';
 import { liteOn, useLite } from '../lib/dataSaver.js';
 import { InspectionReport } from '../components/Inspection.jsx';
+import { useModule } from '../lib/modules.js';
 
 function ReportModal({ productId, open, onClose }) {
   const { t } = useI18n();
@@ -85,6 +86,7 @@ function ReviewForm({ productId, onDone }) {
 }
 
 function ContactBox({ product }) {
+  const barterOn = useModule('barter');
   const { t } = useI18n();
   const { user, notify, refreshCounts } = useApp();
   const navigate = useNavigate();
@@ -142,7 +144,7 @@ function ContactBox({ product }) {
           <Icon name="chat" className="h-4 w-4" />{user ? t('product.contactSeller') : t('product.loginToContact')}
         </button>
       </form>
-      {product.accepts_swap && product.availability !== 'sold' && (
+      {barterOn && product.accepts_swap && product.availability !== 'sold' && (
         <button type="button" onClick={proposeSwap} disabled={busy} className="btn w-full border-2 border-violet-300 bg-violet-50 text-violet-800 hover:bg-violet-100">🔄 {t('swap.propose')}</button>
       )}
       {phone && (
@@ -257,6 +259,7 @@ function Description({ product }) {
 }
 
 export default function ProductDetail() {
+  const barterOn = useModule('barter');
   const { id } = useParams();
   const { t, tl, price, date, number, ago } = useI18n();
   const { user, meta } = useApp();
@@ -332,7 +335,7 @@ export default function ProductDetail() {
             <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <p className="text-3xl font-bold text-brand-700"><span className="ltr-nums">{price(product.price)}</span></p>
               <OldPrice value={product.price} className="text-sm" />
-              {product.accepts_swap && (
+              {barterOn && product.accepts_swap && (
                 <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-800">
                   🔄 {t('swap.accepts')}{product.swap_wanted ? ` · ${product.swap_wanted}` : ''}
                 </p>

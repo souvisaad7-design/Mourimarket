@@ -11,7 +11,7 @@ import { useApi, useDocumentTitle } from '../../lib/hooks.js';
 
 // Sidebar sections of the admin area. `count` names a field of /admin/stats totals shown as a badge.
 const NAV = [
-  ['dashboard', [['', 'overview', 'grid']]],
+  ['dashboard', [['', 'overview', 'grid'], ['control', 'controlCenter', 'menu']]],
   ['review', [
     ['listings', 'listings', 'image', 'pending_products'], ['merchants', 'merchantsTab', 'store', 'pending_merchants'],
     ['reports', 'reports', 'flag', 'open_reports'], ['requests', 'requests', 'star', 'pending_upgrades'], ['inspections', 'inspections', 'check', 'pending_inspections'], ['ai', 'soukAi', 'bolt', 'open_ai_flags'], ['community', 'community', 'chat', 'open_content_reports'],
@@ -20,7 +20,7 @@ const NAV = [
     ['orders', 'deliveryOrders', 'grid', 'pending_orders'], ['couriers', 'deliveryCouriers', 'users', 'pending_couriers'], ['escrow', 'escrow', 'shield', 'escrow_todo'], ['pay', 'soukPay', 'grid'], ['delivery', 'deliveryPricing', 'globe'],
   ]],
   ['manage', [
-    ['users', 'users', 'user'], ['stores', 'stores', 'store'], ['categories', 'categories', 'filter'], ['cities', 'cities', 'pin'], ['places', 'meetingPlaces', 'shield'],
+    ['users', 'users', 'user'], ['stores', 'stores', 'store'], ['categories', 'categories', 'filter'], ['cities', 'cities', 'pin'], ['places', 'meetingPlaces', 'shield'], ['market', 'marketTools', 'store'],
     ['reviews', 'reviews', 'star'], ['files', 'files', 'image'],
   ]],
   ['site', [

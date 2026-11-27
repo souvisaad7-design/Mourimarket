@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { config } from '../config.js';
 import { query } from '../db.js';
 import { FEATURE_PLANS, VERIFY_PRICE } from './constants.js';
-import { badRequest } from './http.js';
+import { badRequest, forbidden } from './http.js';
 
 const text = (max = 200) => z.string().trim().max(max);
 const internal = (v) => /^\/(?![/\\])/.test(v);
@@ -16,6 +16,7 @@ const L = (max = 200) => z.object({ ar: text(max), fr: text(max), en: text(max) 
 // A link inside the site ("/products?deals=1") or to another site (https://…).
 const href = z.string().trim().max(300).refine((v) => v === '' || internal(v) || /^https:\/\//i.test(v), 'link');
 const imageUrl = z.string().trim().max(300).refine((v) => v === '' || /^\/uploads\/f\/\d+$/.test(v) || /^https:\/\//i.test(v), 'image');
+export const MODULES = ['barter', 'voice', 'wanted', 'livestock', 'statusImage', 'dataSaver', 'offers', 'places', 'pro', 'inspections', 'video', 'bump', 'hassaniya', 'invoices'];
 const BUILTIN_LINKS = ['home', 'products', 'categories', 'stores', 'offers', 'wanted', 'social', 'live', 'eid', 'livestock', 'auctions', 'about', 'help', 'safety', 'sell'];
 const menuItem = z.discriminatedUnion('type', [
   z.object({ type: z.literal('builtin'), key: z.enum(BUILTIN_LINKS) }),
@@ -98,6 +99,8 @@ export const SECTIONS = {
     maxDays: z.number().int().min(1).max(30),
     extendMinutes: z.number().int().min(0).max(30),
   }),
+  // On/off switch for each feature of the site (Admin → Control center). Off = hidden and refused by the API.
+  modules: z.object(Object.fromEntries(MODULES.map((k) => [k, z.boolean()]))),
   // Souk Pay: the platform's commission on items and on delivery fees (0 % = free).
   pay: z.object({
     commissionPct: z.number().min(0).max(30),
@@ -133,6 +136,7 @@ export const defaults = () => ({
   season: { eid: { enabled: false, date: '' } },
   auctions: { enabled: true, minHours: 6, maxDays: 7, extendMinutes: 3 },
   pay: { commissionPct: 0, deliveryCommissionPct: 0 },
+  modules: Object.fromEntries(MODULES.map((k) => [k, true])),
   payment: { bankily: '', masrvi: '', sedad: '', accountName: 'سوق شنقيط' },
   texts: { ar: {}, fr: {}, en: {}, hs: {} },
 });
@@ -177,4 +181,12 @@ export async function saveSettings(patch, userId) {
 }
 
 /** Paid verification / featuring requests (Admin → Payments). Off by default: the site is free. */
+/** Is this feature switched on? (Admin → Control center) */
+export const moduleOn = async (key) => (await getSettings()).modules?.[key] !== false;
+
+/** Express middleware: refuse the request while the feature is switched off. */
+export const requireModule = (key) => async (_req, _res, next) => {
+  try { next(await moduleOn(key) ? undefined : forbidden('feature_disabled')); } catch (err) { next(err); }
+};
+
 export const paidUpgradesEnabled = async () => (await getSettings()).features.paidUpgrades;

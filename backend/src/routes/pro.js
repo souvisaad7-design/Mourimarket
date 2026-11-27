@@ -13,6 +13,7 @@ import { limiter } from '../lib/rateLimit.js';
 import { notify } from '../lib/notify.js';
 import { normalizePhone } from '../lib/phone.js';
 import { STAFF_ROLES, staffOf } from '../lib/staff.js';
+import { requireModule } from '../lib/settings.js';
 import { requireAuth } from '../middleware/auth.js';
 import { removeUploads, saveFile, upload } from '../middleware/upload.js';
 
@@ -40,7 +41,7 @@ router.get('/pro/inventory', async (req, res) => {
 });
 
 /** PATCH /api/pro/inventory/:id { stock: number | null } – restocking does not send the listing back to review. */
-router.patch('/pro/inventory/:id', writeLimiter, async (req, res) => {
+router.patch('/pro/inventory/:id', requireModule('pro'), writeLimiter, async (req, res) => {
   const { stock } = parse(z.object({ stock: z.coerce.number().int().min(0, 'min_0').max(100000).nullable() }), {
     stock: req.body?.stock === '' || req.body?.stock === undefined ? null : req.body.stock,
   });
@@ -80,7 +81,7 @@ router.get('/pro/coupons', async (req, res) => {
   res.json({ items: rows.map(couponOut) });
 });
 
-router.post('/pro/coupons', writeLimiter, async (req, res) => {
+router.post('/pro/coupons', requireModule('pro'), writeLimiter, async (req, res) => {
   sellerOnly(req);
   const d = parse(couponSchema, req.body);
   const { rows: n } = await query('SELECT COUNT(*)::int AS n FROM coupons WHERE seller_id = $1 AND is_active', [req.user.id]);
@@ -190,7 +191,7 @@ async function myStore(userId) {
 }
 
 /** PUT /api/pro/store-look { tagline, hours, themeColor, pinnedIds } */
-router.put('/pro/store-look', writeLimiter, async (req, res) => {
+router.put('/pro/store-look', requireModule('pro'), writeLimiter, async (req, res) => {
   const d = parse(z.object({
     tagline: z.string().trim().max(140).optional().transform((v) => v || null),
     hours: z.string().trim().max(200).optional().transform((v) => v || null),
@@ -213,7 +214,7 @@ router.put('/pro/store-look', writeLimiter, async (req, res) => {
 });
 
 /** POST /api/pro/store-banner (multipart "banner") – the cover image at the top of the store page. */
-router.post('/pro/store-banner', writeLimiter, upload.single('banner'), async (req, res) => {
+router.post('/pro/store-banner', requireModule('pro'), writeLimiter, upload.single('banner'), async (req, res) => {
   const store = await myStore(req.user.id);
   if (!req.file) throw badRequest('validation_error', { banner: 'required' });
   const url = await saveFile(req.file);
@@ -241,7 +242,7 @@ router.get('/pro/staff', async (req, res) => {
 });
 
 /** POST /api/pro/staff { login (phone or email of an existing account), role } */
-router.post('/pro/staff', writeLimiter, async (req, res) => {
+router.post('/pro/staff', requireModule('pro'), writeLimiter, async (req, res) => {
   const d = parse(z.object({ login: z.string().trim().min(3).max(160), role: z.enum(STAFF_ROLES) }), req.body);
   const store = await myStore(req.user.id);
   const phone = d.login.includes('@') ? null : normalizePhone(d.login);

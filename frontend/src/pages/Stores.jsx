@@ -7,6 +7,7 @@ import { useI18n } from '../i18n/index.jsx';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
 import { ProBadge } from '../components/StorePlans.jsx';
 import { FollowButton } from './Social.jsx';
+import { useModule } from '../lib/modules.js';
 
 function StoreLogo({ store, size = 'h-16 w-16' }) {
   return store.logo_url ? <img src={store.logo_url} alt="" className={`${size} shrink-0 rounded-2xl object-cover`} /> : (
@@ -90,6 +91,7 @@ function PinnedListings({ ids }) {
 }
 
 export function StoreDetail() {
+  const proOn = useModule('pro');
   const { slug } = useParams();
   const { t, date } = useI18n();
   const { meta } = useApp();
@@ -133,7 +135,7 @@ export function StoreDetail() {
           </div>
         </div>
 
-        <StoreCoupons coupons={s.coupons} color={s.theme_color} />
+        {proOn && <StoreCoupons coupons={s.coupons} color={s.theme_color} />}
         <PinnedListings ids={s.pinned_ids} />
         <section className="mt-8">
           <h2 className="mb-4 text-xl font-bold">{t('store.listings')}</h2>

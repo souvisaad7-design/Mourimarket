@@ -3,6 +3,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { query } from '../db.js';
+import { moduleOn } from '../lib/settings.js';
 import { assertCity, cityKey } from '../lib/cities.js';
 import { notFound, parse } from '../lib/http.js';
 import { requireAdmin, requireAuth } from '../middleware/auth.js';
@@ -11,6 +12,7 @@ const router = Router();
 const FIELDS = 'id, city, name_ar, name_fr, address, kind, lat, lng, is_active, sort_order';
 
 router.get('/meeting-places', async (req, res) => {
+  if (!(await moduleOn('places'))) return res.json({ items: [] });
   const city = typeof req.query.city === 'string' ? req.query.city : '';
   const { rows } = await query(
     `SELECT ${FIELDS} FROM meeting_places WHERE is_active AND ($1 = '' OR city = $1) ORDER BY city, sort_order, id LIMIT 100`,
@@ -74,6 +76,7 @@ const marketSchema = z.object({
 });
 
 router.get('/livestock-markets', async (_req, res) => {
+  if (!(await moduleOn('livestock'))) return res.json({ items: [] });
   const { rows } = await query(`SELECT ${MKT} FROM livestock_markets WHERE is_active ORDER BY city, id`);
   res.json({ items: rows });
 });

@@ -2,12 +2,14 @@
 //   listings → add / edit the store's listings;  orders → handle the store's delivery orders;  manager → both.
 // Staff never see or move the store's money (wallet, coupons, reports, payouts stay with the owner).
 import { query } from '../db.js';
+import { moduleOn } from './settings.js';
 
 export const STAFF_ROLES = ['listings', 'orders', 'manager'];
 const CAN = { listings: ['listings', 'manager'], orders: ['orders', 'manager'], manager: ['manager'] };
 
 /** The store this user works for, or null: { store_id, owner_id, role, name, slug }. */
 export async function staffOf(userId, client = { query }) {
+  if (!(await moduleOn('pro'))) return null; // store staff is part of Souk Pro
   const { rows } = await client.query(
     `SELECT ss.store_id, ss.role, s.owner_id, s.name, s.slug FROM store_staff ss
      JOIN stores s ON s.id = ss.store_id JOIN users o ON o.id = s.owner_id

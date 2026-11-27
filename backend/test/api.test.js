@@ -2914,3 +2914,53 @@ describe('Store staff', () => {
     assert.equal((await call('/api/staff/me', { token: handler })).data.staff, null);
   });
 });
+
+describe('Admin control center', () => {
+  let admin; let seller; let buyer;
+  before(async () => {
+    admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
+    seller = await login('fatimetou@example.mr'); buyer = await login('buyer@example.mr');
+  });
+  const setModules = (m) => call('/api/admin/settings', { method: 'PUT', token: admin, body: { modules: m } });
+
+  it('every feature has a switch, on by default, visible to the site', async () => {
+    const s = (await call('/api/settings')).data.settings;
+    for (const k of ['barter', 'voice', 'wanted', 'livestock', 'offers', 'places', 'pro', 'inspections', 'video', 'bump', 'hassaniya', 'invoices', 'statusImage', 'dataSaver']) {
+      assert.equal(s.modules[k], true, k);
+    }
+    assert.equal((await call('/api/admin/settings', { method: 'PUT', token: seller, body: { modules: { wanted: false } } })).status, 403);
+  });
+
+  it('a switched-off feature is refused by the API, and comes back when switched on', async () => {
+    await setModules({ wanted: false, pro: false, bump: false, livestock: false });
+    const w = await call('/api/wanted', { method: 'POST', token: buyer, body: { title: 'أبحث عن ثلاجة', city: 'nouakchott' } });
+    assert.equal(w.status, 403); assert.equal(w.data.error, 'feature_disabled');
+    assert.equal((await call('/api/pro/coupons', { method: 'POST', token: seller, body: { code: 'OFF1', kind: 'amount', value: 5 } })).data.error, 'feature_disabled');
+    const pid = (await call('/api/products?limit=1')).data.items[0].id;
+    assert.equal((await call(`/api/products/${pid}/bump`, { method: 'POST', token: seller })).data.error, 'feature_disabled');
+    assert.deepEqual((await call('/api/livestock-markets')).data.items, []);
+    await setModules({ wanted: true, pro: true, bump: true, livestock: true });
+    assert.notEqual((await call('/api/pro/coupons', { method: 'POST', token: seller, body: { code: 'ON1', kind: 'amount', value: 5 } })).data.error, 'feature_disabled');
+  });
+
+  it('admins see and manage every auction, coupon, employee and wanted ad', async () => {
+    assert.equal((await call('/api/admin/market/auctions', { token: seller })).status, 403);
+    const auctions = (await call('/api/admin/market/auctions?status=ended', { token: admin })).data.items;
+    assert.ok(Array.isArray(auctions));
+    const pid = (await call('/api/products?limit=20')).data.items.find((p) => !p.auction).id;
+    const owner = (await pool.query('SELECT seller_id FROM products WHERE id = $1', [pid])).rows[0].seller_id;
+    await pool.query("INSERT INTO auctions (product_id, seller_id, start_price, min_increment, ends_at) VALUES ($1, $2, 100, 10, now() + interval '1 hour')", [pid, owner]);
+    const live = (await call('/api/admin/market/auctions', { token: admin })).data.items.find((a) => a.product_id === pid);
+    const ext = await call(`/api/admin/market/auctions/${live.id}/extend`, { method: 'POST', token: admin, body: { hours: 24 } });
+    assert.ok(new Date(ext.data.ends_at) - Date.now() > 24 * 3600 * 1000);
+    assert.equal((await call(`/api/auctions/${live.id}/cancel`, { method: 'POST', token: admin, body: { reason: 'مخالف' } })).status, 200);
+    const coupons = (await call('/api/admin/market/coupons?q=ON1', { token: admin })).data.items;
+    assert.equal(coupons[0].code, 'ON1');
+    assert.equal((await call(`/api/admin/market/coupons/${coupons[0].id}`, { method: 'PATCH', token: admin, body: { isActive: false } })).data.coupon.is_active, false);
+    assert.ok(Array.isArray((await call('/api/admin/market/staff', { token: admin })).data.items));
+    const w = await call('/api/wanted', { method: 'POST', token: buyer, body: { title: 'أبحث عن دراجة نارية', city: 'nouakchott' } });
+    const wid = w.data.wanted?.id || w.data.item?.id || (await pool.query('SELECT id FROM wanted_ads ORDER BY id DESC LIMIT 1')).rows[0].id;
+    assert.equal((await call(`/api/admin/market/wanted/${wid}`, { method: 'PATCH', token: admin, body: { status: 'hidden', reason: 'مكرر' } })).data.wanted.status, 'hidden');
+    assert.ok((await call('/api/admin/market/wanted?status=hidden', { token: admin })).data.items.some((x) => x.id === wid));
+  });
+});

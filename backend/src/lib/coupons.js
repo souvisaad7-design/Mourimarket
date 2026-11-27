@@ -1,5 +1,6 @@
 // Seller discount coupons on delivery orders. The discount comes off the item price (never the delivery fee).
 import { badRequest } from './http.js';
+import { moduleOn } from './settings.js';
 
 export const normalizeCode = (code) => String(code || '').trim().toUpperCase().replace(/\s+/g, '');
 
@@ -7,6 +8,7 @@ export const normalizeCode = (code) => String(code || '').trim().toUpperCase().r
 export async function checkCoupon(client, sellerId, code, itemPrice) {
   const c = normalizeCode(code);
   if (!c) return { coupon: null, discount: 0 };
+  if (!(await moduleOn('pro'))) throw badRequest('coupon_invalid'); // coupons are part of Souk Pro
   const { rows } = await client.query('SELECT * FROM coupons WHERE seller_id = $1 AND code = $2', [sellerId, c]);
   const coupon = rows[0];
   if (!coupon || !coupon.is_active) throw badRequest('coupon_invalid');

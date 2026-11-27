@@ -8,6 +8,7 @@ import { compressImage } from '../lib/image.js';
 import { useRecorder } from '../lib/recorder.js';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
 import { AuctionResultCard } from '../components/Auction.jsx';
+import { useModule } from '../lib/modules.js';
 
 /** A private chat file (photo / voice note): fetched with the login token, shown from memory. */
 function usePrivateFile(url) {
@@ -240,6 +241,9 @@ function OfferDialog({ open, onClose, onSubmit, initial, title, reference }) {
 }
 
 function Thread({ id, onActivity }) {
+  const offersOn = useModule('offers');
+  const barterOn = useModule('barter');
+  const placesOn = useModule('places');
   const { t, price, dateTime, lang } = useI18n();
   const { user, refreshCounts } = useApp();
   const navigate = useNavigate();
@@ -358,13 +362,13 @@ function Thread({ id, onActivity }) {
       ) : (
       <>
       <div className="flex gap-1.5 overflow-x-auto border-t border-slate-200 px-3 pt-2">
-        {c.product_id && c.product_availability === 'available' && (
+        {offersOn && c.product_id && c.product_availability === 'available' && (
           <button type="button" className="btn-outline shrink-0 rounded-full border-gold-400 px-3 py-1.5 text-xs font-bold text-brand-800" onClick={() => setOfferFor({ new: true })}>💰 {t('chat.makeOffer')}</button>
         )}
-        {c.product_id && c.product_availability === 'available' && c.product_accepts_swap && c.seller_id !== user.id && (
+        {barterOn && c.product_id && c.product_availability === 'available' && c.product_accepts_swap && c.seller_id !== user.id && (
           <button type="button" className="btn-outline shrink-0 rounded-full border-violet-300 px-3 py-1.5 text-xs font-bold text-violet-800" onClick={() => setSwapOpen(true)}>🔄 {t('swap.chatButton')}</button>
         )}
-        <button type="button" className="btn-outline shrink-0 rounded-full px-3 py-1.5 text-xs" onClick={() => setPlacesOpen(true)} disabled={sending}>📍 {t('places.button')}</button>
+        {placesOn && <button type="button" className="btn-outline shrink-0 rounded-full px-3 py-1.5 text-xs" onClick={() => setPlacesOpen(true)} disabled={sending}>📍 {t('places.button')}</button>}
         <button type="button" className="btn-outline shrink-0 rounded-full px-3 py-1.5 text-xs" onClick={() => photo.current?.click()} disabled={sending}>📷 {t('chat.photo')}</button>
         <input ref={photo} type="file" accept="image/*" className="hidden" onChange={pickPhoto} />
         {recorder.supported && <button type="button" className="btn-outline shrink-0 rounded-full px-3 py-1.5 text-xs" onClick={startRecording} disabled={sending}>🎤 {t('chat.voice')}</button>}

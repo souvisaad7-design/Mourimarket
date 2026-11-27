@@ -2,11 +2,12 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '../i18n/index.jsx';
 import { useRecorder } from '../lib/recorder.js';
+import { useModule } from '../lib/modules.js';
 
 const fmt = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 /** value: { blob, seconds } (new recording) | { url, seconds } (saved) | null */
-export function VoiceField({ value, onChange }) {
+function VoiceFieldInner({ value, onChange }) {
   const { t } = useI18n();
   const recorder = useRecorder((blob, seconds) => onChange({ blob, seconds }), 90);
   const [src, setSrc] = useState(null);
@@ -44,7 +45,7 @@ export function VoiceField({ value, onChange }) {
 }
 
 /** Player on the listing page. */
-export function VoicePlayer({ url, seconds }) {
+function VoicePlayerInner({ url, seconds }) {
   const { t } = useI18n();
   if (!url) return null;
   return (
@@ -70,4 +71,14 @@ export async function saveVoice(api, productId, before, after) {
   } else if (before?.url && !after) {
     await api(`/products/${productId}/voice`, { method: 'DELETE' });
   }
+}
+
+/** Hidden while the admin has switched this feature off. */
+export function VoiceField(props) {
+  return useModule('voice') ? <VoiceFieldInner {...props} /> : null;
+}
+
+/** Hidden while the admin has switched this feature off. */
+export function VoicePlayer(props) {
+  return useModule('voice') ? <VoicePlayerInner {...props} /> : null;
 }

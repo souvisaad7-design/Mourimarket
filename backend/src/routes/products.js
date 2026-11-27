@@ -16,7 +16,7 @@ import { HttpError, badRequest, forbidden, notFound, pagination, parse } from '.
 import { notify } from '../lib/notify.js';
 import { optionalAuth, requireAuth } from '../middleware/auth.js';
 import { chatUpload, removeUploads, saveFile, saveVoice, upload } from '../middleware/upload.js';
-import { getSettings } from '../lib/settings.js';
+import { getSettings, requireModule } from '../lib/settings.js';
 import { buildSearch, escapeLike, normalize } from '../lib/search.js';
 import { inBackground } from '../lib/ai.js';
 import { reviewListing } from '../lib/fraud.js';
@@ -220,7 +220,7 @@ async function assertOwner(product, user, need = 'listings') {
 }
 
 /** POST /api/products/:id/bump – put my listing back at the top of "newest" (free once every N days). */
-router.post('/:id/bump', requireAuth, async (req, res) => {
+router.post('/:id/bump', requireAuth, requireModule('bump'), async (req, res) => {
   const product = await loadProduct(req.params.id);
   await assertOwner(product, req.user);
   if (product.status !== 'approved' || product.availability !== 'available') throw badRequest('product_not_featurable');
@@ -368,7 +368,7 @@ async function assertCategory(id, client) {
 }
 
 /** POST /api/products/video-token { ext } – a one-time key to upload one short video straight to storage. */
-router.post('/video-token', requireAuth, requireVerifiedPhone, limiter('video-token', { windowMs: 60 * 60 * 1000, limit: 15, keyGenerator: (req) => String(req.user.id) }), async (req, res) => {
+router.post('/video-token', requireAuth, requireModule('video'), requireVerifiedPhone, limiter('video-token', { windowMs: 60 * 60 * 1000, limit: 15, keyGenerator: (req) => String(req.user.id) }), async (req, res) => {
   if (!videoEnabled()) throw badRequest('video_disabled');
   const ext = String(req.body?.ext || '').toLowerCase();
   if (!VIDEO_TYPES[ext]) throw badRequest('invalid_file_type');
@@ -475,7 +475,7 @@ router.put('/:id', requireAuth, upload.array('images', MAX_IMAGES), async (req, 
 });
 
 /** POST /api/products/:id/voice (multipart "voice", "duration" in seconds) – the seller's spoken description, up to 90 s. */
-router.post('/:id/voice', requireAuth, chatUpload.single('voice'), async (req, res) => {
+router.post('/:id/voice', requireAuth, requireModule('voice'), chatUpload.single('voice'), async (req, res) => {
   const product = await loadProduct(req.params.id);
   await assertOwner(product, req.user);
   if (!req.file) throw badRequest('validation_error', { voice: 'required' });

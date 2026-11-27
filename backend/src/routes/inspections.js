@@ -1,5 +1,6 @@
 // Car inspections by a partner workshop: the seller asks, the workshop inspects, the admin publishes the report.
 import { Router } from 'express';
+import { requireModule } from '../lib/settings.js';
 import { z } from 'zod';
 import { query } from '../db.js';
 import { badRequest, conflict, forbidden, notFound, parse } from '../lib/http.js';
@@ -27,7 +28,7 @@ export async function publishedInspection(productId) {
 }
 
 /** POST /api/products/:id/inspection – the seller asks for an inspection of their car. */
-router.post('/products/:id/inspection', requireAuth, limiter('inspection-request', { windowMs: 24 * 60 * 60 * 1000, limit: 5, keyGenerator: (req) => String(req.user.id) }), async (req, res) => {
+router.post('/products/:id/inspection', requireAuth, requireModule('inspections'), limiter('inspection-request', { windowMs: 24 * 60 * 60 * 1000, limit: 5, keyGenerator: (req) => String(req.user.id) }), async (req, res) => {
   const { note } = parse(z.object({ note: z.string().trim().max(500).optional() }), req.body || {});
   const { rows } = await query(
     `SELECT p.id, p.title, p.seller_id, p.status, c.slug FROM products p JOIN categories c ON c.id = p.category_id WHERE p.id = $1`,

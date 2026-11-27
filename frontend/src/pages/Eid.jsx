@@ -7,6 +7,7 @@ import { CitySelect, EmptyState, ErrorBox } from '../components/ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { useApi, useDocumentTitle } from '../lib/hooks.js';
+import { useModule } from '../lib/modules.js';
 
 /** Home-page banner while the Eid market is on. */
 export function EidBanner() {
@@ -61,6 +62,7 @@ export function Livestock() {
 }
 
 export default function Eid({ seasonal = true }) {
+  const wantedOn = useModule('wanted');
   const { t, number } = useI18n();
   const { meta } = useApp();
   const [f, setF] = useState({ animal: seasonal ? 'sheep' : '', city: '', maxPrice: '', minWeight: '' });
@@ -108,7 +110,7 @@ export default function Eid({ seasonal = true }) {
         </>
       ) : (
         <EmptyState icon="search" title={k('none')}>
-          <Link to="/wanted" className="btn-outline rounded-full">🙋 {k('postWanted')}</Link>
+          {wantedOn && <Link to="/wanted" className="btn-outline rounded-full">🙋 {k('postWanted')}</Link>}
         </EmptyState>
       )}
 

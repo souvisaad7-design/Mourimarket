@@ -12,6 +12,7 @@ import { AttributeFields } from '../components/Attributes.jsx';
 import VideoField from '../components/VideoField.jsx';
 import { AiWriter, PriceSuggestion } from '../components/AiListing.jsx';
 import { VoiceField, saveVoice } from '../components/VoiceNote.jsx';
+import { useModule } from '../lib/modules.js';
 
 const MAX_IMAGES = 8;
 
@@ -23,6 +24,7 @@ const switchUnitKeepDigits = (setForm, setUnit) => { setUnit('old'); setForm((f)
  * In the admin area it posts for another user: `sellerId`, then `onCreated`.
  */
 export default function ProductForm({ sellerId, onCreated } = {}) {
+  const barterOn = useModule('barter');
   const { id } = useParams();
   const editing = Boolean(id);
   const { t, tl, price } = useI18n();
@@ -262,15 +264,17 @@ export default function ProductForm({ sellerId, onCreated } = {}) {
               </div>
             </Field>
           </div>
-          <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-3">
-            <label className="flex items-center gap-2 text-sm font-semibold text-violet-900">
-              <input type="checkbox" className="h-4 w-4 accent-violet-700" checked={form.acceptsSwap} onChange={(e) => setForm({ ...form, acceptsSwap: e.target.checked })} />
-              🔄 {t('swap.formLabel')}
-            </label>
-            {form.acceptsSwap && (
-              <input className="input mt-2" maxLength={200} value={form.swapWanted} onChange={set('swapWanted')} placeholder={t('swap.wantedPh')} aria-label={t('swap.wantedPh')} />
-            )}
-          </div>
+          {barterOn && (
+            <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-3">
+              <label className="flex items-center gap-2 text-sm font-semibold text-violet-900">
+                <input type="checkbox" className="h-4 w-4 accent-violet-700" checked={form.acceptsSwap} onChange={(e) => setForm({ ...form, acceptsSwap: e.target.checked })} />
+                🔄 {t('swap.formLabel')}
+              </label>
+              {form.acceptsSwap && (
+                <input className="input mt-2" maxLength={200} value={form.swapWanted} onChange={set('swapWanted')} placeholder={t('swap.wantedPh')} aria-label={t('swap.wantedPh')} />
+              )}
+            </div>
+          )}
           {(user.account_type !== 'buyer' || forStore) && (
             <Field label={`📦 ${t('pro.stock.formLabel')}`} optional hint={t('pro.stock.formHint')} error={fieldError('stock')}>
               <input className="input max-w-[10rem]" type="number" min="0" max="100000" inputMode="numeric" dir="ltr" value={form.stock} onChange={set('stock')} />

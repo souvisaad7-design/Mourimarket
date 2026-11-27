@@ -1,5 +1,6 @@
 // "Wanted" ads: a buyer describes what they are looking for; sellers who have it answer in a conversation.
 import { Router } from 'express';
+import { requireModule } from '../lib/settings.js';
 import { z } from 'zod';
 import { query, tx } from '../db.js';
 import { assertCity, cityKey } from '../lib/cities.js';
@@ -54,7 +55,7 @@ const schema = z.object({
 });
 
 /** POST /api/wanted – publish a request (live at once, for 30 days). */
-router.post('/', requireAuth, requireVerifiedPhone, limiter('wanted-post', { windowMs: 24 * 60 * 60 * 1000, limit: 10, keyGenerator: (req) => String(req.user.id) }), async (req, res) => {
+router.post('/', requireAuth, requireModule('wanted'), requireVerifiedPhone, limiter('wanted-post', { windowMs: 24 * 60 * 60 * 1000, limit: 10, keyGenerator: (req) => String(req.user.id) }), async (req, res) => {
   const d = parse(schema, req.body);
   if (d.city) await assertCity(d.city);
   if (d.categoryId && !(await query('SELECT 1 FROM categories WHERE id = $1', [d.categoryId])).rowCount) throw badRequest('validation_error', { categoryId: 'invalid' });
@@ -88,7 +89,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
 });
 
 /** POST /api/wanted/:id/reply { body } – "I have it": opens a conversation with the person looking. */
-router.post('/:id/reply', requireAuth, requireVerifiedPhone, limiter('wanted-reply', { windowMs: 60 * 1000, limit: 20, keyGenerator: (req) => String(req.user.id) }), async (req, res) => {
+router.post('/:id/reply', requireAuth, requireModule('wanted'), requireVerifiedPhone, limiter('wanted-reply', { windowMs: 60 * 1000, limit: 20, keyGenerator: (req) => String(req.user.id) }), async (req, res) => {
   const { body } = parse(z.object({ body: z.string().trim().min(1, 'required').max(2000) }), req.body);
   const ad = (await query(`SELECT w.* FROM wanted_ads w JOIN users u ON u.id = w.user_id WHERE w.id = $1 AND ${LIVE}`, [parseInt(req.params.id, 10) || 0])).rows[0];
   if (!ad) throw notFound('wanted_not_found');

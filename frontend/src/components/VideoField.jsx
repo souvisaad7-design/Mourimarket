@@ -6,6 +6,7 @@ import { useApp } from '../context/AppContext.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
 import { Icon } from './ui.jsx';
+import { useModule } from '../lib/modules.js';
 
 const MAX_SECONDS = 60;
 const MAX_BYTES = 60 * 1024 * 1024;
@@ -19,7 +20,7 @@ const durationOf = (file) => new Promise((resolve) => {
   v.src = URL.createObjectURL(file);
 });
 
-export default function VideoField({ value, onChange }) {
+function VideoFieldInner({ value, onChange }) {
   const { t } = useI18n();
   const { meta } = useApp();
   const input = useRef(null);
@@ -71,4 +72,9 @@ export default function VideoField({ value, onChange }) {
       {error && <p role="alert" className="text-xs font-medium text-rose-600">{error}</p>}
     </section>
   );
+}
+
+/** Hidden while the admin has switched this feature off. */
+export default function VideoField(props) {
+  return useModule('video') ? <VideoFieldInner {...props} /> : null;
 }
