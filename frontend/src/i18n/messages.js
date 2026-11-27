@@ -2560,6 +2560,49 @@ deepMerge(ar, { voice: { title: 'وصف صوتي (اختياري)', hint: 'تك�
 deepMerge(fr, { voice: { title: 'Description vocale (facultatif)', hint: 'Présentez votre article à l’oral, en hassanya ou toute autre langue, jusqu’à 1 min 30.', record: 'Enregistrer une description', stop: 'Terminer', again: 'Recommencer', listen: 'Écouter le vendeur', badge: 'Description vocale' } });
 deepMerge(en, { voice: { title: 'Spoken description (optional)', hint: 'Describe your item out loud, in Hassaniya or any language, up to 1 min 30.', record: 'Record a description', stop: 'Finish', again: 'Record again', listen: 'Listen to the seller', badge: 'Voice description' } });
 
+// v44: safe meeting places
+deepMerge(ar, {
+  admin: { meetingPlaces: 'أماكن التسليم الآمنة' },
+  places: {
+    button: 'مكان آمن', title: 'اقترح مكاناً آمناً للتسليم', intro: 'اختر مكاناً عاماً لتلتقيا فيه، فيُرسَل للطرف الآخر مع رابط الخريطة.',
+    openMap: 'فتح الخريطة', none: 'لم تُضف الإدارة أماكن لهذه المدينة بعد.', allCities: 'عرض كل المدن', message: 'أقترح أن نلتقي في',
+    tips: 'التقِيا نهاراً في مكان عام ومزدحم.|خذ معك شخصاً تثق به للمبالغ الكبيرة.|افحص المنتج جيداً قبل الدفع.',
+    adminTitle: 'أماكن التسليم الآمنة', adminHint: 'أماكن عامة حقيقية في كل مدينة (مراكز تجارية، مراكز شرطة، محطات وقود كبيرة…) تُقترح في المحادثات للتسليم الآمن.',
+    kind: 'النوع', kinds: { mall: 'مركز تجاري', police: 'مركز شرطة', station: 'محطة وقود', market: 'سوق', bank: 'بنك', other: 'آخر' },
+    nameAr: 'الاسم بالعربية', nameFr: 'الاسم بالفرنسية', address: 'العنوان / الحي', lat: 'خط العرض', lng: 'خط الطول', active: 'ظاهر للمستخدمين',
+    add: 'إضافة مكان', empty: 'لا توجد أماكن بعد. أضف أماكن عامة حقيقية تعرفها في كل مدينة.', deleteConfirm: 'حذف «{name}»؟',
+  },
+});
+deepMerge(fr, {
+  admin: { meetingPlaces: 'Lieux de remise sûrs' },
+  places: {
+    button: 'Lieu sûr', title: 'Proposer un lieu de remise sûr', intro: 'Choisissez un lieu public : il est envoyé à l’autre personne avec un lien de carte.',
+    openMap: 'Ouvrir la carte', none: 'Aucun lieu n’a encore été ajouté pour cette ville.', allCities: 'Voir toutes les villes', message: 'Je propose de nous retrouver à',
+    tips: 'Retrouvez-vous de jour dans un lieu public et fréquenté.|Venez accompagné pour les gros montants.|Vérifiez bien l’article avant de payer.',
+    adminTitle: 'Lieux de remise sûrs', adminHint: 'De vrais lieux publics par ville (centres commerciaux, commissariats, grandes stations…) proposés dans les conversations.',
+    kind: 'Type', kinds: { mall: 'Centre commercial', police: 'Commissariat', station: 'Station-service', market: 'Marché', bank: 'Banque', other: 'Autre' },
+    nameAr: 'Nom en arabe', nameFr: 'Nom en français', address: 'Adresse / quartier', lat: 'Latitude', lng: 'Longitude', active: 'Visible',
+    add: 'Ajouter un lieu', empty: 'Aucun lieu. Ajoutez de vrais lieux publics que vous connaissez.', deleteConfirm: 'Supprimer « {name} » ?',
+  },
+});
+deepMerge(en, {
+  admin: { meetingPlaces: 'Safe meeting places' },
+  places: {
+    button: 'Safe place', title: 'Suggest a safe place to meet', intro: 'Pick a public place: it is sent to the other person with a map link.',
+    openMap: 'Open the map', none: 'No places have been added for this city yet.', allCities: 'Show all cities', message: 'Let’s meet at',
+    tips: 'Meet in daylight in a busy public place.|Bring someone along for large amounts.|Check the item carefully before paying.',
+    adminTitle: 'Safe meeting places', adminHint: 'Real public places in each city (malls, police stations, big fuel stations…) suggested in chats for safe hand-overs.',
+    kind: 'Type', kinds: { mall: 'Mall', police: 'Police station', station: 'Fuel station', market: 'Market', bank: 'Bank', other: 'Other' },
+    nameAr: 'Name in Arabic', nameFr: 'Name in French', address: 'Address / area', lat: 'Latitude', lng: 'Longitude', active: 'Visible',
+    add: 'Add a place', empty: 'No places yet. Add real public places you know in each city.', deleteConfirm: 'Delete “{name}”?',
+  },
+});
+
+// v45: data saver
+deepMerge(ar, { lite: { title: 'وضع توفير البيانات', on: 'توفير البيانات: مفعّل', off: 'توفير البيانات', showMap: 'اضغط لعرض الخريطة (يستهلك بيانات)' } });
+deepMerge(fr, { lite: { title: 'Mode économie de données', on: 'Économie de données : activée', off: 'Économie de données', showMap: 'Afficher la carte (consomme des données)' } });
+deepMerge(en, { lite: { title: 'Data saver mode', on: 'Data saver: on', off: 'Data saver', showMap: 'Tap to show the map (uses data)' } });
+
 export const messages = { ar, fr, en };
 export const LANGS = [
   { code: 'ar', label: 'العربية', dir: 'rtl', locale: 'ar-MR' },

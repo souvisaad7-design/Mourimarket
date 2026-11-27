@@ -164,6 +164,54 @@ function SwapDialog({ open, onClose, conversationId, onSent }) {
   );
 }
 
+/** Only OpenStreetMap links (from "safe place" suggestions) become clickable; other text stays plain. */
+const MAP_LINK = /(https:\/\/www\.openstreetmap\.org\/\?mlat=-?[\d.]+&mlon=-?[\d.]+#map=\d+\/-?[\d.]+\/-?[\d.]+)/;
+function withMapLinks(text, label) {
+  return String(text).split(MAP_LINK).map((part, i) => (i % 2
+    ? <a key={i} href={part} target="_blank" rel="noreferrer noopener" className="font-semibold underline">🗺 {label}</a>
+    : part));
+}
+
+/** Suggest a safe public place for the hand-over (places the admin lists per city). */
+function PlacesDialog({ open, onClose, city, onPick }) {
+  const { t, lang } = useI18n();
+  const { meta } = useApp();
+  const [all, setAll] = useState(false);
+  const list = useApi(open ? `/meeting-places${city && !all ? `?city=${city}` : ''}` : null, undefined, [open, all, city]);
+  if (!open) return null;
+  const items = list.data?.items || [];
+  const cityName = (k) => meta.cities?.find((c) => c.key === k)?.[lang] || k;
+  const icon = { mall: '🏬', police: '👮', station: '⛽', market: '🛒', bank: '🏦', other: '📍' };
+  return (
+    <Modal open onClose={onClose} title={`📍 ${t('places.title')}`}>
+      <div className="space-y-3">
+        <p className="text-sm text-slate-600">{t('places.intro')}</p>
+        {list.loading ? <Spinner /> : items.length ? (
+          <ul className="max-h-72 space-y-2 overflow-y-auto">
+            {items.map((p) => (
+              <li key={p.id}>
+                <button type="button" onClick={() => onPick(p)} className="flex w-full items-start gap-2 rounded-xl border-2 border-slate-200 p-3 text-start hover:border-brand-500">
+                  <span className="text-xl" aria-hidden="true">{icon[p.kind] || '📍'}</span>
+                  <span className="min-w-0">
+                    <span className="block font-semibold">{(lang === 'ar' ? p.name_ar : p.name_fr) || p.name_ar}</span>
+                    <span className="block text-xs text-slate-500">{[p.address, cityName(p.city)].filter(Boolean).join(' · ')}</span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="rounded-xl bg-slate-100 p-3 text-sm text-slate-600">
+            {t('places.none')}
+            {city && !all && <button type="button" className="link ms-1" onClick={() => setAll(true)}>{t('places.allCities')}</button>}
+          </div>
+        )}
+        <ul className="ms-4 list-disc text-xs text-slate-500">{t('places.tips').split('|').map((x) => <li key={x}>{x}</li>)}</ul>
+      </div>
+    </Modal>
+  );
+}
+
 /** Ask for an amount (new offer or counter-offer). */
 function OfferDialog({ open, onClose, onSubmit, initial, title, reference }) {
   const { t, price } = useI18n();
@@ -191,7 +239,7 @@ function OfferDialog({ open, onClose, onSubmit, initial, title, reference }) {
 }
 
 function Thread({ id, onActivity }) {
-  const { t, price, dateTime } = useI18n();
+  const { t, price, dateTime, lang } = useI18n();
   const { user, refreshCounts } = useApp();
   const navigate = useNavigate();
   const [state, setState] = useState({ loading: true });
@@ -201,6 +249,7 @@ function Thread({ id, onActivity }) {
   const [offerFor, setOfferFor] = useState(null); // null | { counter: message } | { new: true }
   const [searchParams, setSearchParams] = useSearchParams();
   const [swapOpen, setSwapOpen] = useState(searchParams.get('swap') === '1');
+  const [placesOpen, setPlacesOpen] = useState(false);
   const photo = useRef();
   const bottom = useRef();
   const refresh = () => setTick((n) => n + 1);
@@ -287,7 +336,7 @@ function Thread({ id, onActivity }) {
                   : m.kind === 'offer' ? <OfferCard m={m} mine={mine} conversationId={c.id} onChange={refresh} onCounter={(o) => setOfferFor({ counter: o })} />
                   : m.kind === 'image' ? <ChatImage url={`/api/conversations/${c.id}/files/${m.file_id}`} />
                     : m.kind === 'audio' ? <ChatAudio url={`/api/conversations/${c.id}/files/${m.file_id}`} duration={m.duration} />
-                      : <p className="whitespace-pre-line break-words">{m.body}</p>}
+                      : <p className="whitespace-pre-line break-words">{withMapLinks(m.body, t('places.openMap'))}</p>}
                 <p className={`mt-1 text-[10px] ${mine ? 'text-brand-100' : 'text-slate-400'}`}>
                   {dateTime(m.created_at)}{mine && m.read_at ? ' ✓✓' : ''}
                 </p>
@@ -313,6 +362,7 @@ function Thread({ id, onActivity }) {
         {c.product_id && c.product_availability === 'available' && c.product_accepts_swap && c.seller_id !== user.id && (
           <button type="button" className="btn-outline shrink-0 rounded-full border-violet-300 px-3 py-1.5 text-xs font-bold text-violet-800" onClick={() => setSwapOpen(true)}>🔄 {t('swap.chatButton')}</button>
         )}
+        <button type="button" className="btn-outline shrink-0 rounded-full px-3 py-1.5 text-xs" onClick={() => setPlacesOpen(true)} disabled={sending}>📍 {t('places.button')}</button>
         <button type="button" className="btn-outline shrink-0 rounded-full px-3 py-1.5 text-xs" onClick={() => photo.current?.click()} disabled={sending}>📷 {t('chat.photo')}</button>
         <input ref={photo} type="file" accept="image/*" className="hidden" onChange={pickPhoto} />
         {recorder.supported && <button type="button" className="btn-outline shrink-0 rounded-full px-3 py-1.5 text-xs" onClick={startRecording} disabled={sending}>🎤 {t('chat.voice')}</button>}
@@ -329,6 +379,16 @@ function Thread({ id, onActivity }) {
       </form>
       </>
       )}
+      <PlacesDialog open={placesOpen} city={c.product_city} onClose={() => setPlacesOpen(false)} onPick={async (p) => {
+        setPlacesOpen(false);
+        const name = (lang === 'ar' ? p.name_ar : p.name_fr) || p.name_ar;
+        const map = p.lat != null && p.lng != null ? `\nhttps://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lng}#map=17/${p.lat}/${p.lng}` : '';
+        try {
+          const { message } = await api(`/conversations/${id}/messages`, { method: 'POST', body: { body: `📍 ${t('places.message')}: ${name}${p.address ? ` — ${p.address}` : ''}${map}` } });
+          setState((st) => ({ ...st, messages: [...st.messages, message], changed: true }));
+          onActivity();
+        } catch (error) { setState((st) => ({ ...st, sendError: error })); }
+      }} />
       <SwapDialog open={swapOpen} conversationId={c.id} onSent={refresh}
         onClose={() => { setSwapOpen(false); if (searchParams.get('swap')) setSearchParams({}, { replace: true }); }} />
       <OfferDialog open={Boolean(offerFor)} onClose={() => setOfferFor(null)}

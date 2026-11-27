@@ -933,3 +933,20 @@ ALTER TABLE messages ADD COLUMN IF NOT EXISTS swap_cash BIGINT;
 -- ---------- Spoken description of a listing (for sellers who prefer talking to typing) ----------
 ALTER TABLE products ADD COLUMN IF NOT EXISTS voice_url TEXT;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS voice_duration SMALLINT;
+
+-- ---------- Safe meeting places (admin-managed), suggested in the chat for hand-overs ----------
+CREATE TABLE IF NOT EXISTS meeting_places (
+  id          SERIAL PRIMARY KEY,
+  city        VARCHAR(40) NOT NULL,
+  name_ar     VARCHAR(120) NOT NULL,
+  name_fr     VARCHAR(120) NOT NULL DEFAULT '',
+  address     VARCHAR(200) NOT NULL DEFAULT '',
+  kind        VARCHAR(10) NOT NULL DEFAULT 'other' CHECK (kind IN ('mall', 'police', 'station', 'market', 'bank', 'other')),
+  lat         DOUBLE PRECISION,
+  lng         DOUBLE PRECISION,
+  is_active   BOOLEAN NOT NULL DEFAULT true,
+  sort_order  INT NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS meeting_places_city_idx ON meeting_places (city, sort_order);
+ALTER TABLE meeting_places ENABLE ROW LEVEL SECURITY;

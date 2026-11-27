@@ -121,9 +121,31 @@ export function removeUploads(urls) {
   if (ids.length) query('DELETE FROM files WHERE id = ANY($1::int[])', [ids]).catch(() => {});
 }
 
-/** Express handler for GET /uploads/f/:id */
+// Smaller copies for listing cards and data-saver mode (?w=240 or ?w=480). Made once per size, then
+// served from the CDN cache (immutable): cards download ~15–30 KB instead of the full photo.
+const THUMB_WIDTHS = new Set([240, 480]);
+
+/** Express handler for GET /uploads/f/:id[?w=240|480] */
 export async function serveFile(req, res) {
   const id = parseInt(req.params.id, 10);
   if (!id) return res.status(404).end();
-  return sendFile(res, id);
+  const w = parseInt(req.query.w, 10);
+  if (!THUMB_WIDTHS.has(w)) return sendFile(res, id);
+  const { rows } = await query('SELECT mime, data FROM files WHERE id = $1 AND is_private = false', [id]);
+  if (!rows[0]) return res.status(404).end();
+  if (!/^image\/(jpeg|png|webp)$/.test(rows[0].mime)) return sendFile(res, id);
+  let out;
+  try {
+    const sharp = (await import('sharp')).default;
+    out = await sharp(rows[0].data).rotate().resize({ width: w, withoutEnlargement: true }).webp({ quality: w <= 240 ? 55 : 65 }).toBuffer();
+  } catch {
+    return sendFile(res, id); // unreadable image: send the original
+  }
+  res.set({
+    'Content-Type': 'image/webp',
+    'Cache-Control': 'public, max-age=31536000, s-maxage=31536000, immutable',
+    'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'",
+    'X-Content-Type-Options': 'nosniff',
+  });
+  return res.send(out);
 }

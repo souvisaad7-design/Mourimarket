@@ -16,6 +16,7 @@ import { taggedUrl, viewSource } from '../lib/viewSource.js';
 import { rememberView } from '../lib/souk-ai.js';
 import StatusImageButton from '../components/StatusImage.jsx';
 import { VoicePlayer } from '../components/VoiceNote.jsx';
+import { liteOn, useLite } from '../lib/dataSaver.js';
 import { InspectionReport } from '../components/Inspection.jsx';
 
 function ReportModal({ productId, open, onClose }) {
@@ -294,7 +295,7 @@ export default function ProductDetail() {
           <InspectionReport inspection={product.inspection} />
           {product.video_url && (
             <section className="card overflow-hidden p-0" aria-label={t('video.title')}>
-              <video src={product.video_url} controls playsInline preload="metadata" className="max-h-[70vh] w-full bg-black" />
+              <video src={product.video_url} controls playsInline preload={liteOn() ? 'none' : 'metadata'} className="max-h-[70vh] w-full bg-black" />
             </section>
           )}
           <div className="card p-4"><ShareBar product={product} /></div>
@@ -407,6 +408,8 @@ function ListingLocation({ product, here }) {
   const { meta } = useApp();
   const cityName = useCityName();
   if (product.map_lat == null) return null;
+  const lite = useLite();
+  const [showMap, setShowMap] = useState(false);
   const exact = product.loc_precision === 'exact';
   const place = [product.district, product.area, cityName(meta.cities, product.city)].filter(Boolean).join('، ');
   return (
@@ -420,10 +423,12 @@ function ListingLocation({ product, here }) {
           <span className="badge bg-gold-400 px-3 py-1.5 text-sm text-ink">≈ {t('geo.kmFromYou', { km: String(product.distance_km) })}</span>
         ) : !here && <span className="text-xs text-slate-500">{t('geo.locateForDistance')}</span>}
       </div>
-      <MapView className="h-64" center={[product.map_lat, product.map_lng]} zoom={13}
+      {lite && !showMap ? (
+        <button type="button" onClick={() => setShowMap(true)} className="flex h-24 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 text-sm font-semibold text-slate-600">🗺 {t('lite.showMap')}</button>
+      ) : <MapView className="h-64" center={[product.map_lat, product.map_lng]} zoom={13}
         markers={exact ? [{ id: product.id, lat: product.map_lat, lng: product.map_lng, title: product.title }] : []}
         area={exact ? null : { lat: product.map_lat, lng: product.map_lng, radius: product.loc_precision === 'city' ? 4000 : 1000 }}
-        me={here ? { ...here, title: t('geo.you') } : null} label={t('geo.itemLocation')} />
+        me={here ? { ...here, title: t('geo.you') } : null} label={t('geo.itemLocation')} />}
       <p className="text-xs text-slate-500">🔒 {exact ? t('geo.exactShown') : product.loc_precision === 'city' ? t('geo.cityOnly') : t('geo.approxShown')}</p>
     </section>
   );

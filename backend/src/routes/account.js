@@ -49,7 +49,7 @@ router.delete('/favorites/:productId', async (req, res) => {
 
 const CONVERSATION_SELECT = `
   cv.id, cv.product_id, cv.wanted_id, cv.buyer_id, cv.seller_id, cv.last_message_at, wa.title AS wanted_title,
-  p.title AS product_title, p.price AS product_price, p.availability AS product_availability, p.accepts_swap AS product_accepts_swap, p.swap_wanted AS product_swap_wanted,
+  p.title AS product_title, p.price AS product_price, p.availability AS product_availability, p.city AS product_city, p.accepts_swap AS product_accepts_swap, p.swap_wanted AS product_swap_wanted,
   (SELECT url FROM product_images i WHERE i.product_id = p.id ORDER BY sort_order, id LIMIT 1) AS product_cover,
   CASE WHEN cv.buyer_id = $1 THEN cv.seller_id ELSE cv.buyer_id END AS other_id,
   CASE WHEN cv.buyer_id = $1 THEN us.name ELSE ub.name END AS other_name,

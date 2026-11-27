@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useI18n } from '../i18n/index.jsx';
 import { Icon } from './ui.jsx';
+import { thumb, useLite } from '../lib/dataSaver.js';
 
 /** Horizontal, swipeable strip of images (scroll-snap). Reports the visible index. */
 function SwipeTrack({ images, index, onIndex, render, className = '' }) {
@@ -83,7 +84,7 @@ function Lightbox({ images, start, title, onClose }) {
             <SwipeTrack images={images} index={index} onIndex={setIndex} className="h-full"
               render={(img) => (
                 <div className="flex h-full items-center justify-center p-2" style={{ touchAction: 'pan-x pinch-zoom' }} onDoubleClick={() => setZoomed(true)}>
-                  <img src={img.url} alt={title} className="max-h-full max-w-full object-contain" draggable="false" />
+                  <img src={lite ? thumb(img.url, 480) : img.url} alt={title} className="max-h-full max-w-full object-contain" draggable="false" />
                 </div>
               )} />
             <NavButtons count={images.length} index={index} setIndex={go} dark />
@@ -95,7 +96,7 @@ function Lightbox({ images, start, title, onClose }) {
           {images.map((img, i) => (
             <button key={img.id} type="button" onClick={() => go(i)} aria-label={t('product.photo', { i: i + 1, n: images.length })}
               className={`h-12 w-16 shrink-0 overflow-hidden rounded-md ring-2 ${i === index ? 'ring-gold-400' : 'ring-transparent opacity-50'}`}>
-              <img src={img.url} alt="" className="h-full w-full object-cover" />
+              <img src={thumb(img.url, 240)} alt="" loading="lazy" className="h-full w-full object-cover" />
             </button>
           ))}
         </div>

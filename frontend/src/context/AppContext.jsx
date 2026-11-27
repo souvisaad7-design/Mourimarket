@@ -63,6 +63,8 @@ export function AppProvider({ children }) {
     // This phone stops receiving the account's notifications.
     import('../lib/push.js').then((m) => m.disablePush()).catch(() => {});
     setToken(null); setUser(null);
+    // Forget this account's data kept for offline reading.
+    navigator.serviceWorker?.controller?.postMessage({ type: 'clear-user-cache' });
   }, []);
   const reloadMeta = useCallback(() => api('/meta').then(setMeta).catch(() => {}), []);
   // Cities, prices and categories are edited in /admin: refresh them when the visitor comes back to the tab.

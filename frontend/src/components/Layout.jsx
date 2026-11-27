@@ -9,6 +9,7 @@ import { InstallPrompt, OfflineBanner, ThemeToggle } from './AppChrome.jsx';
 import { SearchBar } from './SearchBar.jsx';
 import { Avatar, CategoryIcon, Icon, Logo, SiteMark } from './ui.jsx';
 import { AiFab } from '../pages/SoukAI.jsx';
+import { DataSaverToggle } from './DataSaver.jsx';
 
 function Badge({ n }) {
   if (!n) return null;
@@ -267,6 +268,7 @@ function Header() {
           <Logo size="lg" onDark />
           {!inAdmin && <div className="mx-auto hidden w-full max-w-xl md:block"><SearchBar compact /></div>}
           <div className="ms-auto flex shrink-0 items-center gap-1 sm:gap-2 md:ms-0">
+            <div className="hidden sm:block"><DataSaverToggle /></div>
             <div className="hidden sm:block"><ThemeToggle /></div>
             {user ? (
               <>
@@ -308,6 +310,7 @@ function Header() {
               {mobileItems.map((l) => renderLink(l, mobileCls, true))}
               {!user && <NavLink to="/login" className={mobileCls}><Icon name="user" className="h-4 w-4" />{t('nav.login')}</NavLink>}
               <div className="flex items-center gap-2 pt-2"><div className="flex-1"><LangSwitcher compact /></div><ThemeToggle withLabel /></div>
+              <DataSaverToggle withLabel />
             </nav>
           </div>
         )}

@@ -5,6 +5,7 @@ import { useI18n } from '../i18n/index.jsx';
 import { api } from '../lib/api.js';
 import { Icon, OldPrice, VerifiedBadge, useCityName } from './ui.jsx';
 import { useAttrSummary } from './Attributes.jsx';
+import { thumb, useLite } from '../lib/dataSaver.js';
 
 export function FavoriteButton({ product, className = '', onChange }) {
   const { user, notify } = useApp();
@@ -52,6 +53,7 @@ export function discountPercent(product) {
 }
 
 export default function ProductCard({ product, onFavoriteChange }) {
+  const lite = useLite();
   const { t, price, ago, number } = useI18n();
   const { meta } = useApp();
   const cityName = useCityName();
@@ -64,7 +66,7 @@ export default function ProductCard({ product, onFavoriteChange }) {
       className={`card group flex flex-col overflow-hidden transition hover:-translate-y-1 hover:shadow-lg ${product.is_featured && !sold ? 'ring-2 ring-gold-400/70' : ''}`}>
       <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
         {product.cover_url ? (
-          <img src={product.cover_url} alt={product.title} loading="lazy" className={`h-full w-full object-cover transition duration-300 group-hover:scale-105 ${sold ? 'opacity-60 grayscale' : ''}`} />
+          <img src={thumb(product.cover_url, lite ? 240 : 480)} alt={product.title} loading="lazy" decoding="async" className={`h-full w-full object-cover transition duration-300 group-hover:scale-105 ${sold ? 'opacity-60 grayscale' : ''}`} />
         ) : (
           <div className="flex h-full items-center justify-center text-slate-400"><Icon name="image" className="h-10 w-10" /></div>
         )}

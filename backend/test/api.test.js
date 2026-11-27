@@ -2393,3 +2393,45 @@ describe('Voice description', () => {
     assert.equal((await fetch(base + p.voice_url)).status, 404, 'old file removed');
   });
 });
+
+// ---------- Safe meeting places ----------
+describe('Safe meeting places', () => {
+  it('admin manages places per city; anyone lists the active ones', async () => {
+    const admin = await login('admin@souk-chinguetti.mr', 'Admin12345');
+    const buyer = await login('buyer@example.mr');
+    const body = { city: 'nouakchott', name_ar: 'مركز تجاري (مثال اختبار)', address: 'تفرغ زينة', kind: 'mall', lat: 18.1, lng: -15.97 };
+    assert.equal((await call('/api/admin/meeting-places', { method: 'POST', token: buyer, body })).status, 403);
+    assert.equal((await call('/api/admin/meeting-places', { method: 'POST', token: admin, body: { ...body, city: 'atlantis' } })).status, 400);
+    const r = await call('/api/admin/meeting-places', { method: 'POST', token: admin, body });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    const hidden = await call('/api/admin/meeting-places', { method: 'POST', token: admin, body: { ...body, name_ar: 'مكان مخفي', is_active: false } });
+    const list = (await call('/api/meeting-places?city=nouakchott')).data.items;
+    assert.ok(list.some((p) => p.id === r.data.place.id));
+    assert.ok(!list.some((p) => p.id === hidden.data.place.id), 'inactive places are hidden');
+    assert.deepEqual((await call('/api/meeting-places?city=rosso')).data.items, []);
+    await call(`/api/admin/meeting-places/${r.data.place.id}`, { method: 'PUT', token: admin, body: { ...body, name_ar: 'اسم جديد' } });
+    assert.ok((await call('/api/meeting-places?city=nouakchott')).data.items.some((p) => p.name_ar === 'اسم جديد'));
+    await call(`/api/admin/meeting-places/${r.data.place.id}`, { method: 'DELETE', token: admin });
+    await call(`/api/admin/meeting-places/${hidden.data.place.id}`, { method: 'DELETE', token: admin });
+    assert.deepEqual((await call('/api/meeting-places?city=nouakchott')).data.items, []);
+  });
+});
+
+// ---------- Data saver: small image copies ----------
+describe('Image thumbnails', () => {
+  it('serves smaller copies of listing photos on demand', async () => {
+    const sharp = (await import('sharp')).default;
+    const photo = await sharp({ create: { width: 1200, height: 800, channels: 3, background: { r: 30, g: 120, b: 90 } } }).png().toBuffer();
+    const { rows } = await pool.query("INSERT INTO files (mime, data) VALUES ('image/png', $1) RETURNING id", [photo]);
+    const url = `${base}/uploads/f/${rows[0].id}`;
+    const full = (await (await fetch(url)).arrayBuffer()).byteLength;
+    const small = await fetch(`${url}?w=240`);
+    assert.equal(small.status, 200);
+    assert.equal(small.headers.get('content-type'), 'image/webp');
+    assert.match(small.headers.get('cache-control'), /immutable/);
+    const buf = Buffer.from(await small.arrayBuffer());
+    assert.equal((await sharp(buf).metadata()).width, 240);
+    assert.ok(buf.length < full, `${buf.length} < ${full}`);
+    assert.equal((await fetch(`${url}?w=999`)).headers.get('content-type'), 'image/png', 'other widths: the original');
+  });
+});

@@ -20,7 +20,7 @@ const NAV = [
     ['orders', 'deliveryOrders', 'grid', 'pending_orders'], ['couriers', 'deliveryCouriers', 'users', 'pending_couriers'], ['escrow', 'escrow', 'shield', 'escrow_todo'], ['delivery', 'deliveryPricing', 'globe'],
   ]],
   ['manage', [
-    ['users', 'users', 'user'], ['stores', 'stores', 'store'], ['categories', 'categories', 'filter'], ['cities', 'cities', 'pin'],
+    ['users', 'users', 'user'], ['stores', 'stores', 'store'], ['categories', 'categories', 'filter'], ['cities', 'cities', 'pin'], ['places', 'meetingPlaces', 'shield'],
     ['reviews', 'reviews', 'star'], ['files', 'files', 'image'],
   ]],
   ['site', [

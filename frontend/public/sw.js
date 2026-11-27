@@ -1,14 +1,19 @@
 /* Souk Chinguetti service worker: fast repeat visits and an offline fallback.
  * - Built assets (/assets/*, hashed names), icons and fonts: cache-first.
- * - Listing images (/uploads/*): stale-while-revalidate, capped.
+ * - Listing images (/uploads/*): cache-first (a file never changes), capped: no re-download.
  * - Page navigations: network-first, falling back to the cached app shell.
- * - API calls are never cached (always fresh data).
+ * - API: always from the network; listing pages and favourites are also kept so they can be read
+ *   offline (network-first, cache only when there is no connection). Cleared at sign-out.
  */
-const VERSION = 'mm-v1.3.0';
+const VERSION = 'mm-v1.4.0';
 const SHELL = `${VERSION}-shell`;
 const STATIC = `${VERSION}-static`;
 const IMAGES = `${VERSION}-images`;
-const MAX_IMAGES = 120;
+const MAX_IMAGES = 250;
+const API = `${VERSION}-api`;
+const MAX_API = 80;
+// Read-only API answers worth keeping for offline reading.
+const OFFLINE_API = [/^\/api\/products\/\d+$/, /^\/api\/favorites$/, /^\/api\/meta$/, /^\/api\/settings$/, /^\/api\/categories$/];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(SHELL).then((c) => c.addAll(['/', '/manifest.webmanifest', '/favicon.png', '/logo-mark.png', '/logo-mark-green.png'])).then(() => self.skipWaiting()));
@@ -39,7 +44,14 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   if (url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith('/api/')) return;
+  if (url.pathname.startsWith('/api/')) {
+    if (!OFFLINE_API.some((re) => re.test(url.pathname)) || url.search) return;
+    event.respondWith(fetch(request).then((r) => {
+      if (r.ok) { const copy = r.clone(); caches.open(API).then((c) => c.put(request, copy).then(() => trim(API, MAX_API))); }
+      return r;
+    }).catch(async () => (await caches.match(request)) || Response.error()));
+    return;
+  }
 
   if (request.mode === 'navigate') {
     event.respondWith(
@@ -58,10 +70,14 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/uploads/')) {
     event.respondWith(caches.open(IMAGES).then(async (c) => {
       const cached = await c.match(request);
-      const network = fetch(request).then((r) => { if (r.ok) { c.put(request, r.clone()); trim(IMAGES, MAX_IMAGES); } return r; }).catch(() => cached);
-      return cached || network;
+      if (cached) return cached; // files never change: no need to download again
+      return fetch(request).then((r) => { if (r.ok) { c.put(request, r.clone()); trim(IMAGES, MAX_IMAGES); } return r; });
     }));
   }
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'clear-user-cache') event.waitUntil(caches.delete(API));
 });
 
 // ---------- Web Push: show the notification, open the right page when tapped ----------
